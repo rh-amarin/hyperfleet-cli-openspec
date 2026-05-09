@@ -1,0 +1,5 @@
+$ cd /workspace/artifacts/hyperfleet && go vet ./...
+(no output)
+Exit code: 0
+
+PASS: go vet ./... reported no issues.

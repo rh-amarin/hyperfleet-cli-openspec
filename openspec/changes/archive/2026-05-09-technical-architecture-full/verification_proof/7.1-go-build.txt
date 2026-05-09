@@ -1,0 +1,5 @@
+$ cd /workspace/artifacts/hyperfleet && go build ./...
+(no output)
+Exit code: 0
+
+PASS: go build ./... succeeded with no errors.

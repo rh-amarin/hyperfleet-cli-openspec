@@ -1,0 +1,8 @@
+SKIPPED: Live cluster verification (task 7.4d)
+
+Reason: Live cluster API calls are not possible in this sandbox environment.
+The HyperFleet API endpoint at 34.175.27.173:8000 is not reachable from this
+build environment. All other verification steps (7.1–7.5) passed locally.
+
+No stub commands make real API calls, so this skip does not affect correctness
+of the scaffold implementation.

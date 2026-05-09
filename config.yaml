@@ -1,0 +1,33 @@
+schema: spec-driven
+
+context: |
+  Project: hyperfleet-cli — a Go CLI for managing HyperFleet clusters.
+  Language: Go 1.22+, module github.com/rh-amarin/hyperfleet-cli.
+  CLI framework: github.com/spf13/cobra with package-level global vars set by PersistentPreRunE.
+  HTTP client: generic api.Get[T] / Post[T] / Patch[T] / Delete[T] in internal/api; errors parsed as RFC 9457 (APIError).
+  Config: YAML-based config.yaml + state.yaml via internal/config; config.ClusterID() resolves explicit arg > state > error.
+  Output: internal/output.Printer always writes to os.Stdout; Warn/Info write to stderr.
+  Testing stack: Go standard library only — testing + net/http/httptest. No third-party test frameworks.
+  Real API: LoadBalancer at 34.175.27.173:8000; GKE cluster in amarin-ns1 namespace.
+
+  Definition of Done — every change MUST satisfy all of the following before it can be archived:
+  1. All new packages and functions have unit tests using httptest.NewServer where HTTP is involved.
+  2. go test ./... passes with zero failures.
+  3. go build ./... and go vet ./... pass with no errors.
+  4. Test output is captured and saved to verification_proof/ as .txt files (one per go test command).
+  5. verification_proof/ files are committed and included in the PR.
+  6. Live verification against the real cluster is performed and its output saved to verification_proof/.
+
+rules:
+  proposal:
+    - Include a "Testing Scope" section that lists every new package and the test cases it needs.
+    - Specify which verification steps require live cluster access.
+
+  tasks:
+    - Always include a "Unit Tests" section with an explicit task for each new file or function that needs tests.
+    - Always include a "Verify" section as the final section with these mandatory subtasks in order:
+        (a) go build ./... succeeds
+        (b) go vet ./... reports no issues
+        (c) go test ./... passes — capture full output and save to verification_proof/tests.txt
+        (d) Live verification against real cluster — capture output per command and save to verification_proof/<task-id>-<command>.txt
+    - The verification_proof/ folder must be committed as part of the change before archiving.

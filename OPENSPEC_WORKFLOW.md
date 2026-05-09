@@ -142,3 +142,31 @@ Implement all four foundation packages (`internal/config`, `internal/api`, `inte
 ### Verdict: PASS ✅
 
 Full lifecycle completed: scaffold → artifacts → implementation → review (1 fix cycle) → merge. All `go test ./...` pass. Four foundation packages delivered following the spec-driven methodology.
+
+---
+
+## Cycle 3 — Phase 1 Implementation Session (2026-05-09)
+
+### Context
+
+Direct implementation session (no ACP orchestration) implementing the four foundation packages from spec.
+
+### What WORKED ✅
+
+| Item | Detail |
+|---|---|
+| Planning artifacts | proposal → design → delta specs (4) → tasks, all before any Go code |
+| `openspec status --json` tracking | Unlocked tasks only after all deps were written |
+| Generic Go types | `ListResponse[T]`, `Get[T]`/`Post[T]`/`Patch[T]`/`Delete[T]` work correctly with Go 1.22 |
+| `httptest.NewServer` test isolation | All HTTP tests use real HTTP server, no mocking |
+| Atomic config writes | temp+rename; verified by test reload |
+| `go test ./...` | 36+ tests pass across all packages |
+
+### What DOESN'T WORK / Gaps ❌
+
+| Item | Detail |
+|---|---|
+| Delta spec format requirement | `openspec archive` rejects specs without `## ADDED Requirements` headers. Not documented in `openspec instructions` output — must add the section explicitly. |
+| Write tool persistence across session boundary | File writes from an interrupted session did NOT persist on disk (only `go.mod` changes via `git-tracked` `go get` survived). Workaround: use bash heredoc `cat > file << 'EOF'` which is more reliable. |
+| openspec PATH not persisted | `npm install -g openspec` needed each session restart. |
+| yaml.v3 requires explicit yaml tags | `yaml.v3` does NOT read `json:` struct tags — multi-word fields need explicit `yaml:"snake_case"` tags or output breaks. Spec does not call this out. |

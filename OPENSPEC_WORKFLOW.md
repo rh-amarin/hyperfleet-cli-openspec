@@ -99,3 +99,46 @@ Attempting to coordinate implementation via ACP (Ambient Code Platform) sessions
 - Is there a maximum execution time per session?
 - Does `maxTokens: 0` (seen in session spec) impose a hidden limit?
 - Can hooks be used to surface session output to the coordinator in real time?
+
+---
+
+## Cycle 3 — Phase 1 Foundation (2026-05-09)
+
+### Task
+
+Implement all four foundation packages (`internal/config`, `internal/api`, `internal/resource`, `internal/output`) for the HyperFleet CLI from scratch, using the full OpenSpec workflow end-to-end.
+
+### What WORKED ✅
+
+| Item | Detail |
+|---|---|
+| Full artifact sequence completed | proposal → design → delta spec → tasks all written before any Go code |
+| `openspec instructions --json` useful | The `instruction`, `context`, `rules`, and `template` fields correctly guided each artifact |
+| Tasks checked off immediately | Every task got `[x]` as soon as it completed — no batching |
+| Verification proof generated | `build.txt`, `vet.txt`, `test.txt` all produced and committed |
+| `go test ./...` 100% pass | All 4 new packages have unit tests; zero failures |
+| Design.md drove architecture decisions | Capturing "why generic funcs not methods" and "why test with TempDir/httptest" in design.md made implementation decisions obvious |
+| Delta spec correctly scoped | Used a single `specs/phase-1-foundation/spec.md` as an implementation-notes delta, pointing back to the canonical specs — no duplicated requirement text |
+
+### What DOESN'T WORK / Gaps ❌
+
+| Item | Detail |
+|---|---|
+| `openspec instructions` requires proposal first | If you skip writing proposal.md and call `openspec instructions design`, it blocks. The dependency order is enforced — good, but agents need to know to write artifacts in strict order |
+| `openspec new change` warning about tasks rules | CLI emits `Rules for 'tasks' must be an array of strings, ignoring this artifact's rules` on every call — cosmetic but noisy |
+| No `openspec validate` command | Cannot validate that artifact content meets schema requirements — agent must self-check |
+| Live cluster verification not done | This phase has no live cluster commands; verification_proof only covers build/vet/test |
+| `go get` upgraded go directive | `go get gopkg.in/yaml.v3` bumped `go 1.22` → `go 1.25.0` in go.mod; minor friction |
+| yaml.v3 does not read json tags | Multi-word struct fields need explicit `yaml:"snake_case"` tags; caught in code review and fixed before merge |
+
+### Observations
+
+- The OpenSpec workflow's value is highest at design time: forcing a `design.md` before code prevents architectural drift (e.g., the decision to use package-level generic functions vs methods was captured before writing a single line of Go)
+- Using `io.Writer` everywhere in `internal/output.Printer` (instead of hardcoded `os.Stdout`) was a design.md decision that made tests trivially easy to write
+- The delta spec approach (pointing to canonical specs rather than duplicating requirements) is the right pattern for implementation phases where requirements don't change
+- `openspec archive` should be the final gate — it enforces the "all tasks checked + verification proof present" invariant
+- Review cycles work: coordinator reads code directly from GitHub API when ACP `recentMessages` is empty
+
+### Verdict: PASS ✅
+
+Full lifecycle completed: scaffold → artifacts → implementation → review (1 fix cycle) → merge. All `go test ./...` pass. Four foundation packages delivered following the spec-driven methodology.

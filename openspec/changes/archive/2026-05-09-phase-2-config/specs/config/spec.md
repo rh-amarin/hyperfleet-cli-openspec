@@ -2,7 +2,7 @@
 
 ### Requirement: config-get
 
-`hf config get <section> <key>` prints a single configuration value.
+`hf config get <section> <key>` SHALL print a single configuration value.
 
 #### Scenario: Key found
 
@@ -44,7 +44,7 @@
 
 ### Requirement: config-env-create
 
-`hf config env create <name>` creates a new environment profile file.
+`hf config env create <name>` SHALL create a new environment profile file.
 
 #### Scenario: Create with flags
 
@@ -64,7 +64,7 @@
 
 ### Requirement: config-env-delete
 
-`hf config env delete <name>` (alias: `rm`) removes an environment profile.
+`hf config env delete <name>` (alias: `rm`) SHALL remove an environment profile.
 
 #### Scenario: Delete existing environment
 
@@ -89,7 +89,7 @@
 
 ### Requirement: config-doctor
 
-`hf config doctor` checks connectivity to the configured API server.
+`hf config doctor` SHALL check connectivity to the configured API server.
 
 #### Scenario: API reachable
 
@@ -109,7 +109,7 @@
 
 ### Requirement: active-env-guard-implementation
 
-The root PersistentPreRunE SHALL enforce that an active environment is set before executing any command except the defined bypass list.
+The root `PersistentPreRunE` SHALL enforce that an active environment is set before executing any command except the defined bypass list.
 
 #### Scenario: Bypass list commands succeed without active env
 
@@ -126,54 +126,54 @@ The root PersistentPreRunE SHALL enforce that an active environment is set befor
 
 ## MODIFIED Requirements
 
-### Requirement: Show Configuration
+## Requirement: Show Configuration
 
-`hf config show` (and `hf config` with no args) displays the resolved configuration.
+`hf config show` (and `hf config` with no args) SHALL display the resolved configuration.
 
 #### Scenario: Active environment set
 
 GIVEN an active environment is configured in state.yaml
 WHEN the user runs `hf config show`
-THEN the active environment name is printed at the top
-AND config values are shown grouped by section with no source annotations
-AND secrets (token, database.password, rabbitmq.password) are shown as `<set>` or `<not set>`
+THEN the active environment name MUST be printed at the top
+AND config values MUST be shown grouped by section with no source annotations
+AND secrets (token, database.password, rabbitmq.password) MUST be shown as `<set>` or `<not set>`
 
 #### Scenario: Show config for a named environment
 
 GIVEN environment profiles exist in `~/.config/hf/environments/`
 WHEN the user runs `hf config show <env-name>`
 THEN the CLI MUST display the file path of that environment file (e.g., `~/.config/hf/environments/<env-name>.yaml`)
-AND display the values defined in that environment file grouped by section
+AND MUST display the values defined in that environment file grouped by section
 AND secrets MUST be shown as `<set>` or `<not set>`
-AND the active environment is NOT changed
+AND the active environment MUST NOT be changed
 
 #### Scenario: Show config for a named environment that is also the active environment
 
 GIVEN the named environment is also the currently active environment
 WHEN the user runs `hf config show <env-name>`
-THEN the CLI MUST display the file path prefixed with `[active] ` (e.g., `[active] ~/.config/hf/environments/<env-name>.yaml`)
-AND display the values as usual
-AND the active environment is NOT changed
+THEN the CLI MUST display the file path prefixed with `[active] `
+AND MUST display the values as usual
+AND the active environment MUST NOT be changed
 
 #### Scenario: No active environment
 
 GIVEN no active environment is configured
 WHEN the user runs `hf config show`
-THEN the command exits with code 1
-AND prints the no-active-environment error with guidance
+THEN the command MUST exit with code 1
+AND MUST print the no-active-environment error with guidance
 
 ---
 
-### Requirement: hf-config-env-show
+## Requirement: hf-config-env-show
 
-`hf config env show <name>` displays the file location and values of a named environment profile without activating it.
+`hf config env show <name>` SHALL display the file location and values of a named environment profile without activating it.
 
 #### Scenario: Show named environment
 
 GIVEN an environment named `<name>` exists at `~/.config/hf/environments/<name>.yaml`
 WHEN the user runs `hf config env show <name>`
 THEN the CLI MUST print the absolute file path of the environment file
-AND display all key-value pairs defined in that file, grouped by section
+AND MUST display all key-value pairs defined in that file, grouped by section
 AND secrets MUST be shown as `<set>` or `<not set>`
 AND the currently active environment MUST NOT be changed
 
@@ -182,23 +182,23 @@ AND the currently active environment MUST NOT be changed
 GIVEN no environment named `<name>` exists
 WHEN the user runs `hf config env show <name>`
 THEN the CLI MUST print `[ERROR] environment '<name>' not found`
-AND exit with code 1
+AND MUST exit with code 1
 
 ---
 
-### Requirement: active-env-guard
+## Requirement: active-env-guard
 
-Commands that require a configured target must fail when no active environment is set.
+Commands that require a configured target MUST fail when no active environment is set.
 
 #### Scenario: Command requires active env, none set
 
 GIVEN no active environment is configured
 WHEN the user runs any of: `hf config show`, `hf config set`
-THEN the command exits non-zero
-AND prints the no-active-environment error with guidance
+THEN the command MUST exit non-zero
+AND MUST print the no-active-environment error with guidance
 
 #### Scenario: Always-available commands
 
 GIVEN no active environment is configured
 WHEN the user runs any of: `hf config env list`, `hf config env new`, `hf config env activate`, `hf config env show`, `hf config env create`, `hf config env delete`
-THEN the command succeeds normally
+THEN the command MUST succeed normally

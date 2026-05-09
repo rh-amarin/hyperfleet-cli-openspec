@@ -60,3 +60,42 @@ The workflow is functional. The agent followed the spec-driven methodology end t
 - Consider adding `openspec validate` step to CLAUDE.md workflow instructions
 - Add explicit reminder in tasks template that `go.sum` must be committed
 - Consider adding `openspec archive` step test to verify full lifecycle
+
+---
+
+## Cycle 2 — 2026-05-09 — ACP Session Orchestration
+
+### Context
+
+Attempting to coordinate implementation via ACP (Ambient Code Platform) sessions — one session per phase, with a separate review session per PR.
+
+### ACP Session Observations ⚠️
+
+| Observation | Detail |
+|---|---|
+| `totalMessages` stays 0 | The API does not surface assistant messages during autonomous initial-prompt processing. Messages only count after explicit `send_message` exchanges. Coordinator cannot see agent progress mid-run. |
+| `lastActivityTime` updates slowly | Timestamp only increments every 30–90 seconds during long tool-call sequences (file writes, bash). Long gaps do NOT mean the session is stuck. |
+| `recentMessages` always empty | During the initial prompt run, no messages appear even after `send_message` nudges — those are queued behind the running task. |
+| `restart` does not re-launch | `acp_restart_session` stopped session v1 but it transitioned to `Stopped` without re-entering `Running`. A new session must be created instead. |
+| Branch push as progress signal | The most reliable external signal is watching for the git branch to appear on GitHub and new commits to land. `lastActivityTime` alone is insufficient. |
+| Sessions run but are opaque | The agent IS working (activity time ticks, branch appears), but there is no way to see intermediate output or tool calls during the run. |
+
+### Workarounds adopted
+
+- Added `git push -u origin <branch>` immediately after `git checkout -b` so branch visibility is the progress indicator
+- Added frequent WIP commits (`git add -A && git commit -m "wip: <step>"`) after each major step
+- Watching `gh api repos/.../commits?sha=<branch>` for new commits as a heartbeat
+- Polling both session status AND GitHub branch simultaneously to reduce false negatives
+
+### What WORKS in ACP sessions ✅
+
+- Sessions start and clone the repo correctly
+- `openspec --version` check works (CLI persists between steps)
+- `git checkout -b` and `git push -u origin` work
+- Agent reads CLAUDE.md and follows OpenSpec workflow instructions
+
+### Open questions
+
+- Is there a maximum execution time per session?
+- Does `maxTokens: 0` (seen in session spec) impose a hidden limit?
+- Can hooks be used to surface session output to the coordinator in real time?

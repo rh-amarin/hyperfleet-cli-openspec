@@ -2,9 +2,11 @@ package resource_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/rh-amarin/hyperfleet-cli/internal/resource"
+	"gopkg.in/yaml.v3"
 )
 
 func TestClusterRoundTrip(t *testing.T) {
@@ -139,5 +141,70 @@ func TestAdapterStatusRoundTrip(t *testing.T) {
 	}
 	if as.Data["extra_key"] != "extra_val" {
 		t.Errorf("Data[extra_key]: got %v", as.Data["extra_key"])
+	}
+}
+
+// TestClusterYAMLRoundTrip verifies that yaml.v3 uses the explicit yaml tags
+// (snake_case) rather than lowercasing Go field names directly.
+func TestClusterYAMLRoundTrip(t *testing.T) {
+	c := resource.Cluster{
+		ID:          "abc-123",
+		Kind:        "Cluster",
+		Name:        "test-cluster",
+		Generation:  2,
+		Labels:      map[string]string{"env": "test"},
+		Spec:        map[string]any{"replicas": 3},
+		CreatedBy:   "user1",
+		CreatedTime: "2024-01-01T00:00:00Z",
+		UpdatedBy:   "user1",
+		UpdatedTime: "2024-01-02T00:00:00Z",
+		Href:        "/api/hyperfleet/v1/clusters/abc-123",
+		Status: resource.ClusterStatus{
+			Conditions: []resource.ResourceCondition{
+				{
+					Type:               "Available",
+					Status:             "True",
+					LastTransitionTime: "2024-01-01T00:00:00Z",
+					ObservedGeneration: 2,
+					CreatedTime:        "2024-01-01T00:00:00Z",
+					LastUpdatedTime:    "2024-01-01T00:00:00Z",
+				},
+			},
+		},
+	}
+
+	out, err := yaml.Marshal(c)
+	if err != nil {
+		t.Fatalf("yaml.Marshal error: %v", err)
+	}
+	yamlStr := string(out)
+
+	// Verify snake_case keys are present (not camelCase lowercased)
+	for _, want := range []string{"created_time", "updated_time", "created_by", "updated_by", "last_transition_time", "observed_generation", "last_updated_time"} {
+		if !strings.Contains(yamlStr, want) {
+			t.Errorf("YAML missing key %q:\n%s", want, yamlStr)
+		}
+	}
+
+	// Verify camelCase-collapsed keys are NOT present
+	for _, bad := range []string{"createdtime", "updatedtime", "createdby", "updatedby", "lasttransitiontime", "observedgeneration"} {
+		if strings.Contains(yamlStr, bad) {
+			t.Errorf("YAML contains incorrectly lowercased key %q:\n%s", bad, yamlStr)
+		}
+	}
+
+	// Round-trip: unmarshal back and verify field values
+	var c2 resource.Cluster
+	if err := yaml.Unmarshal(out, &c2); err != nil {
+		t.Fatalf("yaml.Unmarshal error: %v", err)
+	}
+	if c2.CreatedTime != c.CreatedTime {
+		t.Errorf("CreatedTime round-trip: got %q, want %q", c2.CreatedTime, c.CreatedTime)
+	}
+	if c2.UpdatedBy != c.UpdatedBy {
+		t.Errorf("UpdatedBy round-trip: got %q, want %q", c2.UpdatedBy, c.UpdatedBy)
+	}
+	if len(c2.Status.Conditions) != 1 || c2.Status.Conditions[0].LastTransitionTime != "2024-01-01T00:00:00Z" {
+		t.Errorf("Conditions round-trip: got %+v", c2.Status.Conditions)
 	}
 }

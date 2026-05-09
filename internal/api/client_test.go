@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rh-amarin/hyperfleet-cli/internal/api"
 )
@@ -279,5 +280,33 @@ func TestResourceHref(t *testing.T) {
 	want := "http://localhost:8000/api/hyperfleet/v1/clusters/abc-123"
 	if href != want {
 		t.Errorf("ResourceHref: got %q, want %q", href, want)
+	}
+}
+
+func TestTimeoutErrorFormat(t *testing.T) {
+	// Server that blocks until its context is cancelled (simulates a hung server).
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	defer srv.Close()
+
+	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "", false)
+
+	// A context with a very short deadline causes the HTTP client to return a
+	// timeout error (url.Error wrapping context.DeadlineExceeded, Timeout()==true).
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
+	defer cancel()
+
+	_, err := api.Get[testResource](ctx, c, "resources/1")
+	if err == nil {
+		t.Fatal("expected error from timeout")
+	}
+
+	errStr := err.Error()
+	if !strings.Contains(errStr, "[ERROR] Request to") {
+		t.Errorf("timeout error missing '[ERROR] Request to' prefix: got %q", errStr)
+	}
+	if !strings.Contains(errStr, "timed out after 30s") {
+		t.Errorf("timeout error missing 'timed out after 30s': got %q", errStr)
 	}
 }

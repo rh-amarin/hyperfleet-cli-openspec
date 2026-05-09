@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -79,7 +80,10 @@ func (c *Client) do(ctx context.Context, method, path string, body any) (*http.R
 	elapsed := time.Since(start).Milliseconds()
 
 	if err != nil {
-		return nil, err
+		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+			return nil, fmt.Errorf("[ERROR] Request to %s timed out after 30s. Check your network connection and API server.", req.URL)
+		}
+		return nil, fmt.Errorf("[ERROR] %w", err)
 	}
 
 	if c.verbose {

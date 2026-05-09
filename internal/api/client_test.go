@@ -1,0 +1,283 @@
+package api_test
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/rh-amarin/hyperfleet-cli/internal/api"
+)
+
+type testResource struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+func newClient(t *testing.T, baseURL string) *api.Client {
+	t.Helper()
+	return api.NewClient(baseURL, "test-token", false)
+}
+
+func TestGetHappyPath(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("method: got %s, want GET", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(testResource{ID: "1", Name: "test"})
+	}))
+	defer srv.Close()
+
+	c := newClient(t, srv.URL+"/api/hyperfleet/v1/")
+	res, err := api.Get[testResource](context.Background(), c, "resources/1")
+	if err != nil {
+		t.Fatalf("Get error: %v", err)
+	}
+	if res.ID != "1" || res.Name != "test" {
+		t.Errorf("unexpected result: %+v", res)
+	}
+}
+
+func TestPostHappyPath(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("method: got %s, want POST", r.Method)
+		}
+		var body testResource
+		json.NewDecoder(r.Body).Decode(&body)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		body.ID = "new-id"
+		json.NewEncoder(w).Encode(body)
+	}))
+	defer srv.Close()
+
+	c := newClient(t, srv.URL+"/api/hyperfleet/v1/")
+	res, err := api.Post[testResource](context.Background(), c, "resources", testResource{Name: "new"})
+	if err != nil {
+		t.Fatalf("Post error: %v", err)
+	}
+	if res.ID != "new-id" {
+		t.Errorf("unexpected ID: %q", res.ID)
+	}
+}
+
+func TestPatchHappyPath(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPatch {
+			t.Errorf("method: got %s, want PATCH", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(testResource{ID: "1", Name: "patched"})
+	}))
+	defer srv.Close()
+
+	c := newClient(t, srv.URL+"/api/hyperfleet/v1/")
+	res, err := api.Patch[testResource](context.Background(), c, "resources/1", map[string]string{"name": "patched"})
+	if err != nil {
+		t.Fatalf("Patch error: %v", err)
+	}
+	if res.Name != "patched" {
+		t.Errorf("unexpected Name: %q", res.Name)
+	}
+}
+
+func TestDeleteHappyPath(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Errorf("method: got %s, want DELETE", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(testResource{ID: "1", Name: "deleted"})
+	}))
+	defer srv.Close()
+
+	c := newClient(t, srv.URL+"/api/hyperfleet/v1/")
+	res, err := api.Delete[testResource](context.Background(), c, "resources/1")
+	if err != nil {
+		t.Fatalf("Delete error: %v", err)
+	}
+	if res.ID != "1" {
+		t.Errorf("unexpected ID: %q", res.ID)
+	}
+}
+
+func TestRFC7807ErrorParsing404(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]any{
+			"type":   "about:blank",
+			"title":  "Not Found",
+			"status": 404,
+			"detail": "Cluster not found",
+		})
+	}))
+	defer srv.Close()
+
+	c := newClient(t, srv.URL+"/api/hyperfleet/v1/")
+	_, err := api.Get[testResource](context.Background(), c, "clusters/bad-id")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	apiErr, ok := err.(*api.APIError)
+	if !ok {
+		t.Fatalf("expected *api.APIError, got %T: %v", err, err)
+	}
+	if apiErr.Status != 404 {
+		t.Errorf("Status: got %d, want 404", apiErr.Status)
+	}
+	if apiErr.Title != "Not Found" {
+		t.Errorf("Title: got %q", apiErr.Title)
+	}
+	if apiErr.Detail != "Cluster not found" {
+		t.Errorf("Detail: got %q", apiErr.Detail)
+	}
+	if !strings.Contains(apiErr.Error(), "[404]") {
+		t.Errorf("Error() format: got %q", apiErr.Error())
+	}
+}
+
+func TestRFC7807ValidationErrors(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]any{
+			"type":   "about:blank",
+			"title":  "Bad Request",
+			"status": 400,
+			"detail": "Validation failed",
+			"errors": []map[string]any{
+				{"field": "name", "message": "required", "constraint": "required"},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	c := newClient(t, srv.URL+"/api/hyperfleet/v1/")
+	_, err := api.Post[testResource](context.Background(), c, "resources", nil)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	apiErr, ok := err.(*api.APIError)
+	if !ok {
+		t.Fatalf("expected *api.APIError, got %T", err)
+	}
+	if len(apiErr.Errors) != 1 {
+		t.Fatalf("Errors len: got %d, want 1", len(apiErr.Errors))
+	}
+	if apiErr.Errors[0].Field != "name" {
+		t.Errorf("Field: got %q", apiErr.Errors[0].Field)
+	}
+}
+
+func TestNonJSONErrorBody(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("internal server error"))
+	}))
+	defer srv.Close()
+
+	c := newClient(t, srv.URL+"/api/hyperfleet/v1/")
+	_, err := api.Get[testResource](context.Background(), c, "resources/1")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	apiErr, ok := err.(*api.APIError)
+	if !ok {
+		t.Fatalf("expected *api.APIError, got %T", err)
+	}
+	if apiErr.Status != 500 {
+		t.Errorf("Status: got %d", apiErr.Status)
+	}
+	if apiErr.Detail != "internal server error" {
+		t.Errorf("Detail: got %q", apiErr.Detail)
+	}
+}
+
+func TestHTMLErrorBody(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusBadGateway)
+		w.Write([]byte("<!DOCTYPE html><html><body>Bad Gateway</body></html>"))
+	}))
+	defer srv.Close()
+
+	c := newClient(t, srv.URL+"/api/hyperfleet/v1/")
+	_, err := api.Get[testResource](context.Background(), c, "resources/1")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	apiErr, ok := err.(*api.APIError)
+	if !ok {
+		t.Fatalf("expected *api.APIError, got %T", err)
+	}
+	if !strings.Contains(apiErr.Detail, "Received HTML response") {
+		t.Errorf("HTML detail prefix missing: got %q", apiErr.Detail)
+	}
+}
+
+func TestBearerTokenHeader(t *testing.T) {
+	var capturedAuth string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(testResource{ID: "1"})
+	}))
+	defer srv.Close()
+
+	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "secret-token", false)
+	api.Get[testResource](context.Background(), c, "resources/1")
+
+	if capturedAuth != "Bearer secret-token" {
+		t.Errorf("Authorization header: got %q", capturedAuth)
+	}
+}
+
+func TestNoTokenNoAuthHeader(t *testing.T) {
+	var capturedAuth string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(testResource{ID: "1"})
+	}))
+	defer srv.Close()
+
+	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "", false)
+	api.Get[testResource](context.Background(), c, "resources/1")
+
+	if capturedAuth != "" {
+		t.Errorf("expected no Authorization header, got %q", capturedAuth)
+	}
+}
+
+func TestVerboseLogging(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(testResource{ID: "1"})
+	}))
+	defer srv.Close()
+
+	// verbose=true should not panic or error
+	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "", true)
+	_, err := api.Get[testResource](context.Background(), c, "resources/1")
+	if err != nil {
+		t.Fatalf("Get with verbose: %v", err)
+	}
+}
+
+func TestResourceHref(t *testing.T) {
+	c := api.NewClient("http://localhost:8000/api/hyperfleet/v1/", "", false)
+
+	href := c.ResourceHref("clusters/abc-123")
+	want := "http://localhost:8000/api/hyperfleet/v1/clusters/abc-123"
+	if href != want {
+		t.Errorf("ResourceHref: got %q, want %q", href, want)
+	}
+}

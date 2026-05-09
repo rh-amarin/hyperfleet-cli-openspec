@@ -32,7 +32,7 @@ go build ./...      # verify compilation
 |---|---|---|
 | Commands | `cmd/` | Cobra subcommands, one file per domain |
 | API client | `internal/api/` | Generic `Get[T]`, `Post[T]`, `Patch[T]`, `Delete`; RFC 9457 errors |
-| Config | `internal/config/` | File-per-property at `~/.config/hf/<key>`; `config.yaml` + `state.yaml` |
+| Config | `internal/config/` | Split YAML: `~/.config/hf/config.yaml` (settings), `state.yaml` (active state), `environments/<name>.yaml` (profiles) |
 | Output | `internal/output/` | `Printer` dispatches `--output json|table|yaml`; colored dot renderer |
 | Resources | `internal/resource/` | `Cluster`, `NodePool`, `AdapterStatus`, `Condition`, `ListResponse[T]` |
 | DB | `internal/db/` | `pgxpool` wrapper; `Query` → headers+rows, `Exec` for DML |
@@ -43,11 +43,14 @@ go build ./...      # verify compilation
 
 **Key patterns:**
 - Config precedence: CLI flags > `HF_*` env vars > env profile > `config.yaml` > defaults
+- **All commands require an active environment** — fail with `[ERROR]` exit 1 if none is activated (exception: `hf config env *` commands always work)
+- `hf table` is an alias for `hf resources` — same implementation, two cobra names
+- `hf version` is a subcommand only — no `--version` flag on the root command
 - Commands reuse `internal/` packages — never shell out to other `hf` subcommands
 - `create` with no args uses defaults; does not show usage
 - All data-producing commands support `--output json|table|yaml`
 - External `hf-<name>` executables on `PATH` are auto-delegated as plugins
-- API errors follow RFC 9457 (`APIError{Code, Detail, Status, Title, TraceID}`)
+- API errors follow RFC 7807 (`APIError{Code, Detail, Status, Title, TraceID}`)
 
 ## Testing Conventions
 

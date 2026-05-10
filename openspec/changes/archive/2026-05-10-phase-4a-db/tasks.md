@@ -6,4 +6,4 @@
 - [x] 4. Create `cmd/db.go` — `hf db query`, `hf db delete`, `hf db config` Cobra commands; register via init()
 - [x] 5. Create `cmd/db_test.go` — mock Querier, test query table/JSON/0-rows/file-error, delete unknown target/denied, config masking
 - [x] 6. Run `go build ./...`, `go vet ./...`, `go test ./...`; save output to `verification_proof/`
-- [ ] 7. Archive change
+- [x] 7. Archive change

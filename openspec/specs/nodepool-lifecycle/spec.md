@@ -295,53 +295,13 @@ NpConfigmapSuccessful  True    2026-04-24T16:06:00Z ManualStatusPost  Status pos
 
 ### Requirement: Get NodePool Adapter Statuses
 
-The CLI SHALL display adapter statuses for a nodepool.
+The statuses table SHALL include a FINALIZED column in addition to AVAILABLE.
 
-#### Scenario: Get statuses
+#### Scenario: Get statuses table (MODIFIED — add FINALIZED column)
 
-- GIVEN cluster-id and nodepool-id are set in config
-- WHEN the user runs `hf nodepool statuses`
-- THEN the CLI MUST send GET to `/api/hyperfleet/v1/clusters/{cluster_id}/nodepools/{nodepool_id}/statuses`
-- AND output the `AdapterStatusList` response with items containing: adapter name, conditions (Available, Applied, Health, Finalized), observed_generation, last_report_time
-
-**Example** — `hf nodepool statuses` after `np-configmap` reports at generation 2:
-```json
-{
-  "items": [
-    {
-      "adapter": "np-configmap",
-      "observed_generation": 2,
-      "last_report_time": "2026-04-24T16:06:00Z",
-      "conditions": [
-        {"type": "Available", "status": "True", "reason": "ManualStatusPost"},
-        {"type": "Applied",   "status": "True", "reason": "ManualStatusPost"},
-        {"type": "Health",    "status": "True", "reason": "ManualStatusPost"},
-        {"type": "Finalized", "status": "True", "reason": "ManualStatusPost"}
-      ]
-    }
-  ],
-  "kind": "AdapterStatusList",
-  "page": 1,
-  "size": 1,
-  "total": 1
-}
-```
-
-#### Scenario: Get statuses table
-
-- GIVEN adapters have reported statuses for the nodepool
-- WHEN the user runs `hf nodepool statuses --table`
-- THEN the CLI MUST output a formatted table with columns: ADAPTER, GEN, Available, Finalized
-- AND each row MUST represent one adapter entry from the statuses list
-- AND GEN MUST show the `observed_generation` value for that adapter
-- AND Available and Finalized columns MUST be color-coded dots: green=True, red=False, yellow=Unknown, `-`=not present
-
-**Example** — `hf nodepool statuses --table` for the same adapter above (colors shown in parentheses):
-```
-ADAPTER      GEN  Available  Finalized
----          ---  ---        ---
-np-configmap  2   ●(green)   ●(green)
-```
+- WHEN the user runs `hf nodepool statuses --output table`
+- THEN the CLI MUST output columns: ADAPTER, GEN, AVAILABLE, FINALIZED
+- AND AVAILABLE and FINALIZED columns MUST be color-coded dots: green=True, red=False, `-`=not present
 
 ### Requirement: Display NodePool Table
 

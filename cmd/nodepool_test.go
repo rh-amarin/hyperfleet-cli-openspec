@@ -530,6 +530,180 @@ func TestNodepoolStatuses_ExplicitID(t *testing.T) {
 	}
 }
 
+// ---- nodepool search ----
+
+func TestNodepoolSearch_ByName_Found(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/nodepools" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, nodepoolListJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	out, err := runNodepoolCmd(t, dir, "nodepool", "search", "test-nodepool")
+	if err != nil {
+		t.Fatalf("nodepool search: %v", err)
+	}
+	if !strings.Contains(out, nodepoolID) {
+		t.Errorf("expected nodepool ID in search output, got: %q", out)
+	}
+	// Verify nodepool-id persisted to state.
+	stateRaw, _ := os.ReadFile(filepath.Join(dir, "state.yaml"))
+	if !strings.Contains(string(stateRaw), nodepoolID) {
+		t.Errorf("nodepool-id not persisted after search: %q", string(stateRaw))
+	}
+}
+
+func TestNodepoolSearch_ByName_NotFound(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, emptyNPListJSON)
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	out, err := runNodepoolCmd(t, dir, "nodepool", "search", "nonexistent")
+	if err != nil {
+		t.Fatalf("nodepool search not-found should exit 0, got: %v", err)
+	}
+	if !strings.Contains(out, "[]") {
+		t.Errorf("expected empty JSON array for not-found search, got: %q", out)
+	}
+}
+
+func TestNodepoolSearch_NoArgs_WithState(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/nodepools/"+nodepoolID {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, nodepoolJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	setNodepoolIDInState(t, dir, "test", nodepoolID)
+
+	out, err := runNodepoolCmd(t, dir, "nodepool", "search")
+	if err != nil {
+		t.Fatalf("nodepool search (no args, with state): %v", err)
+	}
+	if !strings.Contains(out, nodepoolID) {
+		t.Errorf("expected nodepool JSON in output, got: %q", out)
+	}
+}
+
+func TestNodepoolSearch_NoArgs_WithoutState(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("no HTTP request should be made when state is empty")
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	_, err := runNodepoolCmd(t, dir, "nodepool", "search")
+	if err == nil {
+		t.Fatal("expected error when no nodepool-id in state")
+	}
+	if !strings.Contains(err.Error(), "No nodepool-id set in state") {
+		t.Errorf("error message: got %q", err.Error())
+	}
+}
+
+// ---- nodepool patch ----
+
+func TestNodepoolPatch_Spec(t *testing.T) {
+	var capturedBody map[string]any
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/nodepools/"+nodepoolID:
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, nodepoolJSON)
+		case r.Method == http.MethodPatch && r.URL.Path == apiPrefix+"/nodepools/"+nodepoolID:
+			json.NewDecoder(r.Body).Decode(&capturedBody)
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, nodepoolJSON)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	setNodepoolIDInState(t, dir, "test", nodepoolID)
+
+	_, err := runNodepoolCmd(t, dir, "nodepool", "patch", "spec")
+	if err != nil {
+		t.Fatalf("nodepool patch spec: %v", err)
+	}
+	if capturedBody == nil {
+		t.Fatal("expected PATCH request body")
+	}
+	spec, ok := capturedBody["spec"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected spec in PATCH body, got: %v", capturedBody)
+	}
+	if spec["counter"] != "2" {
+		t.Errorf("expected counter '2', got %v", spec["counter"])
+	}
+}
+
+func TestNodepoolPatch_Labels(t *testing.T) {
+	var capturedBody map[string]any
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/nodepools/"+nodepoolID:
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, nodepoolJSON)
+		case r.Method == http.MethodPatch && r.URL.Path == apiPrefix+"/nodepools/"+nodepoolID:
+			json.NewDecoder(r.Body).Decode(&capturedBody)
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, nodepoolJSON)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	setNodepoolIDInState(t, dir, "test", nodepoolID)
+
+	_, err := runNodepoolCmd(t, dir, "nodepool", "patch", "labels")
+	if err != nil {
+		t.Fatalf("nodepool patch labels: %v", err)
+	}
+	if capturedBody == nil {
+		t.Fatal("expected PATCH request body")
+	}
+	labels, ok := capturedBody["labels"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected labels in PATCH body, got: %v", capturedBody)
+	}
+	if labels["counter"] != "2" {
+		t.Errorf("expected counter '2', got %v", labels["counter"])
+	}
+}
+
+func TestNodepoolPatch_NoArgs(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("no HTTP request should be made for patch with no args")
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	out, err := runNodepoolCmd(t, dir, "nodepool", "patch")
+	if err == nil {
+		t.Fatal("expected error for nodepool patch with no args")
+	}
+	if !strings.Contains(out, "Usage: hf nodepool patch") {
+		t.Errorf("expected usage message in stdout, got: %q", out)
+	}
+}
+
 // ---- nodepool adapter post-status ----
 
 // setBothIDsInState writes state.yaml with active env, cluster-id, and nodepool-id.

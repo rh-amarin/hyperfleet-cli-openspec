@@ -45,13 +45,47 @@ Subcommands: show, get, set, env, doctor.`,
 }
 
 // configShowCmd prints the resolved configuration as YAML.
+// With an optional env-name argument it displays that environment profile instead.
 var configShowCmd = &cobra.Command{
-	Use:   "show",
-	Short: "Show the resolved configuration",
+	Use:   "show [env-name]",
+	Short: "Show the resolved configuration, or a named environment profile",
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := config.NewFromEnv()
 		if err := s.Load(); err != nil {
 			return fmt.Errorf("[ERROR] loading config: %w", err)
+		}
+
+		// If a specific environment name is provided, delegate to env-show logic.
+		if len(args) == 1 {
+			name := args[0]
+			profPath := filepath.Join(s.ConfigDir(), "environments", name+".yaml")
+			raw, err := os.ReadFile(profPath)
+			if err != nil {
+				if os.IsNotExist(err) {
+					return fmt.Errorf("[ERROR] environment '%s' not found", name)
+				}
+				return err
+			}
+
+			w := cmd.OutOrStdout()
+			if s.ActiveEnvironment() == name {
+				fmt.Fprintf(w, "[active] %s\n", profPath)
+			} else {
+				fmt.Fprintln(w, profPath)
+			}
+
+			var prof map[string]map[string]string
+			if err := yaml.Unmarshal(raw, &prof); err != nil {
+				return err
+			}
+			redactSecrets(prof)
+			b, err := yaml.Marshal(prof)
+			if err != nil {
+				return err
+			}
+			_, err = w.Write(b)
+			return err
 		}
 
 		w := cmd.OutOrStdout()
@@ -194,9 +228,10 @@ var (
 )
 
 var configEnvCreateCmd = &cobra.Command{
-	Use:   "create <name>",
-	Short: "Create a new environment profile",
-	Args:  cobra.ExactArgs(1),
+	Use:     "create <name>",
+	Aliases: []string{"new"},
+	Short:   "Create a new environment profile",
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
 		s := config.NewFromEnv()

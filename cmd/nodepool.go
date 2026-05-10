@@ -20,7 +20,7 @@ var nodepoolCmd = &cobra.Command{
 	Short: "Manage HyperFleet nodepools",
 	Long: `Manage HyperFleet nodepools.
 
-Subcommands: create, get, list, update, delete, conditions, statuses.`,
+Subcommands: create, get, list, search, update, patch, delete, conditions, statuses.`,
 }
 
 // ---- flag vars ----
@@ -174,6 +174,64 @@ var nodepoolGetCmd = &cobra.Command{
 	},
 }
 
+// ---- nodepool search ----
+
+var nodepoolSearchCmd = &cobra.Command{
+	Use:   "search [name]",
+	Short: "Search for a nodepool by name and set as active context",
+	Args:  cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+
+		// No name arg: behave like `hf nodepool get` using the state nodepool-id.
+		if len(args) == 0 {
+			id := s.GetState("nodepool-id")
+			if id == "" {
+				return fmt.Errorf("[ERROR] No nodepool-id set in state. Run 'hf nodepool create' or 'hf nodepool search <name>' first.")
+			}
+			client := newAPIClient(s)
+			np, err := api.Get[resource.NodePool](context.Background(), client, "nodepools/"+id)
+			if err != nil {
+				return handleAPIError(p, err)
+			}
+			return p.Print(np)
+		}
+
+		name := args[0]
+		client := newAPIClient(s)
+
+		list, err := api.Get[resource.ListResponse[resource.NodePool]](
+			context.Background(), client,
+			"nodepools?search=name='"+name+"'",
+		)
+		if err != nil {
+			return handleAPIError(p, err)
+		}
+
+		if len(list.Items) == 0 {
+			p.Warn(fmt.Sprintf("No nodepools found matching '%s'", name))
+			return p.Print([]resource.NodePool{})
+		}
+
+		if len(list.Items) > 1 {
+			p.Warn(fmt.Sprintf("Multiple nodepools found matching '%s', using first result", name))
+		}
+
+		first := list.Items[0]
+		if setErr := s.SetState("nodepool-id", first.ID); setErr != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "[WARN] Failed to persist nodepool-id: %v\n", setErr)
+		} else {
+			p.Info(fmt.Sprintf("NodePool context set to '%s'", first.ID))
+		}
+
+		return p.Print(list.Items)
+	},
+}
+
 // ---- nodepool create ----
 
 var nodepoolCreateCmd = &cobra.Command{
@@ -271,6 +329,78 @@ var nodepoolUpdateCmd = &cobra.Command{
 			return handleAPIError(p, err)
 		}
 		return p.Print(np)
+	},
+}
+
+// ---- nodepool patch ----
+
+var nodepoolPatchCmd = &cobra.Command{
+	Use:   "patch {spec|labels} [nodepool_id]",
+	Short: "Increment a counter field in nodepool spec or labels",
+	Args:  cobra.MaximumNArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 || (args[0] != "spec" && args[0] != "labels") {
+			fmt.Fprintln(cmd.OutOrStdout(), "Usage: hf nodepool patch {spec|labels} [nodepool_id]")
+			fmt.Fprintln(cmd.OutOrStdout(), "")
+			fmt.Fprintln(cmd.OutOrStdout(), "Arguments:")
+			fmt.Fprintln(cmd.OutOrStdout(), "  spec|labels   Which section to increment the counter field in (required)")
+			fmt.Fprintln(cmd.OutOrStdout(), "  nodepool_id   NodePool ID (default: current nodepool)")
+			return fmt.Errorf("invalid arguments")
+		}
+
+		section := args[0]
+		explicit := ""
+		if len(args) == 2 {
+			explicit = args[1]
+		}
+
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		id, err := s.NodePoolID(explicit)
+		if err != nil {
+			return err
+		}
+
+		client := newAPIClient(s)
+		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+
+		np, err := api.Get[resource.NodePool](context.Background(), client, "nodepools/"+id)
+		if err != nil {
+			return handleAPIError(p, err)
+		}
+
+		var oldVal int
+		if section == "spec" {
+			if v, ok := np.Spec["counter"].(string); ok {
+				oldVal, _ = strconv.Atoi(v)
+			}
+		} else {
+			if v, ok := np.Labels["counter"]; ok {
+				oldVal, _ = strconv.Atoi(v)
+			}
+		}
+		newVal := oldVal + 1
+
+		p.Info(fmt.Sprintf("Incrementing %s.counter: %d -> %d", section, oldVal, newVal))
+
+		var body map[string]any
+		if section == "spec" {
+			body = map[string]any{
+				"spec": map[string]any{"counter": strconv.Itoa(newVal)},
+			}
+		} else {
+			body = map[string]any{
+				"labels": map[string]any{"counter": strconv.Itoa(newVal)},
+			}
+		}
+
+		_, err = api.Patch[resource.NodePool](context.Background(), client, "nodepools/"+id, body)
+		if err != nil {
+			return handleAPIError(p, err)
+		}
+		return nil
 	},
 }
 
@@ -383,20 +513,23 @@ var nodepoolStatusesCmd = &cobra.Command{
 		}
 
 		if outputFmt == "table" {
-			headers := []string{"ADAPTER", "GEN", "AVAILABLE"}
+			headers := []string{"ADAPTER", "GEN", "AVAILABLE", "FINALIZED"}
 			rows := make([][]string, 0, len(list.Items))
 			for _, as := range list.Items {
-				avail := "-"
+				avail, final := "-", "-"
 				for _, cond := range as.Conditions {
-					if cond.Type == "Available" {
+					switch cond.Type {
+					case "Available":
 						avail = output.StatusDot(cond.Status, noColor)
-						break
+					case "Finalized":
+						final = output.StatusDot(cond.Status, noColor)
 					}
 				}
 				rows = append(rows, []string{
 					as.Adapter,
 					strconv.Itoa(int(as.ObservedGeneration)),
 					avail,
+					final,
 				})
 			}
 			return p.PrintTable(headers, rows)
@@ -477,8 +610,10 @@ func init() {
 
 	nodepoolCmd.AddCommand(nodepoolListCmd)
 	nodepoolCmd.AddCommand(nodepoolGetCmd)
+	nodepoolCmd.AddCommand(nodepoolSearchCmd)
 	nodepoolCmd.AddCommand(nodepoolCreateCmd)
 	nodepoolCmd.AddCommand(nodepoolUpdateCmd)
+	nodepoolCmd.AddCommand(nodepoolPatchCmd)
 	nodepoolCmd.AddCommand(nodepoolDeleteCmd)
 	nodepoolCmd.AddCommand(nodepoolConditionsCmd)
 	nodepoolCmd.AddCommand(nodepoolStatusesCmd)

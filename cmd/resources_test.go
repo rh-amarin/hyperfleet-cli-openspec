@@ -181,16 +181,17 @@ func TestResourcesTable(t *testing.T) {
 	if !strings.Contains(out, "test-cluster-beta") {
 		t.Errorf("expected beta cluster name, got: %q", out)
 	}
-	// Dynamic adapter columns (headers are uppercased by PrintTable)
-	if !strings.Contains(out, "CL-DEPLOYMENT") {
-		t.Errorf("expected CL-DEPLOYMENT adapter column header, got: %q", out)
+	// Dynamic adapter columns (headers are uppercased and wrapped by PrintTable;
+	// names longer than 10 chars appear across two header lines).
+	if !strings.Contains(out, "CL-DEPLOYM") {
+		t.Errorf("expected CL-DEPLOYMENT adapter column header (wrapped), got: %q", out)
 	}
 	// Nodepool row indented
 	if !strings.Contains(out, "  "+nodepoolID) {
 		t.Errorf("expected indented nodepool row, got: %q", out)
 	}
-	if !strings.Contains(out, "NP-CONFIGMAP") {
-		t.Errorf("expected NP-CONFIGMAP adapter column header, got: %q", out)
+	if !strings.Contains(out, "NP-CONFIGM") {
+		t.Errorf("expected NP-CONFIGMAP adapter column header (wrapped), got: %q", out)
 	}
 }
 

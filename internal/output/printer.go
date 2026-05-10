@@ -83,20 +83,88 @@ func (p *Printer) printYAML(v any) error {
 	return enc.Close()
 }
 
+const maxHeaderWidth = 10
+
 // PrintTable renders headers and rows as an aligned table.
-// Headers are uppercased. Columns are separated by tabs.
+// Headers are uppercased. Headers longer than maxHeaderWidth characters are
+// wrapped across multiple rows so that the table does not become too wide.
 func (p *Printer) PrintTable(headers []string, rows [][]string) error {
 	tw := tabwriter.NewWriter(p.w, 0, 0, 2, ' ', 0)
-	// Upper-case headers
-	upper := make([]string, len(headers))
+
+	wrapped := make([][]string, len(headers))
+	maxLines := 1
 	for i, h := range headers {
-		upper[i] = strings.ToUpper(h)
+		wrapped[i] = wrapHeader(strings.ToUpper(h), maxHeaderWidth)
+		if len(wrapped[i]) > maxLines {
+			maxLines = len(wrapped[i])
+		}
 	}
-	fmt.Fprintln(tw, strings.Join(upper, "\t"))
+
+	for line := 0; line < maxLines; line++ {
+		parts := make([]string, len(headers))
+		for i, segments := range wrapped {
+			if line < len(segments) {
+				parts[i] = segments[line]
+			}
+		}
+		fmt.Fprintln(tw, strings.Join(parts, "\t"))
+	}
+
 	for _, row := range rows {
 		fmt.Fprintln(tw, strings.Join(row, "\t"))
 	}
 	return tw.Flush()
+}
+
+// wrapHeader splits s into lines of at most maxWidth characters, preferring
+// to break at space or underscore boundaries. Tokens longer than maxWidth are
+// split at the character level.
+func wrapHeader(s string, maxWidth int) []string {
+	if len(s) <= maxWidth {
+		return []string{s}
+	}
+	tokens := strings.FieldsFunc(s, func(r rune) bool { return r == ' ' || r == '_' })
+	if len(tokens) == 0 {
+		return chunkString(s, maxWidth)
+	}
+	var lines []string
+	current := ""
+	for _, tok := range tokens {
+		if len(tok) > maxWidth {
+			if current != "" {
+				lines = append(lines, current)
+				current = ""
+			}
+			lines = append(lines, chunkString(tok, maxWidth)...)
+			continue
+		}
+		switch {
+		case current == "":
+			current = tok
+		case len(current)+1+len(tok) <= maxWidth:
+			current += " " + tok
+		default:
+			lines = append(lines, current)
+			current = tok
+		}
+	}
+	if current != "" {
+		lines = append(lines, current)
+	}
+	return lines
+}
+
+// chunkString splits s into substrings of at most size characters.
+func chunkString(s string, size int) []string {
+	var chunks []string
+	for len(s) > size {
+		chunks = append(chunks, s[:size])
+		s = s[size:]
+	}
+	if s != "" {
+		chunks = append(chunks, s)
+	}
+	return chunks
 }
 
 // Warn writes a [WARN] message to stderr.

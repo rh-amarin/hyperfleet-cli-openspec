@@ -6,4 +6,4 @@
 - [x] 4. Run go vet ./... — must pass with zero errors
 - [x] 5. Run go test ./... — must pass with zero failures
 - [x] 6. Capture verification proof to verification_proof/ and commit
-- [ ] 7. Archive change and open PR
+- [x] 7. Archive change and open PR

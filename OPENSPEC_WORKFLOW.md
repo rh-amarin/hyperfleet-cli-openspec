@@ -218,3 +218,34 @@ Phase 3a implements the full `hf cluster` command tree: `list`, `get`, `create`,
 ### Verdict: PASS ✅
 
 Full lifecycle: branch → OpenSpec artifacts (proposal/design/specs/tasks) → implementation (7 subcommands) → 14 unit tests → verification (build/vet/test) → archive → PR. Zero failures across all packages.
+
+## Cycle 6 — Phase 3b NodePool Lifecycle (2026-05-10)
+
+### What WORKED ✅
+
+| Item | Detail |
+|---|---|
+| Mirror pattern from cluster.go | The existing cluster implementation served as a near-perfect template. Nodepool commands follow identical structure: flag vars, helper functions, cobra commands, init() wiring. |
+| Shared helpers across same package | `newAPIClient`, `loadConfig`, `handleAPIError` defined in `cluster.go` are directly reusable in `nodepool.go` — no redefinition needed, same `cmd` package. |
+| `NodePoolID` in config.Store | Already implemented in Phase 1, `s.NodePoolID(explicit)` works identically to `s.ClusterID(explicit)`. |
+| `Spec map[string]any` extraction | Extracting `type` from nested `spec["platform"]["type"]` and `replicas` from `spec["replicas"]` worked correctly with type-switch pattern for JSON float64 → int conversion. |
+| Test helper reuse | `makeEnv`, `setActiveEnv`, `runCmd` from `config_test.go` required zero changes. Added `setNodepoolIDInState` and `resetNodepoolFlags` parallel to cluster equivalents. |
+| All 14 tests pass first run | `go test ./...` green on first attempt with no compilation errors. |
+
+### What DIDN'T WORK / Gaps ❌
+
+| Item | Detail |
+|---|---|
+| nodepool.go existed as a stub | The repo had a stub `cmd/nodepool.go` with only the group command and no subcommands. Required reading it first before overwriting. |
+| OpenSpec new change only creates `.openspec.yaml` | `openspec new change` created only `.openspec.yaml` with no artifact files. All planning artifacts (proposal.md, design.md, tasks.md, specs/) were written manually. |
+
+### Observations
+
+- The duplicate-guard pattern (GET list before POST) transfers cleanly to nodepools. The search URL uses query params (`?search=name='...'`) which the test server ignores — the key is that the GET returns either empty or populated list.
+- `nodepoolReplicas()` must handle `float64` (JSON number → float64 after unmarshal), not just `int32`, because `encoding/json` decodes numbers into `any` as `float64` by default.
+- The `nodepoolType()` helper checks `spec["platform"]["type"]` first (the spec's actual shape) with `spec["type"]` fallback — covers both shapes without breaking either.
+- State persistence for `nodepool-id` mirrors cluster exactly: `s.SetState("nodepool-id", np.ID)` after successful create.
+
+### Verdict: PASS ✅
+
+Full lifecycle: branch → OpenSpec artifacts → implementation (7 subcommands) → 14 unit tests → verification (build/vet/test pass, all packages) → archive → PR. Zero failures.

@@ -142,3 +142,42 @@ Implement all four foundation packages (`internal/config`, `internal/api`, `inte
 ### Verdict: PASS ✅
 
 Full lifecycle completed: scaffold → artifacts → implementation → review (1 fix cycle) → merge. All `go test ./...` pass. Four foundation packages delivered following the spec-driven methodology.
+
+## Cycle 4 — Phase 2 Config Command (2026-05-09)
+
+### Context
+
+Phase 2 implements the full `hf config` command tree: `show`, `get`, `set`, `env list/create/activate/delete/show`, and `doctor`. Also adds the active-environment guard to root's `PersistentPreRunE`. This was run as a fully autonomous session with no human checkpoints.
+
+### What WORKED ✅
+
+| Item | Detail |
+|---|---|
+| Artifact sequence enforced | proposal → design → delta spec → tasks written in order before any Go code |
+| `isBypassCommand` pattern clean | Single guard in `PersistentPreRunE` with `isBypassCommand()` helper keeps all command files automatically guarded |
+| `t.Setenv("HF_CONFIG_DIR")` isolation | Every test gets its own TempDir and never touches `~/.config/hf` — zero test pollution |
+| `httptest.NewServer` for doctor | Doctor connectivity test is fully self-contained with no network dependencies |
+| `os.Exit(1)` avoided | Guard returns an error instead of calling `os.Exit` — tests can capture the error without dying |
+| All 20+ config tests pass | Full command tree tested: guard bypass, show, get, set, env CRUD, doctor reachable/unreachable |
+| Build + vet clean on first try | No compilation errors after initial implementation |
+
+### What DIDN'T WORK / Gaps ❌
+
+| Item | Detail |
+|---|---|
+| Delta spec header format mismatch | MODIFIED requirements must use the same header depth (`##`) as the canonical spec. The OpenSpec instructions say `### Requirement:` (3 hashes) but the canonical config spec uses `## Requirement:` (2 hashes). Archive failed until headers were corrected. |
+| Canonical spec missing `## Purpose` section | `openspec archive` validated the *rebuilt* spec against the schema (requires `## Purpose` + `## Requirements` sections). The canonical `openspec/specs/config/spec.md` predates this requirement. Used `--skip-specs` to work around; the delta spec in the archive folder preserves the requirement additions. |
+| Config precedence surprised test | `TestConfigSet_Valid` initially set `api-url` in config.yaml but the active env profile overrode it. Had to test a key (`api-version`) not present in the profile instead. Precedence (env var > profile > config.yaml > defaults) must be kept in mind when writing cmd tests. |
+| `writeTable` declared but unused | Helper function defined for future use; no compile error in Go but dead code. Removed in code review. |
+| `openspec archive --change` flag removed | Archive command no longer accepts `--change` flag; must use positional argument `openspec archive <name>`. |
+
+### Observations
+
+- The guard pattern (bypass list in `isBypassCommand`) is simple and extensible: new commands are guarded by default; only explicit bypass commands are exempt.
+- Returning errors from `PersistentPreRunE` (not calling `os.Exit`) is essential for testability. The error propagates through `rootCmd.Execute()` and gets printed by `main.go`.
+- Config section validation in `hf config set` should be kept in sync with the `validConfigSections` map — this is the single source of truth for valid sections.
+- The OpenSpec delta spec archive (with `--skip-specs`) is still valuable: the delta requirements are preserved in `openspec/changes/archive/2026-05-09-phase-2-config/` even though the canonical spec wasn't updated.
+
+### Verdict: PASS ✅
+
+Full lifecycle: branch → artifacts → implementation → verification (build/vet/test all pass) → archive → PR. 20+ unit tests, zero failures. Active-env guard, full config command tree, and doctor implemented.

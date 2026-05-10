@@ -80,7 +80,7 @@ func TestActiveEnvGuard_BlocksConfigSet(t *testing.T) {
 
 func TestActiveEnvGuard_BlocksConfigGet(t *testing.T) {
 	dir := t.TempDir()
-	_, err := runCmd(t, dir, "config", "get", "hyperfleet", "api-url")
+	_, err := runCmd(t, dir, "config", "get", "hyperfleet.api-url")
 	if err == nil {
 		t.Fatal("expected error when no active env for 'config get'")
 	}
@@ -126,8 +126,11 @@ func TestConfigShow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("config show: %v", err)
 	}
+	if !strings.Contains(out, "state:") {
+		t.Errorf("output missing state section: %q", out)
+	}
 	if !strings.Contains(out, "active-environment: staging") {
-		t.Errorf("output missing active-environment header: %q", out)
+		t.Errorf("output missing active-environment in state section: %q", out)
 	}
 	if !strings.Contains(out, "hyperfleet:") {
 		t.Errorf("output missing hyperfleet section: %q", out)
@@ -141,6 +144,26 @@ func TestConfigShow(t *testing.T) {
 	}
 }
 
+func TestConfigShow_StateVariables(t *testing.T) {
+	dir := t.TempDir()
+	makeEnv(t, dir, "dev", "http://dev:8000")
+	stateContent := "active-environment: dev\ncluster-id: cl-123\ncluster-name: my-cluster\n"
+	if err := os.WriteFile(filepath.Join(dir, "state.yaml"), []byte(stateContent), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runCmd(t, dir, "config", "show")
+	if err != nil {
+		t.Fatalf("config show with state: %v", err)
+	}
+	if !strings.Contains(out, "cluster-id: cl-123") {
+		t.Errorf("output missing cluster-id from state: %q", out)
+	}
+	if !strings.Contains(out, "cluster-name: my-cluster") {
+		t.Errorf("output missing cluster-name from state: %q", out)
+	}
+}
+
 // ---- config get ----
 
 func TestConfigGet_Found(t *testing.T) {
@@ -148,7 +171,7 @@ func TestConfigGet_Found(t *testing.T) {
 	makeEnv(t, dir, "dev", "http://dev:8000")
 	setActiveEnv(t, dir, "dev")
 
-	out, err := runCmd(t, dir, "config", "get", "hyperfleet", "api-url")
+	out, err := runCmd(t, dir, "config", "get", "hyperfleet.api-url")
 	if err != nil {
 		t.Fatalf("config get: %v", err)
 	}
@@ -162,12 +185,40 @@ func TestConfigGet_NotFound(t *testing.T) {
 	makeEnv(t, dir, "dev", "http://dev:8000")
 	setActiveEnv(t, dir, "dev")
 
-	_, err := runCmd(t, dir, "config", "get", "hyperfleet", "nonexistent-key")
+	_, err := runCmd(t, dir, "config", "get", "hyperfleet.nonexistent-key")
 	if err == nil {
 		t.Fatal("expected error for missing key")
 	}
 	if !strings.Contains(err.Error(), "not found") {
 		t.Errorf("error message: got %q", err.Error())
+	}
+}
+
+func TestConfigGet_StateKey(t *testing.T) {
+	dir := t.TempDir()
+	makeEnv(t, dir, "dev", "http://dev:8000")
+	stateContent := "active-environment: dev\ncluster-id: cl-456\n"
+	if err := os.WriteFile(filepath.Join(dir, "state.yaml"), []byte(stateContent), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runCmd(t, dir, "config", "get", "cluster-id")
+	if err != nil {
+		t.Fatalf("config get cluster-id: %v", err)
+	}
+	if !strings.Contains(out, "cl-456") {
+		t.Errorf("unexpected cluster-id: %q", out)
+	}
+}
+
+func TestConfigGet_NoArgs_ShowsHelp(t *testing.T) {
+	dir := t.TempDir()
+	out, err := runCmd(t, dir, "config", "get")
+	if err == nil {
+		t.Fatal("expected non-nil error when no args given")
+	}
+	if !strings.Contains(out, "Usage:") {
+		t.Errorf("expected help output when no args given, got stdout: %q", out)
 	}
 }
 
@@ -185,7 +236,7 @@ func TestConfigSet_Valid(t *testing.T) {
 	}
 
 	// Read back — profile doesn't override api-version, so config.yaml value wins.
-	out, err := runCmd(t, dir, "config", "get", "hyperfleet", "api-version")
+	out, err := runCmd(t, dir, "config", "get", "hyperfleet.api-version")
 	if err != nil {
 		t.Fatalf("config get after set: %v", err)
 	}

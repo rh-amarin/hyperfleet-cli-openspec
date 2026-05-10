@@ -1,10 +1,10 @@
 # Proposal: Template-Driven Cluster and NodePool Create
 
-## Problem
+## Why
 
 `hf cluster create` and `hf nodepool create` use hardcoded payloads. Users who need to customise the request body — labels, spec fields, instance type, region, version — must pass individual CLI flags or live with the built-in defaults. Adding a flag per field is not scalable and produces a sprawling API surface.
 
-## Proposed Change
+## What Changes
 
 Replace the hardcoded payload construction in both create commands with a **JSON template** loaded from the config directory. The template is the authoritative source for the full API request body; the command only overrides the `name` field if a name is provided as a positional argument.
 

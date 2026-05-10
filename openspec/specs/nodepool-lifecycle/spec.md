@@ -20,87 +20,48 @@ AND exit with code 1.
 ## Requirements
 ### Requirement: Create NodePool
 
-The CLI SHALL create one or more nodepools in the current cluster with configurable name, count, and instance type.
+`hf nodepool create` SHALL load the request body from a JSON template file rather than hardcoded defaults. The binary embeds a built-in default template (`cmd/assets/nodepool-template.json`) and auto-creates `<config-dir>/nodepool-template.json` on first use.
 
-#### Scenario: Create multiple nodepools
+#### Scenario: Create nodepool with default template (no template file exists) (MODIFIED)
 
-- GIVEN a cluster-id is set in config and the API is reachable
-- WHEN the user runs `hf nodepool create <name> [count] [instance-type]`
-- THEN the CLI MUST create `count` nodepools by sending POST requests to `/api/hyperfleet/v1/clusters/{cluster_id}/nodepools`
-- AND each nodepool MUST be named `<name>-N` where N starts at 1 and increments for each additional nodepool (e.g., `my-nodepool-1`, `my-nodepool-2`, `my-nodepool-3` for count=3)
-- AND each request payload MUST include:
-  - `name`: `<name>-N`
-  - `labels`: `{"counter": "N"}`
-  - `spec`: `{"counter": "N", "platform": {"type": "<instance-type>"}, "replicas": 1}`
-- AND the CLI MUST persist the LAST created nodepool's ID to active state via `config.SetNodePoolID`
-- AND the CLI MUST print `[INFO] NodePool context set to '<id>'` on stderr after persisting
-- AND the response MUST include `owner_references` pointing to the parent cluster
-
-**Example** — `hf nodepool create workers 2 n2-standard-4` (first of two POST requests):
-
-Request payload:
-```json
-{
-  "kind": "NodePool",
-  "name": "workers-1",
-  "labels": {"counter": "1"},
-  "spec": {"counter": "1", "platform": {"type": "n2-standard-4"}, "replicas": 1}
-}
-```
-
-Response (first nodepool):
-```json
-{
-  "id": "019dc049-e76c-7be1-b201-0db50e2c8ecb",
-  "kind": "NodePool",
-  "generation": 1,
-  "name": "workers-1",
-  "owner_references": {
-    "href": "/api/hyperfleet/v1/clusters/019dc049-43a8-7a42-b44a-8d7f89e9e10f",
-    "id": "019dc049-43a8-7a42-b44a-8d7f89e9e10f",
-    "kind": "Cluster"
-  },
-  "spec": {"counter": "1", "platform": {"type": "n2-standard-4"}, "replicas": 1},
-  "status": {
-    "conditions": [
-      {"type": "Available",  "status": "False", "reason": "AdaptersNotAtSameGeneration", "observed_generation": 1},
-      {"type": "Reconciled", "status": "False", "reason": "MissingRequiredAdapters",     "observed_generation": 1}
-    ]
-  }
-}
-```
-
-Stderr after the last nodepool: `[INFO] NodePool context set to '019dc049-e79e-72a9-94f8-0056a11193cd'`
-
-#### Scenario: Create nodepool with default arguments
-
-- GIVEN no arguments are provided
+- GIVEN no `nodepool-template.json` exists in the config dir
 - WHEN the user runs `hf nodepool create`
-- THEN the CLI MUST use defaults: name=`my-nodepool`, count=`1`, instance_type=`m4`
-- AND the CLI MUST NOT show a usage message — it MUST proceed with creation using defaults
+- THEN the CLI MUST write the built-in default to `<config-dir>/nodepool-template.json`
+- AND print `[INFO] Created default nodepool template at <path>`
+- AND create the nodepool using the default payload (`kind=NodePool`, `name=my-nodepool`, default labels and spec)
 
-#### Scenario: Create nodepool when cluster no longer exists
+#### Scenario: Create nodepool using existing config-dir template (MODIFIED)
 
-- GIVEN cluster-id is set in state but the cluster has been externally deleted from the API
+- GIVEN `<config-dir>/nodepool-template.json` exists with a custom payload
 - WHEN the user runs `hf nodepool create`
-- THEN the CLI MUST send the POST request using the stored cluster-id
-- AND the API will return an error (404 or similar); the CLI MUST output it as-is and exit with code 0 per the RFC 7807 error pattern
+- THEN the CLI MUST use the custom payload as the request body
 
-#### Scenario: Invalid count argument
+#### Scenario: Create nodepool with `-f` file override (ADDED)
 
-- GIVEN a count value less than 1 or not a valid integer is provided
-- WHEN the user runs `hf nodepool create <name> <invalid-count>`
-- THEN the CLI MUST display `[ERROR] count must be a positive integer (minimum 1)`
-- AND display the usage message
-- AND exit with code 1
+- GIVEN a file at `<path>` containing a valid JSON nodepool payload
+- WHEN the user runs `hf nodepool create -f <path>`
+- THEN the CLI MUST use that file's content as the request body
+- AND MUST NOT read or write the config-dir template
 
-#### Scenario: Initial nodepool status conditions
+#### Scenario: Create nodepool with name positional argument (ADDED)
 
-- GIVEN a nodepool was just created
-- WHEN the API responds with the created nodepool
-- THEN the nodepool MUST have initial conditions:
-  - `Reconciled: False` with reason `MissingRequiredAdapters`
-  - `Available: False` with reason `AdaptersNotAtSameGeneration`
+- GIVEN a template (any source) with `"name": "<template-name>"`
+- WHEN the user runs `hf nodepool create <name>`
+- THEN the CLI MUST set `name` to `<name>` in the request body, overriding the template value
+- AND positional arg takes precedence over `--name` flag
+
+#### Scenario: Create nodepool with no arguments (PRESERVED)
+
+- GIVEN the config-dir template exists (or is auto-created on first use)
+- WHEN the user runs `hf nodepool create`
+- THEN the CLI MUST NOT show a usage message
+- AND MUST proceed with creation using the template payload
+
+#### Scenario: Malformed template file (ADDED)
+
+- GIVEN a template file containing invalid JSON
+- WHEN the user runs `hf nodepool create`
+- THEN the CLI MUST exit with `[ERROR] loading template: <reason>` and code 1
 
 ### Requirement: List NodePools
 

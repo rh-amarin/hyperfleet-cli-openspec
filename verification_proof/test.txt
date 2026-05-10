@@ -1,7 +1,7 @@
 ?   	github.com/rh-amarin/hyperfleet-cli	[no test files]
-ok  	github.com/rh-amarin/hyperfleet-cli/cmd	0.055s
+ok  	github.com/rh-amarin/hyperfleet-cli/cmd	(cached)
 ok  	github.com/rh-amarin/hyperfleet-cli/internal/api	0.014s
 ok  	github.com/rh-amarin/hyperfleet-cli/internal/config	0.009s
-ok  	github.com/rh-amarin/hyperfleet-cli/internal/output	0.003s
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/output	0.004s
 ok  	github.com/rh-amarin/hyperfleet-cli/internal/resource	0.004s
 ok  	github.com/rh-amarin/hyperfleet-cli/internal/version	0.003s

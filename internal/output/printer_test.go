@@ -302,6 +302,38 @@ func equalSlice(a, b []string) bool {
 	return true
 }
 
+func TestPrintTable_ANSIAlignment(t *testing.T) {
+	// Inject raw ANSI codes into a data cell to test display-width-aware alignment.
+	// "name" col: header "NAME" (4 chars), data "my-cluster" (10 chars) → col width 10.
+	// "status" col: header "STATUS" (6 chars), data "\033[32mOK\033[0m" (2 display chars) → col width 6.
+	// STATUS header should start at byte offset 10+2=12 in the header line.
+	// ANSI prefix in the data line should also start at byte offset 12.
+	buf := &bytes.Buffer{}
+	p := output.NewPrinter("table", true, buf, nil)
+	headers := []string{"name", "status"}
+	rows := [][]string{
+		{"my-cluster", "\033[32mOK\033[0m"},
+	}
+	if err := p.PrintTable(headers, rows); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("expected 2 lines, got %d:\n%s", len(lines), out)
+	}
+	// STATUS header starts at position 12 (10-char name col + 2-space separator).
+	statusPos := strings.Index(lines[0], "STATUS")
+	if statusPos != 12 {
+		t.Errorf("STATUS header at byte %d, want 12:\n%q", statusPos, lines[0])
+	}
+	// ANSI escape in the data row also starts at byte 12.
+	ansiPos := strings.Index(lines[1], "\033")
+	if ansiPos != 12 {
+		t.Errorf("ANSI prefix in data at byte %d, want 12:\n%q", ansiPos, lines[1])
+	}
+}
+
 func TestWarnInfoError(t *testing.T) {
 	errBuf := &bytes.Buffer{}
 	outBuf := &bytes.Buffer{}

@@ -1,0 +1,13 @@
+$ go test ./...
+?   	github.com/rh-amarin/hyperfleet-cli	[no test files]
+ok  	github.com/rh-amarin/hyperfleet-cli/cmd	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/api	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/config	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/db	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/kube	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/maestro	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/output	0.004s
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/pubsub	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/repos	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/resource	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/version	(cached)

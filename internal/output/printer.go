@@ -10,7 +10,7 @@ import (
 	"io"
 	"os"
 	"strings"
-	"text/tabwriter"
+	"unicode/utf8"
 
 	"golang.org/x/term"
 	"gopkg.in/yaml.v3"
@@ -86,36 +86,86 @@ func (p *Printer) printYAML(v any) error {
 // PrintTable renders headers and rows as an aligned table.
 // Headers are uppercased. Headers longer than 10 characters are wrapped
 // across multiple stacked lines so the table stays narrow.
+// Column widths are computed from visible display widths (ANSI codes excluded)
+// so colored data cells remain visually aligned under their headers.
 func (p *Printer) PrintTable(headers []string, rows [][]string) error {
-	tw := tabwriter.NewWriter(p.w, 0, 0, 2, ' ', 0)
+	const maxHeaderWidth = 10
+	const colSep = 2
 
 	// Uppercase and wrap each header.
-	const maxHeaderWidth = 10
 	wrapped := make([][]string, len(headers))
-	maxLines := 0
+	maxHeaderLines := 0
 	for i, h := range headers {
 		lines := WrapHeader(strings.ToUpper(h), maxHeaderWidth)
 		wrapped[i] = lines
-		if len(lines) > maxLines {
-			maxLines = len(lines)
+		if len(lines) > maxHeaderLines {
+			maxHeaderLines = len(lines)
 		}
 	}
 
-	// Emit one tabwriter row per header line; pad short headers with "".
-	for line := 0; line < maxLines; line++ {
-		parts := make([]string, len(wrapped))
+	numCols := len(headers)
+
+	// Build the full row list: header rows first, then data rows.
+	allRows := make([][]string, 0, maxHeaderLines+len(rows))
+	for line := 0; line < maxHeaderLines; line++ {
+		row := make([]string, numCols)
 		for col, lines := range wrapped {
 			if line < len(lines) {
-				parts[col] = lines[line]
+				row[col] = lines[line]
 			}
 		}
-		fmt.Fprintln(tw, strings.Join(parts, "\t"))
+		allRows = append(allRows, row)
+	}
+	allRows = append(allRows, rows...)
+
+	// Compute column widths using display widths (ANSI escape codes do not
+	// contribute to visible width, so strip them before measuring).
+	colWidths := make([]int, numCols)
+	for _, row := range allRows {
+		for col, cell := range row {
+			if w := displayWidth(cell); w > colWidths[col] {
+				colWidths[col] = w
+			}
+		}
 	}
 
-	for _, row := range rows {
-		fmt.Fprintln(tw, strings.Join(row, "\t"))
+	// Render: write each cell followed by padding to reach column width + separator.
+	// The last column in each row gets no trailing padding.
+	for _, row := range allRows {
+		for col, cell := range row {
+			fmt.Fprint(p.w, cell)
+			if col < numCols-1 {
+				pad := colWidths[col] - displayWidth(cell) + colSep
+				fmt.Fprint(p.w, strings.Repeat(" ", pad))
+			}
+		}
+		fmt.Fprintln(p.w)
 	}
-	return tw.Flush()
+	return nil
+}
+
+// stripANSI removes ANSI escape sequences from s using a simple state machine.
+func stripANSI(s string) string {
+	var b strings.Builder
+	inEsc := false
+	for _, r := range s {
+		switch {
+		case r == '\033':
+			inEsc = true
+		case inEsc:
+			if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') {
+				inEsc = false
+			}
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// displayWidth returns the visible character count of s (ANSI codes excluded).
+func displayWidth(s string) int {
+	return utf8.RuneCountInString(stripANSI(s))
 }
 
 // WrapHeader splits a header string into lines of at most maxWidth characters.

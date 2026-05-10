@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -491,5 +492,76 @@ func TestClusterStatuses_Table(t *testing.T) {
 	}
 	if !strings.Contains(out, "cl-deployment") {
 		t.Errorf("expected adapter name in table, got: %q", out)
+	}
+}
+
+// ---- cluster adapter post-status ----
+
+func TestClusterAdapterPostStatus(t *testing.T) {
+	var capturedBody []byte
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/statuses" {
+			capturedBody, _ = io.ReadAll(r.Body)
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{
+				"adapter": "cl-deployment",
+				"observed_generation": 3,
+				"observed_time": "2026-05-10T00:00:00Z",
+				"conditions": [
+					{"type": "Available", "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf adapter post-status"},
+					{"type": "Applied",   "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf adapter post-status"},
+					{"type": "Health",    "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf adapter post-status"},
+					{"type": "Finalized", "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf adapter post-status"}
+				],
+				"created_time": "2026-05-10T00:00:00Z",
+				"last_report_time": "2026-05-10T00:00:00Z"
+			}`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	setClusterIDInState(t, dir, "test", clusterID)
+
+	out, err := runClusterCmd(t, dir, "cluster", "adapter", "post-status", "cl-deployment", "True", "3")
+	if err != nil {
+		t.Fatalf("cluster adapter post-status: %v", err)
+	}
+	if !strings.Contains(out, "cl-deployment") {
+		t.Errorf("expected adapter name in output, got: %q", out)
+	}
+	if len(capturedBody) == 0 {
+		t.Fatal("expected request body to be captured")
+	}
+	var body map[string]any
+	if err := json.Unmarshal(capturedBody, &body); err != nil {
+		t.Fatalf("captured body is not JSON: %v", err)
+	}
+	if body["adapter"] != "cl-deployment" {
+		t.Errorf("body adapter: got %v, want cl-deployment", body["adapter"])
+	}
+	conds, ok := body["conditions"].([]any)
+	if !ok || len(conds) != 4 {
+		t.Errorf("expected 4 conditions, got %v", body["conditions"])
+	}
+}
+
+func TestClusterAdapterPostStatus_InvalidStatus(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("HTTP request should not be made for invalid status")
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	setClusterIDInState(t, dir, "test", clusterID)
+
+	_, err := runClusterCmd(t, dir, "cluster", "adapter", "post-status", "cl-deployment", "INVALID", "3")
+	if err == nil {
+		t.Fatal("expected error for invalid status value")
+	}
+	if !strings.Contains(err.Error(), "Invalid status value") {
+		t.Errorf("expected 'Invalid status value' error, got: %v", err)
 	}
 }

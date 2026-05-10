@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/rh-amarin/hyperfleet-cli/internal/api"
 	"github.com/rh-amarin/hyperfleet-cli/internal/output"
@@ -404,6 +405,73 @@ var nodepoolStatusesCmd = &cobra.Command{
 	},
 }
 
+// ---- nodepool adapter ----
+
+var nodepoolAdapterCmd = &cobra.Command{
+	Use:   "adapter",
+	Short: "Adapter operations for a nodepool",
+}
+
+var nodepoolAdapterPostStatusCmd = &cobra.Command{
+	Use:   "post-status <adapter_name> <True|False|Unknown> <generation> [nodepool_id]",
+	Short: "Post adapter status conditions for the current nodepool",
+	Args:  cobra.RangeArgs(3, 4),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		adapterName := args[0]
+		status := args[1]
+		genStr := args[2]
+
+		if status != "True" && status != "False" && status != "Unknown" {
+			return fmt.Errorf("[ERROR] Invalid status value '%s'. Must be one of: True, False, Unknown.", status)
+		}
+		gen, err := strconv.Atoi(genStr)
+		if err != nil {
+			return fmt.Errorf("[ERROR] Invalid generation '%s': must be an integer", genStr)
+		}
+
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		clusterID, err := s.ClusterID("")
+		if err != nil {
+			return err
+		}
+
+		explicit := ""
+		if len(args) == 4 {
+			explicit = args[3]
+		}
+		nodepoolID, err := s.NodePoolID(explicit)
+		if err != nil {
+			return err
+		}
+
+		client := newAPIClient(s)
+		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+
+		body := resource.AdapterStatusCreateRequest{
+			Adapter:            adapterName,
+			ObservedGeneration: int32(gen),
+			ObservedTime:       time.Now().UTC().Format(time.RFC3339),
+			Conditions: []resource.ConditionRequest{
+				{Type: "Available", Status: status, Reason: "ManualStatusPost", Message: "Status posted via hf adapter post-status"},
+				{Type: "Applied", Status: status, Reason: "ManualStatusPost", Message: "Status posted via hf adapter post-status"},
+				{Type: "Health", Status: status, Reason: "ManualStatusPost", Message: "Status posted via hf adapter post-status"},
+				{Type: "Finalized", Status: status, Reason: "ManualStatusPost", Message: "Status posted via hf adapter post-status"},
+			},
+		}
+
+		result, err := api.Post[resource.AdapterStatus](context.Background(), client, "clusters/"+clusterID+"/nodepools/"+nodepoolID+"/statuses", body)
+		if err != nil {
+			return handleAPIError(p, err)
+		}
+
+		p.Info(fmt.Sprintf("Posted adapter status for %s on nodepool %s", adapterName, nodepoolID))
+		return p.Print(result)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(nodepoolCmd)
 
@@ -414,6 +482,8 @@ func init() {
 	nodepoolCmd.AddCommand(nodepoolDeleteCmd)
 	nodepoolCmd.AddCommand(nodepoolConditionsCmd)
 	nodepoolCmd.AddCommand(nodepoolStatusesCmd)
+	nodepoolCmd.AddCommand(nodepoolAdapterCmd)
+	nodepoolAdapterCmd.AddCommand(nodepoolAdapterPostStatusCmd)
 
 	nodepoolCreateCmd.Flags().StringVar(&nodepoolCreateName, "name", "", "nodepool name (default: my-nodepool)")
 	nodepoolCreateCmd.Flags().StringVar(&nodepoolCreateType, "type", "", "instance type (default: m4)")

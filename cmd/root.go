@@ -65,6 +65,10 @@ func isBypassCommand(cmd *cobra.Command) bool {
 	if strings.HasPrefix(leaf, "__complete") {
 		return true
 	}
+	// Hidden daemon commands (port-forward background processes) bypass env check.
+	if strings.HasPrefix(leaf, "_") {
+		return true
+	}
 	return false
 }
 

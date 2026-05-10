@@ -1,0 +1,3 @@
+Live cluster verification requires real cluster access. 
+Build, vet, and tests all pass in CI environment.
+Commands implemented: hf kube port-forward, hf kube curl, hf kube debug, hf logs, hf logs adapter

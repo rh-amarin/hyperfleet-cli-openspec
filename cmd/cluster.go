@@ -29,6 +29,7 @@ Subcommands: create, get, list, search, update, patch, delete, conditions, statu
 
 var (
 	clusterCreateName     string
+	clusterCreateFile     string
 	clusterCreateReplicas int
 	clusterCreateNPID     string
 	clusterUpdateName     string
@@ -248,22 +249,41 @@ var clusterCreateCmd = &cobra.Command{
 			return err
 		}
 
-		name := clusterCreateName
-		region := "us-east-1"
-		version := "4.15.0"
-
-		if len(args) >= 1 {
-			name = args[0]
+		body, created, err := loadTemplate(s.ConfigDir(), "cluster", clusterCreateFile)
+		if err != nil {
+			return fmt.Errorf("[ERROR] %w", err)
 		}
+		if created {
+			p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+			p.Info(fmt.Sprintf("Created default cluster template at %s/cluster-template.json", s.ConfigDir()))
+		}
+
+		// Name: positional arg > --name flag > template value.
+		if clusterCreateName != "" {
+			body["name"] = clusterCreateName
+		}
+		if len(args) >= 1 {
+			body["name"] = args[0]
+		}
+
+		// Region / version positional overrides into spec.
+		spec := ensureSpecMap(body)
 		if len(args) >= 2 {
-			region = args[1]
+			spec["region"] = args[1]
 		}
 		if len(args) >= 3 {
-			version = args[2]
+			spec["version"] = args[2]
 		}
-		if name == "" {
-			name = "my-cluster"
+
+		// Flag overrides.
+		if clusterCreateReplicas > 0 {
+			spec["replicas"] = strconv.Itoa(clusterCreateReplicas)
 		}
+		if clusterCreateNPID != "" {
+			body["nodepool_id"] = clusterCreateNPID
+		}
+
+		name, _ := body["name"].(string)
 
 		client := newAPIClient(s)
 		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
@@ -276,30 +296,6 @@ var clusterCreateCmd = &cobra.Command{
 		if err == nil && len(existing.Items) > 0 {
 			p.Warn(fmt.Sprintf("Cluster '%s' already exists, skipping creation", name))
 			return nil
-		}
-
-		spec := map[string]any{
-			"counter": "1",
-			"region":  region,
-			"version": version,
-		}
-		if clusterCreateReplicas > 0 {
-			spec["replicas"] = strconv.Itoa(clusterCreateReplicas)
-		}
-
-		body := map[string]any{
-			"kind": "Cluster",
-			"name": name,
-			"labels": map[string]string{
-				"counter":     "1",
-				"environment": "development",
-				"shard":       "1",
-				"team":        "core",
-			},
-			"spec": spec,
-		}
-		if clusterCreateNPID != "" {
-			body["nodepool_id"] = clusterCreateNPID
 		}
 
 		cluster, err := api.Post[resource.Cluster](context.Background(), client, "clusters", body)
@@ -638,8 +634,9 @@ func init() {
 	clusterCmd.AddCommand(clusterAdapterCmd)
 	clusterAdapterCmd.AddCommand(clusterAdapterPostStatusCmd)
 
-	clusterCreateCmd.Flags().StringVar(&clusterCreateName, "name", "", "cluster name (default: my-cluster)")
-	clusterCreateCmd.Flags().IntVar(&clusterCreateReplicas, "replicas", 0, "number of replicas")
+	clusterCreateCmd.Flags().StringVar(&clusterCreateName, "name", "", "cluster name (overrides template)")
+	clusterCreateCmd.Flags().StringVarP(&clusterCreateFile, "file", "f", "", "JSON template file (default: <config-dir>/cluster-template.json)")
+	clusterCreateCmd.Flags().IntVar(&clusterCreateReplicas, "replicas", 0, "number of replicas (overrides template)")
 	clusterCreateCmd.Flags().StringVar(&clusterCreateNPID, "nodepool-id", "", "nodepool ID")
 
 	clusterUpdateCmd.Flags().StringVar(&clusterUpdateName, "name", "", "new cluster name")

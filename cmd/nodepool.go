@@ -27,6 +27,7 @@ Subcommands: create, get, list, search, update, patch, delete, conditions, statu
 
 var (
 	nodepoolCreateName     string
+	nodepoolCreateFile     string
 	nodepoolCreateType     string
 	nodepoolCreateReplicas int
 	nodepoolUpdateName     string
@@ -235,22 +236,47 @@ var nodepoolSearchCmd = &cobra.Command{
 // ---- nodepool create ----
 
 var nodepoolCreateCmd = &cobra.Command{
-	Use:   "create",
+	Use:   "create [name]",
 	Short: "Create a new nodepool",
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s, err := loadConfig()
 		if err != nil {
 			return err
 		}
 
-		name := nodepoolCreateName
-		if name == "" {
-			name = "my-nodepool"
+		body, created, err := loadTemplate(s.ConfigDir(), "nodepool", nodepoolCreateFile)
+		if err != nil {
+			return fmt.Errorf("[ERROR] %w", err)
 		}
-		npType := nodepoolCreateType
-		if npType == "" {
-			npType = "m4"
+		if created {
+			p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+			p.Info(fmt.Sprintf("Created default nodepool template at %s/nodepool-template.json", s.ConfigDir()))
 		}
+
+		// Name: positional arg > --name flag > template value.
+		if nodepoolCreateName != "" {
+			body["name"] = nodepoolCreateName
+		}
+		if len(args) >= 1 {
+			body["name"] = args[0]
+		}
+
+		// Flag overrides into spec.
+		spec := ensureSpecMap(body)
+		if nodepoolCreateType != "" {
+			platform, ok := spec["platform"].(map[string]any)
+			if !ok {
+				platform = map[string]any{}
+				spec["platform"] = platform
+			}
+			platform["type"] = nodepoolCreateType
+		}
+		if nodepoolCreateReplicas > 0 {
+			spec["replicas"] = nodepoolCreateReplicas
+		}
+
+		name, _ := body["name"].(string)
 
 		client := newAPIClient(s)
 		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
@@ -263,24 +289,6 @@ var nodepoolCreateCmd = &cobra.Command{
 		if err == nil && len(existing.Items) > 0 {
 			p.Warn(fmt.Sprintf("NodePool '%s' already exists, skipping creation", name))
 			return nil
-		}
-
-		spec := map[string]any{
-			"counter":  "1",
-			"platform": map[string]any{"type": npType},
-			"replicas": 1,
-		}
-		if nodepoolCreateReplicas > 0 {
-			spec["replicas"] = nodepoolCreateReplicas
-		}
-
-		body := map[string]any{
-			"kind": "NodePool",
-			"name": name,
-			"labels": map[string]string{
-				"counter": "1",
-			},
-			"spec": spec,
 		}
 
 		np, err := api.Post[resource.NodePool](context.Background(), client, "nodepools", body)
@@ -620,9 +628,10 @@ func init() {
 	nodepoolCmd.AddCommand(nodepoolAdapterCmd)
 	nodepoolAdapterCmd.AddCommand(nodepoolAdapterPostStatusCmd)
 
-	nodepoolCreateCmd.Flags().StringVar(&nodepoolCreateName, "name", "", "nodepool name (default: my-nodepool)")
-	nodepoolCreateCmd.Flags().StringVar(&nodepoolCreateType, "type", "", "instance type (default: m4)")
-	nodepoolCreateCmd.Flags().IntVar(&nodepoolCreateReplicas, "replicas", 0, "number of replicas")
+	nodepoolCreateCmd.Flags().StringVar(&nodepoolCreateName, "name", "", "nodepool name (overrides template)")
+	nodepoolCreateCmd.Flags().StringVarP(&nodepoolCreateFile, "file", "f", "", "JSON template file (default: <config-dir>/nodepool-template.json)")
+	nodepoolCreateCmd.Flags().StringVar(&nodepoolCreateType, "type", "", "instance type (overrides template)")
+	nodepoolCreateCmd.Flags().IntVar(&nodepoolCreateReplicas, "replicas", 0, "number of replicas (overrides template)")
 
 	nodepoolUpdateCmd.Flags().StringVar(&nodepoolUpdateName, "name", "", "new nodepool name")
 	nodepoolUpdateCmd.Flags().IntVar(&nodepoolUpdateReplicas, "replicas", 0, "new number of replicas")

@@ -92,6 +92,7 @@ func resetClusterFlags() {
 	verbose = false
 	// Cluster-specific flags
 	clusterCreateName = ""
+	clusterCreateFile = ""
 	clusterCreateReplicas = 0
 	clusterCreateNPID = ""
 	clusterUpdateName = ""
@@ -819,5 +820,105 @@ func TestClusterAdapterPostStatus_InvalidStatus(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "Invalid status value") {
 		t.Errorf("expected 'Invalid status value' error, got: %v", err)
+	}
+}
+
+// ---- cluster create: template-driven ----
+
+func TestClusterCreate_Template_NameFromPositionalArg(t *testing.T) {
+	resetClusterFlags()
+	var capturedBody map[string]any
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet:
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, emptyListJSON)
+		case r.Method == http.MethodPost:
+			json.NewDecoder(r.Body).Decode(&capturedBody)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			fmt.Fprint(w, clusterJSON)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	_, err := runClusterCmd(t, dir, "cluster", "create", "prod-cluster")
+	if err != nil {
+		t.Fatalf("cluster create with name arg: %v", err)
+	}
+	if capturedBody["name"] != "prod-cluster" {
+		t.Errorf("expected name=prod-cluster, got %v", capturedBody["name"])
+	}
+}
+
+func TestClusterCreate_FileFlag(t *testing.T) {
+	resetClusterFlags()
+	var capturedBody map[string]any
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet:
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, emptyListJSON)
+		case r.Method == http.MethodPost:
+			json.NewDecoder(r.Body).Decode(&capturedBody)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			fmt.Fprint(w, clusterJSON)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+
+	// Write a custom template file.
+	tplPath := filepath.Join(dir, "custom-cluster.json")
+	if err := os.WriteFile(tplPath,
+		[]byte(`{"kind":"Cluster","name":"from-file","labels":{"env":"ci"},"spec":{"counter":"1","region":"ap-east-1","version":"5.0.0"}}`),
+		0600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := runClusterCmd(t, dir, "cluster", "create", "-f", tplPath)
+	if err != nil {
+		t.Fatalf("cluster create -f: %v", err)
+	}
+	if capturedBody["name"] != "from-file" {
+		t.Errorf("expected name=from-file, got %v", capturedBody["name"])
+	}
+	labels, _ := capturedBody["labels"].(map[string]any)
+	if labels["env"] != "ci" {
+		t.Errorf("expected labels.env=ci, got %v", labels["env"])
+	}
+
+	// Config-dir template should NOT have been created.
+	if _, err := os.Stat(filepath.Join(dir, "cluster-template.json")); !os.IsNotExist(err) {
+		t.Error("config-dir cluster-template.json should not be created when -f is used")
+	}
+}
+
+func TestClusterCreate_MalformedTemplate(t *testing.T) {
+	resetClusterFlags()
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("no HTTP request should be made for malformed template")
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	tplPath := filepath.Join(dir, "bad.json")
+	if err := os.WriteFile(tplPath, []byte(`{not json`), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := runClusterCmd(t, dir, "cluster", "create", "-f", tplPath)
+	if err == nil {
+		t.Fatal("expected error for malformed template")
+	}
+	if !strings.Contains(err.Error(), "loading template") {
+		t.Errorf("expected 'loading template' in error, got: %v", err)
 	}
 }

@@ -90,6 +90,7 @@ func resetNodepoolFlags() {
 	noColor = false
 	verbose = false
 	nodepoolCreateName = ""
+	nodepoolCreateFile = ""
 	nodepoolCreateType = ""
 	nodepoolCreateReplicas = 0
 	nodepoolUpdateName = ""
@@ -765,5 +766,105 @@ func TestNodePoolAdapterPostStatus(t *testing.T) {
 	conds, ok := body["conditions"].([]any)
 	if !ok || len(conds) != 4 {
 		t.Errorf("expected 4 conditions, got %v", body["conditions"])
+	}
+}
+
+// ---- nodepool create: template-driven ----
+
+func TestNodepoolCreate_Template_NameFromPositionalArg(t *testing.T) {
+	resetNodepoolFlags()
+	var capturedBody map[string]any
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet:
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, emptyNPListJSON)
+		case r.Method == http.MethodPost:
+			json.NewDecoder(r.Body).Decode(&capturedBody)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			fmt.Fprint(w, nodepoolJSON)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	_, err := runNodepoolCmd(t, dir, "nodepool", "create", "workers")
+	if err != nil {
+		t.Fatalf("nodepool create with name arg: %v", err)
+	}
+	if capturedBody["name"] != "workers" {
+		t.Errorf("expected name=workers, got %v", capturedBody["name"])
+	}
+}
+
+func TestNodepoolCreate_FileFlag(t *testing.T) {
+	resetNodepoolFlags()
+	var capturedBody map[string]any
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet:
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, emptyNPListJSON)
+		case r.Method == http.MethodPost:
+			json.NewDecoder(r.Body).Decode(&capturedBody)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			fmt.Fprint(w, nodepoolJSON)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+
+	tplPath := filepath.Join(dir, "custom-nodepool.json")
+	if err := os.WriteFile(tplPath,
+		[]byte(`{"kind":"NodePool","name":"from-file","labels":{"env":"ci"},"spec":{"counter":"1","platform":{"type":"n4"},"replicas":3}}`),
+		0600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := runNodepoolCmd(t, dir, "nodepool", "create", "-f", tplPath)
+	if err != nil {
+		t.Fatalf("nodepool create -f: %v", err)
+	}
+	if capturedBody["name"] != "from-file" {
+		t.Errorf("expected name=from-file, got %v", capturedBody["name"])
+	}
+	spec, _ := capturedBody["spec"].(map[string]any)
+	platform, _ := spec["platform"].(map[string]any)
+	if platform["type"] != "n4" {
+		t.Errorf("expected platform.type=n4, got %v", platform["type"])
+	}
+
+	// Config-dir template should NOT have been created.
+	if _, err := os.Stat(filepath.Join(dir, "nodepool-template.json")); !os.IsNotExist(err) {
+		t.Error("config-dir nodepool-template.json should not be created when -f is used")
+	}
+}
+
+func TestNodepoolCreate_MalformedTemplate(t *testing.T) {
+	resetNodepoolFlags()
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("no HTTP request should be made for malformed template")
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	tplPath := filepath.Join(dir, "bad.json")
+	if err := os.WriteFile(tplPath, []byte(`{not json`), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := runNodepoolCmd(t, dir, "nodepool", "create", "-f", tplPath)
+	if err == nil {
+		t.Fatal("expected error for malformed template")
+	}
+	if !strings.Contains(err.Error(), "loading template") {
+		t.Errorf("expected 'loading template' in error, got: %v", err)
 	}
 }

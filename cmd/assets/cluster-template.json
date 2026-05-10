@@ -1,0 +1,15 @@
+{
+  "kind": "Cluster",
+  "name": "my-cluster",
+  "labels": {
+    "counter": "1",
+    "environment": "development",
+    "shard": "1",
+    "team": "core"
+  },
+  "spec": {
+    "counter": "1",
+    "region": "us-east-1",
+    "version": "4.15.0"
+  }
+}

@@ -1,0 +1,514 @@
+?   	github.com/rh-amarin/hyperfleet-cli	[no test files]
+=== RUN   TestClusterList
+--- PASS: TestClusterList (0.00s)
+=== RUN   TestClusterList_Table
+--- PASS: TestClusterList_Table (0.00s)
+=== RUN   TestClusterGet
+--- PASS: TestClusterGet (0.00s)
+=== RUN   TestClusterGet_FromState
+--- PASS: TestClusterGet_FromState (0.00s)
+=== RUN   TestClusterGet_NotFound
+--- PASS: TestClusterGet_NotFound (0.00s)
+=== RUN   TestClusterCreate
+[INFO] Created default cluster template at /tmp/TestClusterCreate535980145/001/cluster-template.json
+[INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
+--- PASS: TestClusterCreate (0.00s)
+=== RUN   TestClusterCreate_DuplicateGuard
+[INFO] Created default cluster template at /tmp/TestClusterCreate_DuplicateGuard3858785640/001/cluster-template.json
+[WARN] Cluster 'test-cluster' already exists, skipping creation
+--- PASS: TestClusterCreate_DuplicateGuard (0.00s)
+=== RUN   TestClusterCreate_Defaults
+[INFO] Created default cluster template at /tmp/TestClusterCreate_Defaults4123392990/001/cluster-template.json
+[INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
+--- PASS: TestClusterCreate_Defaults (0.00s)
+=== RUN   TestClusterUpdate
+--- PASS: TestClusterUpdate (0.00s)
+=== RUN   TestClusterDelete
+--- PASS: TestClusterDelete (0.00s)
+=== RUN   TestClusterDelete_FromState
+--- PASS: TestClusterDelete_FromState (0.00s)
+=== RUN   TestClusterDelete_NotFound
+--- PASS: TestClusterDelete_NotFound (0.00s)
+=== RUN   TestClusterConditions
+--- PASS: TestClusterConditions (0.00s)
+=== RUN   TestClusterConditions_FromState
+--- PASS: TestClusterConditions_FromState (0.00s)
+=== RUN   TestClusterStatuses
+--- PASS: TestClusterStatuses (0.00s)
+=== RUN   TestClusterStatuses_Table
+--- PASS: TestClusterStatuses_Table (0.00s)
+=== RUN   TestClusterSearch_ByName_Found
+[INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
+--- PASS: TestClusterSearch_ByName_Found (0.00s)
+=== RUN   TestClusterSearch_ByName_NotFound
+[WARN] No clusters found matching 'nonexistent'
+--- PASS: TestClusterSearch_ByName_NotFound (0.00s)
+=== RUN   TestClusterSearch_ByName_Multiple
+[WARN] Multiple clusters found matching 'test-cluster', using first result
+[INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
+--- PASS: TestClusterSearch_ByName_Multiple (0.00s)
+=== RUN   TestClusterSearch_NoArgs_WithState
+--- PASS: TestClusterSearch_NoArgs_WithState (0.00s)
+=== RUN   TestClusterSearch_NoArgs_WithoutState
+--- PASS: TestClusterSearch_NoArgs_WithoutState (0.00s)
+=== RUN   TestClusterPatch_Spec
+[INFO] Incrementing spec.counter: 0 -> 1
+--- PASS: TestClusterPatch_Spec (0.00s)
+=== RUN   TestClusterPatch_Labels
+[INFO] Incrementing labels.counter: 1 -> 2
+--- PASS: TestClusterPatch_Labels (0.00s)
+=== RUN   TestClusterPatch_NoArgs
+--- PASS: TestClusterPatch_NoArgs (0.00s)
+=== RUN   TestClusterCreate_PositionalArgs
+[INFO] Created default cluster template at /tmp/TestClusterCreate_PositionalArgs2873268233/001/cluster-template.json
+[INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
+--- PASS: TestClusterCreate_PositionalArgs (0.00s)
+=== RUN   TestClusterAdapterPostStatus
+[INFO] Posted adapter status for cl-deployment on cluster 019dc049-43a8-7a42-b44a-8d7f89e9e10f
+--- PASS: TestClusterAdapterPostStatus (0.00s)
+=== RUN   TestClusterAdapterPostStatus_InvalidStatus
+--- PASS: TestClusterAdapterPostStatus_InvalidStatus (0.00s)
+=== RUN   TestClusterCreate_Template_NameFromPositionalArg
+[INFO] Created default cluster template at /tmp/TestClusterCreate_Template_NameFromPositionalArg3577699578/001/cluster-template.json
+[INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
+--- PASS: TestClusterCreate_Template_NameFromPositionalArg (0.00s)
+=== RUN   TestClusterCreate_FileFlag
+[INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
+--- PASS: TestClusterCreate_FileFlag (0.00s)
+=== RUN   TestClusterCreate_MalformedTemplate
+--- PASS: TestClusterCreate_MalformedTemplate (0.00s)
+=== RUN   TestCompletionBash
+--- PASS: TestCompletionBash (0.00s)
+=== RUN   TestCompletionZsh
+--- PASS: TestCompletionZsh (0.00s)
+=== RUN   TestCompletionFish
+--- PASS: TestCompletionFish (0.00s)
+=== RUN   TestCompletionPowerShell
+--- PASS: TestCompletionPowerShell (0.00s)
+=== RUN   TestActiveEnvGuard_BlocksConfigShow
+--- PASS: TestActiveEnvGuard_BlocksConfigShow (0.00s)
+=== RUN   TestActiveEnvGuard_BlocksConfigSet
+--- PASS: TestActiveEnvGuard_BlocksConfigSet (0.00s)
+=== RUN   TestActiveEnvGuard_BlocksConfigGet
+--- PASS: TestActiveEnvGuard_BlocksConfigGet (0.00s)
+=== RUN   TestActiveEnvGuard_BypassEnvList
+--- PASS: TestActiveEnvGuard_BypassEnvList (0.00s)
+=== RUN   TestActiveEnvGuard_BypassEnvActivate
+--- PASS: TestActiveEnvGuard_BypassEnvActivate (0.00s)
+=== RUN   TestActiveEnvGuard_BypassVersion
+dev
+--- PASS: TestActiveEnvGuard_BypassVersion (0.00s)
+=== RUN   TestConfigShow
+--- PASS: TestConfigShow (0.00s)
+=== RUN   TestConfigShow_StateVariables
+--- PASS: TestConfigShow_StateVariables (0.00s)
+=== RUN   TestConfigGet_Found
+--- PASS: TestConfigGet_Found (0.00s)
+=== RUN   TestConfigGet_NotFound
+--- PASS: TestConfigGet_NotFound (0.00s)
+=== RUN   TestConfigGet_StateKey
+--- PASS: TestConfigGet_StateKey (0.00s)
+=== RUN   TestConfigGet_NoArgs_ShowsHelp
+--- PASS: TestConfigGet_NoArgs_ShowsHelp (0.00s)
+=== RUN   TestConfigSet_Valid
+--- PASS: TestConfigSet_Valid (0.00s)
+=== RUN   TestConfigSet_InvalidSection
+--- PASS: TestConfigSet_InvalidSection (0.00s)
+=== RUN   TestConfigEnvList
+--- PASS: TestConfigEnvList (0.00s)
+=== RUN   TestConfigEnvList_Alias
+--- PASS: TestConfigEnvList_Alias (0.00s)
+=== RUN   TestConfigEnvCreate
+--- PASS: TestConfigEnvCreate (0.00s)
+=== RUN   TestConfigEnvCreate_Duplicate
+--- PASS: TestConfigEnvCreate_Duplicate (0.00s)
+=== RUN   TestConfigEnvActivate
+--- PASS: TestConfigEnvActivate (0.00s)
+=== RUN   TestConfigEnvActivate_NotFound
+--- PASS: TestConfigEnvActivate_NotFound (0.00s)
+=== RUN   TestConfigEnvDelete
+--- PASS: TestConfigEnvDelete (0.00s)
+=== RUN   TestConfigEnvDelete_ClearsActiveEnv
+--- PASS: TestConfigEnvDelete_ClearsActiveEnv (0.00s)
+=== RUN   TestConfigEnvDelete_Alias
+--- PASS: TestConfigEnvDelete_Alias (0.00s)
+=== RUN   TestConfigEnvDelete_NotFound
+--- PASS: TestConfigEnvDelete_NotFound (0.00s)
+=== RUN   TestConfigEnvShow
+--- PASS: TestConfigEnvShow (0.00s)
+=== RUN   TestConfigEnvShow_ActivePrefix
+--- PASS: TestConfigEnvShow_ActivePrefix (0.00s)
+=== RUN   TestConfigEnvShow_NotFound
+--- PASS: TestConfigEnvShow_NotFound (0.00s)
+=== RUN   TestConfigDoctor_Reachable
+--- PASS: TestConfigDoctor_Reachable (0.00s)
+=== RUN   TestConfigDoctor_Unreachable
+--- PASS: TestConfigDoctor_Unreachable (0.00s)
+=== RUN   TestDBQuery_TableOutput
+--- PASS: TestDBQuery_TableOutput (0.00s)
+=== RUN   TestDBQuery_JSONOutput
+--- PASS: TestDBQuery_JSONOutput (0.00s)
+=== RUN   TestDBQuery_NoRows
+--- PASS: TestDBQuery_NoRows (0.00s)
+=== RUN   TestDBQuery_FileReadError
+--- PASS: TestDBQuery_FileReadError (0.00s)
+=== RUN   TestDBExec_RowsAffected
+--- PASS: TestDBExec_RowsAffected (0.00s)
+=== RUN   TestDBDelete_UnknownTarget
+--- PASS: TestDBDelete_UnknownTarget (0.00s)
+=== RUN   TestDBDelete_ConfirmationDenied
+--- PASS: TestDBDelete_ConfirmationDenied (0.00s)
+=== RUN   TestDBConfig_MasksPassword
+--- PASS: TestDBConfig_MasksPassword (0.00s)
+=== RUN   TestDBConfig_EmptyPassword
+--- PASS: TestDBConfig_EmptyPassword (0.00s)
+=== RUN   TestMaestroList
+--- PASS: TestMaestroList (0.00s)
+=== RUN   TestMaestroBundles
+--- PASS: TestMaestroBundles (0.00s)
+=== RUN   TestMaestroConsumers
+--- PASS: TestMaestroConsumers (0.00s)
+=== RUN   TestMaestroGet_ByName
+--- PASS: TestMaestroGet_ByName (0.00s)
+=== RUN   TestMaestroGet_NotFound
+[WARN] No resource bundle found matching 'nonexistent'
+--- PASS: TestMaestroGet_NotFound (0.00s)
+=== RUN   TestMaestroDelete_ByName
+[INFO] Deleted resource bundle 'mw-cluster1' (b1d2c3e4-0000-0000-0000-000000000001)
+--- PASS: TestMaestroDelete_ByName (0.00s)
+=== RUN   TestMaestroDelete_NotFound
+[WARN] No resource bundle found matching 'nonexistent'
+--- PASS: TestMaestroDelete_NotFound (0.00s)
+=== RUN   TestNodepoolList
+--- PASS: TestNodepoolList (0.00s)
+=== RUN   TestNodepoolList_Table
+--- PASS: TestNodepoolList_Table (0.00s)
+=== RUN   TestNodepoolGet
+--- PASS: TestNodepoolGet (0.00s)
+=== RUN   TestNodepoolGet_FromState
+--- PASS: TestNodepoolGet_FromState (0.00s)
+=== RUN   TestNodepoolGet_NotFound
+--- PASS: TestNodepoolGet_NotFound (0.00s)
+=== RUN   TestNodepoolCreate
+[INFO] Created default nodepool template at /tmp/TestNodepoolCreate1613043731/001/nodepool-template.json
+[INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
+--- PASS: TestNodepoolCreate (0.00s)
+=== RUN   TestNodepoolCreate_DuplicateGuard
+[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_DuplicateGuard2530262384/001/nodepool-template.json
+[WARN] NodePool 'test-nodepool' already exists, skipping creation
+--- PASS: TestNodepoolCreate_DuplicateGuard (0.00s)
+=== RUN   TestNodepoolCreate_Defaults
+[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_Defaults3888092814/001/nodepool-template.json
+[INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
+--- PASS: TestNodepoolCreate_Defaults (0.00s)
+=== RUN   TestNodepoolUpdate
+--- PASS: TestNodepoolUpdate (0.00s)
+=== RUN   TestNodepoolDelete
+--- PASS: TestNodepoolDelete (0.00s)
+=== RUN   TestNodepoolDelete_NotFound
+--- PASS: TestNodepoolDelete_NotFound (0.00s)
+=== RUN   TestNodepoolConditions
+--- PASS: TestNodepoolConditions (0.00s)
+=== RUN   TestNodepoolConditions_FromState
+--- PASS: TestNodepoolConditions_FromState (0.00s)
+=== RUN   TestNodepoolConditions_Table
+--- PASS: TestNodepoolConditions_Table (0.00s)
+=== RUN   TestNodepoolStatuses
+--- PASS: TestNodepoolStatuses (0.00s)
+=== RUN   TestNodepoolStatuses_Table
+--- PASS: TestNodepoolStatuses_Table (0.00s)
+=== RUN   TestNodepoolStatuses_ExplicitID
+--- PASS: TestNodepoolStatuses_ExplicitID (0.00s)
+=== RUN   TestNodepoolSearch_ByName_Found
+[INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
+--- PASS: TestNodepoolSearch_ByName_Found (0.00s)
+=== RUN   TestNodepoolSearch_ByName_NotFound
+[WARN] No nodepools found matching 'nonexistent'
+--- PASS: TestNodepoolSearch_ByName_NotFound (0.00s)
+=== RUN   TestNodepoolSearch_NoArgs_WithState
+--- PASS: TestNodepoolSearch_NoArgs_WithState (0.00s)
+=== RUN   TestNodepoolSearch_NoArgs_WithoutState
+--- PASS: TestNodepoolSearch_NoArgs_WithoutState (0.00s)
+=== RUN   TestNodepoolPatch_Spec
+[INFO] Incrementing spec.counter: 1 -> 2
+--- PASS: TestNodepoolPatch_Spec (0.00s)
+=== RUN   TestNodepoolPatch_Labels
+[INFO] Incrementing labels.counter: 1 -> 2
+--- PASS: TestNodepoolPatch_Labels (0.00s)
+=== RUN   TestNodepoolPatch_NoArgs
+--- PASS: TestNodepoolPatch_NoArgs (0.00s)
+=== RUN   TestNodePoolAdapterPostStatus
+[INFO] Posted adapter status for np-configmap on nodepool 019dc049-e76c-7be1-b201-0db50e2c8ecb
+--- PASS: TestNodePoolAdapterPostStatus (0.00s)
+=== RUN   TestNodepoolCreate_Template_NameFromPositionalArg
+[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_Template_NameFromPositionalArg2363648289/001/nodepool-template.json
+[INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
+--- PASS: TestNodepoolCreate_Template_NameFromPositionalArg (0.01s)
+=== RUN   TestNodepoolCreate_FileFlag
+[INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
+--- PASS: TestNodepoolCreate_FileFlag (0.00s)
+=== RUN   TestNodepoolCreate_MalformedTemplate
+--- PASS: TestNodepoolCreate_MalformedTemplate (0.00s)
+=== RUN   TestPubSubList_NoTopics
+--- PASS: TestPubSubList_NoTopics (0.00s)
+=== RUN   TestPubSubList_WithTopics
+--- PASS: TestPubSubList_WithTopics (0.00s)
+=== RUN   TestPubSubList_Filter
+--- PASS: TestPubSubList_Filter (0.00s)
+=== RUN   TestPubSubPublishCluster_MissingClusterID
+--- PASS: TestPubSubPublishCluster_MissingClusterID (0.00s)
+=== RUN   TestPubSubPublishCluster_Success
+--- PASS: TestPubSubPublishCluster_Success (0.00s)
+=== RUN   TestPubSubPublishNodePool_MissingClusterID
+--- PASS: TestPubSubPublishNodePool_MissingClusterID (0.00s)
+=== RUN   TestPubSubPublishNodePool_MissingNodePoolID
+--- PASS: TestPubSubPublishNodePool_MissingNodePoolID (0.00s)
+=== RUN   TestPubSubPublishNodePool_Success
+--- PASS: TestPubSubPublishNodePool_Success (0.00s)
+=== RUN   TestPubSubList_NoCredentials
+--- PASS: TestPubSubList_NoCredentials (0.00s)
+=== RUN   TestRabbitPublishCluster_MissingClusterID
+--- PASS: TestRabbitPublishCluster_MissingClusterID (0.00s)
+=== RUN   TestRabbitPublishCluster_Success
+--- PASS: TestRabbitPublishCluster_Success (0.00s)
+=== RUN   TestRabbitPublishCluster_DefaultRoutingKey
+--- PASS: TestRabbitPublishCluster_DefaultRoutingKey (0.00s)
+=== RUN   TestRabbitPublishNodePool_MissingClusterID
+--- PASS: TestRabbitPublishNodePool_MissingClusterID (0.00s)
+=== RUN   TestRabbitPublishNodePool_MissingNodePoolID
+--- PASS: TestRabbitPublishNodePool_MissingNodePoolID (0.00s)
+=== RUN   TestRabbitPublishNodePool_Success
+--- PASS: TestRabbitPublishNodePool_Success (0.00s)
+=== RUN   TestRabbitPublishCluster_PublishError
+--- PASS: TestRabbitPublishCluster_PublishError (0.00s)
+=== RUN   TestResourcesTable
+--- PASS: TestResourcesTable (0.00s)
+=== RUN   TestResourcesTable_ViaAlias
+--- PASS: TestResourcesTable_ViaAlias (0.00s)
+=== RUN   TestResourcesJSON
+--- PASS: TestResourcesJSON (0.00s)
+=== RUN   TestExecuteHelp
+--- PASS: TestExecuteHelp (0.00s)
+=== RUN   TestGlobalFlagsRegistered
+--- PASS: TestGlobalFlagsRegistered (0.00s)
+=== RUN   TestLoadTemplate_AutoCreatesDefault
+--- PASS: TestLoadTemplate_AutoCreatesDefault (0.00s)
+=== RUN   TestLoadTemplate_ExistingFile
+--- PASS: TestLoadTemplate_ExistingFile (0.00s)
+=== RUN   TestLoadTemplate_FlagFileOverride
+--- PASS: TestLoadTemplate_FlagFileOverride (0.00s)
+=== RUN   TestLoadTemplate_MalformedJSON
+--- PASS: TestLoadTemplate_MalformedJSON (0.00s)
+=== RUN   TestLoadTemplate_FlagFileMissing
+--- PASS: TestLoadTemplate_FlagFileMissing (0.00s)
+=== RUN   TestLoadTemplate_NodepoolDefault
+--- PASS: TestLoadTemplate_NodepoolDefault (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/cmd	0.228s
+=== RUN   TestGetHappyPath
+--- PASS: TestGetHappyPath (0.00s)
+=== RUN   TestPostHappyPath
+--- PASS: TestPostHappyPath (0.00s)
+=== RUN   TestPatchHappyPath
+--- PASS: TestPatchHappyPath (0.00s)
+=== RUN   TestDeleteHappyPath
+--- PASS: TestDeleteHappyPath (0.00s)
+=== RUN   TestRFC7807ErrorParsing404
+--- PASS: TestRFC7807ErrorParsing404 (0.00s)
+=== RUN   TestRFC7807ValidationErrors
+--- PASS: TestRFC7807ValidationErrors (0.00s)
+=== RUN   TestNonJSONErrorBody
+--- PASS: TestNonJSONErrorBody (0.00s)
+=== RUN   TestHTMLErrorBody
+--- PASS: TestHTMLErrorBody (0.00s)
+=== RUN   TestBearerTokenHeader
+--- PASS: TestBearerTokenHeader (0.00s)
+=== RUN   TestNoTokenNoAuthHeader
+--- PASS: TestNoTokenNoAuthHeader (0.00s)
+=== RUN   TestVerboseLogging
+[DEBUG] GET http://127.0.0.1:45991/api/hyperfleet/v1/resources/1 → 200 (0ms)
+--- PASS: TestVerboseLogging (0.00s)
+=== RUN   TestResourceHref
+--- PASS: TestResourceHref (0.00s)
+=== RUN   TestTimeoutErrorFormat
+--- PASS: TestTimeoutErrorFormat (0.01s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/api	0.015s
+=== RUN   TestDefaults
+--- PASS: TestDefaults (0.00s)
+=== RUN   TestEnvVarOverride
+--- PASS: TestEnvVarOverride (0.00s)
+=== RUN   TestEnvVarHigherThanProfile
+--- PASS: TestEnvVarHigherThanProfile (0.00s)
+=== RUN   TestSetAndPersist
+--- PASS: TestSetAndPersist (0.00s)
+=== RUN   TestAtomicStateWrite
+--- PASS: TestAtomicStateWrite (0.00s)
+=== RUN   TestEnvProfileDeepMerge
+--- PASS: TestEnvProfileDeepMerge (0.00s)
+=== RUN   TestRequireActiveEnvironment
+--- PASS: TestRequireActiveEnvironment (0.00s)
+=== RUN   TestClusterIDResolution
+--- PASS: TestClusterIDResolution (0.00s)
+=== RUN   TestConfigFilePermissions
+--- PASS: TestConfigFilePermissions (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/config	0.010s
+=== RUN   TestDSN
+--- PASS: TestDSN (0.00s)
+=== RUN   TestDSNDefaults
+--- PASS: TestDSNDefaults (0.00s)
+=== RUN   TestCellStringNull
+--- PASS: TestCellStringNull (0.00s)
+=== RUN   TestCellStringBytes
+--- PASS: TestCellStringBytes (0.00s)
+=== RUN   TestCellStringTruncation
+--- PASS: TestCellStringTruncation (0.00s)
+=== RUN   TestCellStringNoTruncationAt80
+--- PASS: TestCellStringNoTruncationAt80 (0.00s)
+=== RUN   TestDeleteTargetTable
+--- PASS: TestDeleteTargetTable (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/db	0.004s
+=== RUN   TestBuildConfig_ValidFile
+--- PASS: TestBuildConfig_ValidFile (0.00s)
+=== RUN   TestBuildConfig_MissingFile
+--- PASS: TestBuildConfig_MissingFile (0.00s)
+=== RUN   TestBuildConfig_HFKubeTokenOverride
+--- PASS: TestBuildConfig_HFKubeTokenOverride (0.00s)
+=== RUN   TestIsProcessAlive_CurrentProcess
+--- PASS: TestIsProcessAlive_CurrentProcess (0.00s)
+=== RUN   TestIsProcessAlive_InvalidPID
+--- PASS: TestIsProcessAlive_InvalidPID (0.00s)
+=== RUN   TestFindRunningPod_Found
+--- PASS: TestFindRunningPod_Found (0.00s)
+=== RUN   TestFindRunningPod_NotRunning
+--- PASS: TestFindRunningPod_NotRunning (0.00s)
+=== RUN   TestFindRunningPod_NotFound
+--- PASS: TestFindRunningPod_NotFound (0.00s)
+=== RUN   TestListPortForwards_Empty
+--- PASS: TestListPortForwards_Empty (0.00s)
+=== RUN   TestListPortForwards_WithPIDFile
+--- PASS: TestListPortForwards_WithPIDFile (0.00s)
+=== RUN   TestParseLogfmt
+--- PASS: TestParseLogfmt (0.00s)
+=== RUN   TestResolveKubeconfig_ExplicitPath
+--- PASS: TestResolveKubeconfig_ExplicitPath (0.00s)
+=== RUN   TestResolveKubeconfig_EnvVar
+--- PASS: TestResolveKubeconfig_EnvVar (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/kube	0.019s
+=== RUN   TestListResourceBundles
+--- PASS: TestListResourceBundles (0.00s)
+=== RUN   TestListResourceBundlesByConsumer
+--- PASS: TestListResourceBundlesByConsumer (0.00s)
+=== RUN   TestGetResourceBundle_found
+--- PASS: TestGetResourceBundle_found (0.00s)
+=== RUN   TestGetResourceBundle_notFound
+--- PASS: TestGetResourceBundle_notFound (0.00s)
+=== RUN   TestDeleteResourceBundle
+--- PASS: TestDeleteResourceBundle (0.00s)
+=== RUN   TestListConsumers
+--- PASS: TestListConsumers (0.00s)
+=== RUN   TestHTTPError
+--- PASS: TestHTTPError (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/maestro	0.013s
+=== RUN   TestJSONOutput
+--- PASS: TestJSONOutput (0.00s)
+=== RUN   TestTableOutput
+--- PASS: TestTableOutput (0.00s)
+=== RUN   TestYAMLOutput
+--- PASS: TestYAMLOutput (0.00s)
+=== RUN   TestStatusDotTrue
+--- PASS: TestStatusDotTrue (0.00s)
+=== RUN   TestStatusDotFalse
+--- PASS: TestStatusDotFalse (0.00s)
+=== RUN   TestStatusDotUnknown
+--- PASS: TestStatusDotUnknown (0.00s)
+=== RUN   TestStatusDotAbsent
+--- PASS: TestStatusDotAbsent (0.00s)
+=== RUN   TestStatusDotColorTrue
+--- PASS: TestStatusDotColorTrue (0.00s)
+=== RUN   TestStatusDotColorFalse
+--- PASS: TestStatusDotColorFalse (0.00s)
+=== RUN   TestStatusDotColorUnknown
+--- PASS: TestStatusDotColorUnknown (0.00s)
+=== RUN   TestDynamicColumnsOrdering
+--- PASS: TestDynamicColumnsOrdering (0.00s)
+=== RUN   TestDynamicColumnsNoConditions
+--- PASS: TestDynamicColumnsNoConditions (0.00s)
+=== RUN   TestDynamicColumnsOnlyFixed
+--- PASS: TestDynamicColumnsOnlyFixed (0.00s)
+=== RUN   TestWrapHeader_ShortString
+--- PASS: TestWrapHeader_ShortString (0.00s)
+=== RUN   TestWrapHeader_ExactlyTen
+--- PASS: TestWrapHeader_ExactlyTen (0.00s)
+=== RUN   TestWrapHeader_UnderscoreSplit
+--- PASS: TestWrapHeader_UnderscoreSplit (0.00s)
+=== RUN   TestWrapHeader_MultiSegment
+--- PASS: TestWrapHeader_MultiSegment (0.00s)
+=== RUN   TestWrapHeader_LongSingleToken
+--- PASS: TestWrapHeader_LongSingleToken (0.00s)
+=== RUN   TestWrapHeader_GreedyPack
+--- PASS: TestWrapHeader_GreedyPack (0.00s)
+=== RUN   TestPrintTable_LongHeader
+--- PASS: TestPrintTable_LongHeader (0.00s)
+=== RUN   TestPrintTable_ShortHeaders
+--- PASS: TestPrintTable_ShortHeaders (0.00s)
+=== RUN   TestPrintTable_ANSIAlignment
+--- PASS: TestPrintTable_ANSIAlignment (0.00s)
+=== RUN   TestWarnInfoError
+--- PASS: TestWarnInfoError (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/output	0.004s
+=== RUN   TestBuildClusterEvent
+--- PASS: TestBuildClusterEvent (0.00s)
+=== RUN   TestBuildNodePoolEvent
+--- PASS: TestBuildNodePoolEvent (0.00s)
+=== RUN   TestBuildClusterEvent_TrailingSlashAPIURL
+--- PASS: TestBuildClusterEvent_TrailingSlashAPIURL (0.00s)
+=== RUN   TestRabbitClient_Publish
+--- PASS: TestRabbitClient_Publish (0.00s)
+=== RUN   TestRabbitClient_Publish_HTTPError
+--- PASS: TestRabbitClient_Publish_HTTPError (0.00s)
+=== RUN   TestRabbitClient_Publish_EmptyRoutingKey
+--- PASS: TestRabbitClient_Publish_EmptyRoutingKey (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/pubsub	0.008s
+=== RUN   TestLatestCommit_found
+--- PASS: TestLatestCommit_found (0.00s)
+=== RUN   TestLatestCommit_none
+--- PASS: TestLatestCommit_none (0.00s)
+=== RUN   TestLatestPR_found
+--- PASS: TestLatestPR_found (0.00s)
+=== RUN   TestLatestPR_none
+--- PASS: TestLatestPR_none (0.00s)
+=== RUN   TestLatestQuayTag_found
+--- PASS: TestLatestQuayTag_found (0.00s)
+=== RUN   TestLatestQuayTag_notFound
+--- PASS: TestLatestQuayTag_notFound (0.00s)
+=== RUN   TestFetchAll_parallel
+--- PASS: TestFetchAll_parallel (0.01s)
+=== RUN   TestLatestQuayTag_noAliases
+--- PASS: TestLatestQuayTag_noAliases (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/repos	0.024s
+=== RUN   TestClusterRoundTrip
+--- PASS: TestClusterRoundTrip (0.00s)
+=== RUN   TestNodePoolRoundTrip
+--- PASS: TestNodePoolRoundTrip (0.00s)
+=== RUN   TestListResponseRoundTrip
+--- PASS: TestListResponseRoundTrip (0.00s)
+=== RUN   TestAdapterStatusRoundTrip
+--- PASS: TestAdapterStatusRoundTrip (0.00s)
+=== RUN   TestClusterYAMLRoundTrip
+--- PASS: TestClusterYAMLRoundTrip (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/resource	0.004s
+=== RUN   TestVersionNonEmpty
+--- PASS: TestVersionNonEmpty (0.00s)
+=== RUN   TestStringReturnsVersion
+--- PASS: TestStringReturnsVersion (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/version	0.003s

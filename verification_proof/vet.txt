@@ -1,1 +1,0 @@
-VET: PASS (no errors)

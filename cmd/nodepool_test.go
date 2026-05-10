@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -526,5 +527,69 @@ func TestNodepoolStatuses_ExplicitID(t *testing.T) {
 	}
 	if !strings.Contains(out, "np-configmap") {
 		t.Errorf("expected adapter name in output, got: %q", out)
+	}
+}
+
+// ---- nodepool adapter post-status ----
+
+// setBothIDsInState writes state.yaml with active env, cluster-id, and nodepool-id.
+func setBothIDsInState(t *testing.T, dir, envName, cid, npid string) {
+	t.Helper()
+	statePath := filepath.Join(dir, "state.yaml")
+	content := fmt.Sprintf("active-environment: %s\ncluster-id: %s\nnodepool-id: %s\n", envName, cid, npid)
+	if err := os.WriteFile(statePath, []byte(content), 0600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNodePoolAdapterPostStatus(t *testing.T) {
+	var capturedBody []byte
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		wantPath := apiPrefix + "/clusters/" + clusterID + "/nodepools/" + nodepoolID + "/statuses"
+		if r.Method == http.MethodPost && r.URL.Path == wantPath {
+			capturedBody, _ = io.ReadAll(r.Body)
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{
+				"adapter": "np-configmap",
+				"observed_generation": 2,
+				"observed_time": "2026-05-10T00:00:00Z",
+				"conditions": [
+					{"type": "Available", "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf adapter post-status"},
+					{"type": "Applied",   "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf adapter post-status"},
+					{"type": "Health",    "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf adapter post-status"},
+					{"type": "Finalized", "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf adapter post-status"}
+				],
+				"created_time": "2026-05-10T00:00:00Z",
+				"last_report_time": "2026-05-10T00:00:00Z"
+			}`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
+
+	out, err := runNodepoolCmd(t, dir, "nodepool", "adapter", "post-status", "np-configmap", "True", "2")
+	if err != nil {
+		t.Fatalf("nodepool adapter post-status: %v", err)
+	}
+	if !strings.Contains(out, "np-configmap") {
+		t.Errorf("expected adapter name in output, got: %q", out)
+	}
+	if len(capturedBody) == 0 {
+		t.Fatal("expected request body to be captured")
+	}
+	var body map[string]any
+	if err := json.Unmarshal(capturedBody, &body); err != nil {
+		t.Fatalf("captured body is not JSON: %v", err)
+	}
+	if body["adapter"] != "np-configmap" {
+		t.Errorf("body adapter: got %v, want np-configmap", body["adapter"])
+	}
+	conds, ok := body["conditions"].([]any)
+	if !ok || len(conds) != 4 {
+		t.Errorf("expected 4 conditions, got %v", body["conditions"])
 	}
 }

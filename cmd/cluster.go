@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/rh-amarin/hyperfleet-cli/internal/api"
 	"github.com/rh-amarin/hyperfleet-cli/internal/config"
@@ -410,6 +411,64 @@ var clusterStatusesCmd = &cobra.Command{
 	},
 }
 
+// ---- cluster adapter ----
+
+var clusterAdapterCmd = &cobra.Command{
+	Use:   "adapter",
+	Short: "Adapter operations for a cluster",
+}
+
+var clusterAdapterPostStatusCmd = &cobra.Command{
+	Use:   "post-status <adapter_name> <True|False|Unknown> <generation>",
+	Short: "Post adapter status conditions for the current cluster",
+	Args:  cobra.ExactArgs(3),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		adapterName := args[0]
+		status := args[1]
+		genStr := args[2]
+
+		if status != "True" && status != "False" && status != "Unknown" {
+			return fmt.Errorf("[ERROR] Invalid status value '%s'. Must be one of: True, False, Unknown.", status)
+		}
+		gen, err := strconv.Atoi(genStr)
+		if err != nil {
+			return fmt.Errorf("[ERROR] Invalid generation '%s': must be an integer", genStr)
+		}
+
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		clusterID, err := s.ClusterID("")
+		if err != nil {
+			return err
+		}
+
+		client := newAPIClient(s)
+		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+
+		body := resource.AdapterStatusCreateRequest{
+			Adapter:            adapterName,
+			ObservedGeneration: int32(gen),
+			ObservedTime:       time.Now().UTC().Format(time.RFC3339),
+			Conditions: []resource.ConditionRequest{
+				{Type: "Available", Status: status, Reason: "ManualStatusPost", Message: "Status posted via hf adapter post-status"},
+				{Type: "Applied", Status: status, Reason: "ManualStatusPost", Message: "Status posted via hf adapter post-status"},
+				{Type: "Health", Status: status, Reason: "ManualStatusPost", Message: "Status posted via hf adapter post-status"},
+				{Type: "Finalized", Status: status, Reason: "ManualStatusPost", Message: "Status posted via hf adapter post-status"},
+			},
+		}
+
+		result, err := api.Post[resource.AdapterStatus](context.Background(), client, "clusters/"+clusterID+"/statuses", body)
+		if err != nil {
+			return handleAPIError(p, err)
+		}
+
+		p.Info(fmt.Sprintf("Posted adapter status for %s on cluster %s", adapterName, clusterID))
+		return p.Print(result)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(clusterCmd)
 
@@ -420,6 +479,8 @@ func init() {
 	clusterCmd.AddCommand(clusterDeleteCmd)
 	clusterCmd.AddCommand(clusterConditionsCmd)
 	clusterCmd.AddCommand(clusterStatusesCmd)
+	clusterCmd.AddCommand(clusterAdapterCmd)
+	clusterAdapterCmd.AddCommand(clusterAdapterPostStatusCmd)
 
 	clusterCreateCmd.Flags().StringVar(&clusterCreateName, "name", "", "cluster name (default: my-cluster)")
 	clusterCreateCmd.Flags().IntVar(&clusterCreateReplicas, "replicas", 0, "number of replicas")

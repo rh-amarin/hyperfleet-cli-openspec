@@ -6,96 +6,13 @@ Provide CLI commands for full CRUD lifecycle management of HyperFleet clusters, 
 ## Requirements
 ### Requirement: Create Cluster
 
-The CLI SHALL create a new HyperFleet cluster with configurable name, region, and version.
+`hf cluster create` SHALL additionally accept positional arguments `[name] [region] [version]`.
 
-#### Scenario: Create cluster with explicit arguments
+#### Scenario: Create cluster with positional arguments (MODIFIED)
 
-- GIVEN the API is reachable and api-url, api-version are configured
 - WHEN the user runs `hf cluster create <name> [region] [version]`
-- THEN the CLI MUST send a POST request to `/api/hyperfleet/v1/clusters`
-- AND the request payload MUST include:
-  - `name`: the provided cluster name
-  - `labels`: `{"counter": "1", "environment": "development", "shard": "1", "team": "core"}`
-  - `spec`: `{"counter": "1", "region": "<region>", "version": "<version>"}`
-- AND the CLI MUST output the JSON response containing the created cluster object
-- AND the response MUST include `id`, `kind: "Cluster"`, `generation: 1`, `status.conditions`
-- AND the CLI MUST persist the cluster ID from the API response to active state via `config.SetClusterID`
-- AND the CLI MUST print `[INFO] Cluster context set to '<id>'` on stderr after persisting
-
-**Example** — `hf cluster create test-cluster-alpha us-east1 1.28`:
-
-Request payload:
-```json
-{
-  "kind": "Cluster",
-  "name": "test-cluster-alpha",
-  "labels": {"counter": "1", "environment": "development", "shard": "1", "team": "core"},
-  "spec": {"counter": "1", "region": "us-east1", "version": "1.28"}
-}
-```
-
-Response:
-```json
-{
-  "id": "019dc049-43a8-7a42-b44a-8d7f89e9e10f",
-  "kind": "Cluster",
-  "generation": 1,
-  "name": "test-cluster-alpha",
-  "labels": {"counter": "1", "environment": "development", "shard": "1", "team": "core"},
-  "spec": {"counter": "1", "region": "us-east1", "version": "1.28"},
-  "status": {
-    "conditions": [
-      {
-        "type": "Available",
-        "status": "False",
-        "reason": "AdaptersNotAtSameGeneration",
-        "message": "Required adapters do not report a consistent Available state",
-        "observed_generation": 1
-      },
-      {
-        "type": "Reconciled",
-        "status": "False",
-        "reason": "MissingRequiredAdapters",
-        "message": "Required adapters not reporting Available=True: [cl-deployment, cl-invalid-resource, cl-job, cl-maestro, cl-namespace, cl-precondition-error]. Currently reporting: []",
-        "observed_generation": 1
-      }
-    ]
-  },
-  "created_by": "user@example.com",
-  "created_time": "2026-04-24T16:00:00Z",
-  "href": "/api/hyperfleet/v1/clusters/019dc049-43a8-7a42-b44a-8d7f89e9e10f"
-}
-```
-
-Stderr: `[INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'`
-
-#### Scenario: Create cluster with default arguments
-
-- GIVEN no arguments are provided
-- WHEN the user runs `hf cluster create`
-- THEN the CLI MUST use defaults: name=`my-cluster`, region=`us-east-1`, version=`4.15.0`
-- AND the CLI MUST NOT show a usage message — it MUST proceed with creation using defaults
-
-#### Scenario: Create duplicate cluster
-
-- GIVEN a cluster with the same name already exists
-- WHEN the user runs `hf cluster create <existing-name>`
-- THEN the CLI MUST first query `GET /api/hyperfleet/v1/clusters?search=name='<name>'` to check for an existing cluster
-- AND if a cluster with that name is found, the CLI MUST print `[WARN] Cluster '<name>' already exists, skipping creation` and exit with code 0 without sending a POST
-- AND if no existing cluster is found, proceed with the POST request normally
-
-**Example** — `hf cluster create test-cluster-alpha` when `test-cluster-alpha` already exists:
-```
-[WARN] Cluster 'test-cluster-alpha' already exists, skipping creation
-```
-
-#### Scenario: Initial cluster status conditions
-
-- GIVEN a cluster was just created
-- WHEN the API responds with the created cluster
-- THEN the cluster MUST have initial conditions:
-  - `Reconciled: False` with reason `MissingRequiredAdapters`
-  - `Available: False` with reason `AdaptersNotAtSameGeneration`
+- THEN the CLI MUST use positional args for name, region, and version
+- AND positional args take precedence over the `--name` flag and built-in defaults (`my-cluster`, `us-east-1`, `4.15.0`)
 
 ### Requirement: Search Cluster
 
@@ -230,21 +147,13 @@ Arguments:
 
 ### Requirement: Delete Cluster
 
-The CLI SHALL delete a cluster by ID.
+`hf cluster delete` SHALL accept an optional cluster ID, falling back to the configured cluster-id.
 
-#### Scenario: Delete cluster
+#### Scenario: Delete cluster (MODIFIED — optional ID, output)
 
-- GIVEN a cluster exists
 - WHEN the user runs `hf cluster delete [cluster_id]`
-- THEN the CLI MUST send a DELETE request to `/api/hyperfleet/v1/clusters/{cluster_id}`
-- AND the response MUST include the full cluster object with `deleted_by`, `deleted_time`, and incremented `generation`
-- AND the CLI MUST output the deleted cluster object subject to the `--output` flag (default: JSON)
-
-#### Scenario: Delete current cluster
-
-- GIVEN a cluster-id is set in config and no explicit ID is provided
-- WHEN the user runs `hf cluster delete`
-- THEN the CLI MUST use the configured cluster-id
+- THEN the CLI MUST use the provided ID, or the configured cluster-id if none is provided
+- AND the CLI MUST output the deleted cluster JSON subject to the `--output` flag
 
 ### Requirement: Get Cluster Conditions
 
@@ -315,83 +224,13 @@ ClNamespaceSuccessful   True    2026-04-24T16:01:00Z ManualStatusPost      Statu
 
 ### Requirement: Get Cluster Adapter Statuses
 
-The CLI SHALL display adapter statuses for a cluster.
+The statuses table SHALL include a FINALIZED column in addition to AVAILABLE.
 
-#### Scenario: Get statuses with no adapter reports
+#### Scenario: Get statuses table (MODIFIED — add FINALIZED column)
 
-- GIVEN a newly created cluster with no adapter status reports
-- WHEN the user runs `hf cluster statuses`
-- THEN the CLI MUST output `{"items": [], "kind": "AdapterStatusList", "page": 1, "size": 0, "total": 0}`
-
-#### Scenario: Get statuses with adapter reports
-
-- GIVEN adapters have reported statuses for the cluster
-- WHEN the user runs `hf cluster statuses`
-- THEN the CLI MUST send GET to `/api/hyperfleet/v1/clusters/{cluster_id}/statuses`
-- AND output the `AdapterStatusList` with items containing: adapter name, conditions (Available, Applied, Health, Finalized), observed_generation, last_report_time
-
-**Example** — `hf cluster statuses` after three adapters have reported at generation 3:
-```json
-{
-  "items": [
-    {
-      "adapter": "cl-deployment",
-      "observed_generation": 3,
-      "last_report_time": "2026-04-24T16:19:06Z",
-      "conditions": [
-        {"type": "Available", "status": "True",  "reason": "ManualStatusPost"},
-        {"type": "Applied",   "status": "True",  "reason": "ManualStatusPost"},
-        {"type": "Health",    "status": "True",  "reason": "ManualStatusPost"},
-        {"type": "Finalized", "status": "True",  "reason": "ManualStatusPost"}
-      ]
-    },
-    {
-      "adapter": "cl-job",
-      "observed_generation": 3,
-      "last_report_time": "2026-04-24T16:19:08Z",
-      "conditions": [
-        {"type": "Available", "status": "False", "reason": "ManualStatusPost"},
-        {"type": "Applied",   "status": "False", "reason": "ManualStatusPost"},
-        {"type": "Health",    "status": "False", "reason": "ManualStatusPost"},
-        {"type": "Finalized", "status": "False", "reason": "ManualStatusPost"}
-      ]
-    },
-    {
-      "adapter": "cl-namespace",
-      "observed_generation": 3,
-      "last_report_time": "2026-04-24T16:19:10Z",
-      "conditions": [
-        {"type": "Available", "status": "True",  "reason": "ManualStatusPost"},
-        {"type": "Applied",   "status": "True",  "reason": "ManualStatusPost"},
-        {"type": "Health",    "status": "True",  "reason": "ManualStatusPost"},
-        {"type": "Finalized", "status": "True",  "reason": "ManualStatusPost"}
-      ]
-    }
-  ],
-  "kind": "AdapterStatusList",
-  "page": 1,
-  "size": 3,
-  "total": 3
-}
-```
-
-#### Scenario: Get statuses table
-
-- GIVEN adapters have reported statuses for the cluster
-- WHEN the user runs `hf cluster statuses --table`
-- THEN the CLI MUST output a formatted table with columns: ADAPTER, GEN, Available, Finalized
-- AND each row MUST represent one adapter entry from the statuses list
-- AND GEN MUST show the `observed_generation` value for that adapter
-- AND Available and Finalized columns MUST be color-coded dots: green=True, red=False, yellow=Unknown, `-`=not present
-
-**Example** — `hf cluster statuses --table` for the same three adapters above (colors shown in parentheses):
-```
-ADAPTER       GEN  Available  Finalized
----           ---  ---        ---
-cl-deployment  3   ●(green)   ●(green)
-cl-job         3   ●(red)     ●(red)
-cl-namespace   3   ●(green)   ●(green)
-```
+- WHEN the user runs `hf cluster statuses --output table`
+- THEN the CLI MUST output columns: ADAPTER, GEN, AVAILABLE, FINALIZED
+- AND AVAILABLE and FINALIZED columns MUST be color-coded dots: green=True, red=False, `-`=not present
 
 ### Requirement: List Clusters
 

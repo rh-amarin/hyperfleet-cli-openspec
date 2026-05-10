@@ -366,9 +366,32 @@ func TestClusterDelete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cluster delete: %v", err)
 	}
-	// Silent success — no output expected
-	if strings.TrimSpace(out) != "" {
-		t.Errorf("cluster delete should be silent, got: %q", out)
+	// Spec: output the deleted cluster object.
+	if !strings.Contains(out, clusterID) {
+		t.Errorf("cluster delete: expected deleted cluster JSON in output, got: %q", out)
+	}
+}
+
+func TestClusterDelete_FromState(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete && r.URL.Path == apiPrefix+"/clusters/"+clusterID {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	setClusterIDInState(t, dir, "test", clusterID)
+
+	out, err := runClusterCmd(t, dir, "cluster", "delete")
+	if err != nil {
+		t.Fatalf("cluster delete (from state): %v", err)
+	}
+	if !strings.Contains(out, clusterID) {
+		t.Errorf("cluster delete from state: expected cluster JSON in output, got: %q", out)
 	}
 }
 
@@ -496,6 +519,239 @@ func TestClusterStatuses_Table(t *testing.T) {
 }
 
 // ---- cluster adapter post-status ----
+
+// ---- cluster search ----
+
+func TestClusterSearch_ByName_Found(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterListJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	out, err := runClusterCmd(t, dir, "cluster", "search", "test-cluster")
+	if err != nil {
+		t.Fatalf("cluster search: %v", err)
+	}
+	if !strings.Contains(out, clusterID) {
+		t.Errorf("expected cluster ID in search output, got: %q", out)
+	}
+	// Verify cluster-id persisted to state.
+	stateRaw, _ := os.ReadFile(filepath.Join(dir, "state.yaml"))
+	if !strings.Contains(string(stateRaw), clusterID) {
+		t.Errorf("cluster-id not persisted after search: %q", string(stateRaw))
+	}
+}
+
+func TestClusterSearch_ByName_NotFound(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, emptyListJSON)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	out, err := runClusterCmd(t, dir, "cluster", "search", "nonexistent")
+	if err != nil {
+		t.Fatalf("cluster search not-found should exit 0, got: %v", err)
+	}
+	if !strings.Contains(out, "[]") {
+		t.Errorf("expected empty JSON array for not-found search, got: %q", out)
+	}
+}
+
+func TestClusterSearch_ByName_Multiple(t *testing.T) {
+	multiJSON := `{"items":[` + clusterJSON + `,` + clusterJSON + `],"kind":"ClusterList","page":1,"size":2,"total":2}`
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, multiJSON)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	out, err := runClusterCmd(t, dir, "cluster", "search", "test-cluster")
+	if err != nil {
+		t.Fatalf("cluster search multiple: %v", err)
+	}
+	if !strings.Contains(out, clusterID) {
+		t.Errorf("expected cluster ID in output, got: %q", out)
+	}
+}
+
+func TestClusterSearch_NoArgs_WithState(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	setClusterIDInState(t, dir, "test", clusterID)
+
+	out, err := runClusterCmd(t, dir, "cluster", "search")
+	if err != nil {
+		t.Fatalf("cluster search (no args, with state): %v", err)
+	}
+	if !strings.Contains(out, clusterID) {
+		t.Errorf("expected cluster JSON in output, got: %q", out)
+	}
+}
+
+func TestClusterSearch_NoArgs_WithoutState(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("no HTTP request should be made when state is empty")
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	// No cluster-id in state.
+	_, err := runClusterCmd(t, dir, "cluster", "search")
+	if err == nil {
+		t.Fatal("expected error when no cluster-id in state")
+	}
+	if !strings.Contains(err.Error(), "No cluster-id set in state") {
+		t.Errorf("error message: got %q", err.Error())
+	}
+}
+
+// ---- cluster patch ----
+
+func TestClusterPatch_Spec(t *testing.T) {
+	var capturedBody map[string]any
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID:
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterJSON)
+		case r.Method == http.MethodPatch && r.URL.Path == apiPrefix+"/clusters/"+clusterID:
+			json.NewDecoder(r.Body).Decode(&capturedBody)
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterJSON)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	setClusterIDInState(t, dir, "test", clusterID)
+
+	_, err := runClusterCmd(t, dir, "cluster", "patch", "spec")
+	if err != nil {
+		t.Fatalf("cluster patch spec: %v", err)
+	}
+	if capturedBody == nil {
+		t.Fatal("expected PATCH request body")
+	}
+	spec, ok := capturedBody["spec"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected spec in PATCH body, got: %v", capturedBody)
+	}
+	// Fixture spec has no counter (treated as 0), so first patch sends "1".
+	if spec["counter"] != "1" {
+		t.Errorf("expected counter '1' (0→1), got %v", spec["counter"])
+	}
+}
+
+func TestClusterPatch_Labels(t *testing.T) {
+	var capturedBody map[string]any
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID:
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterJSON)
+		case r.Method == http.MethodPatch && r.URL.Path == apiPrefix+"/clusters/"+clusterID:
+			json.NewDecoder(r.Body).Decode(&capturedBody)
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterJSON)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	setClusterIDInState(t, dir, "test", clusterID)
+
+	_, err := runClusterCmd(t, dir, "cluster", "patch", "labels")
+	if err != nil {
+		t.Fatalf("cluster patch labels: %v", err)
+	}
+	if capturedBody == nil {
+		t.Fatal("expected PATCH request body")
+	}
+	labels, ok := capturedBody["labels"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected labels in PATCH body, got: %v", capturedBody)
+	}
+	if labels["counter"] != "2" {
+		t.Errorf("expected counter '2', got %v", labels["counter"])
+	}
+}
+
+func TestClusterPatch_NoArgs(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("no HTTP request should be made for patch with no args")
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	out, err := runClusterCmd(t, dir, "cluster", "patch")
+	if err == nil {
+		t.Fatal("expected error for cluster patch with no args")
+	}
+	if !strings.Contains(out, "Usage: hf cluster patch") {
+		t.Errorf("expected usage message in stdout, got: %q", out)
+	}
+}
+
+func TestClusterCreate_PositionalArgs(t *testing.T) {
+	resetClusterFlags()
+	var capturedBody map[string]any
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, emptyListJSON)
+		case r.Method == http.MethodPost && r.URL.Path == apiPrefix+"/clusters":
+			json.NewDecoder(r.Body).Decode(&capturedBody)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			fmt.Fprint(w, clusterJSON)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	_, err := runClusterCmd(t, dir, "cluster", "create", "my-named-cluster", "eu-west1", "1.30")
+	if err != nil {
+		t.Fatalf("cluster create with positional args: %v", err)
+	}
+	if capturedBody == nil {
+		t.Fatal("expected POST request body")
+	}
+	if capturedBody["name"] != "my-named-cluster" {
+		t.Errorf("expected name 'my-named-cluster', got %v", capturedBody["name"])
+	}
+	spec, _ := capturedBody["spec"].(map[string]any)
+	if spec["region"] != "eu-west1" {
+		t.Errorf("expected region 'eu-west1', got %v", spec["region"])
+	}
+	if spec["version"] != "1.30" {
+		t.Errorf("expected version '1.30', got %v", spec["version"])
+	}
+}
 
 func TestClusterAdapterPostStatus(t *testing.T) {
 	var capturedBody []byte

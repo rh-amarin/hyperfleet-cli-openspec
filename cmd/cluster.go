@@ -22,7 +22,7 @@ var clusterCmd = &cobra.Command{
 	Short: "Manage HyperFleet clusters",
 	Long: `Manage HyperFleet clusters.
 
-Subcommands: create, get, list, update, delete, conditions, statuses.`,
+Subcommands: create, get, list, search, update, patch, delete, conditions, statuses.`,
 }
 
 // ---- flag vars ----
@@ -93,8 +93,8 @@ func clusterOverallStatus(c resource.Cluster, nc bool) string {
 
 // conditionsView is the JSON shape emitted by `hf cluster conditions`.
 type conditionsView struct {
-	Generation int32                 `json:"generation"`
-	Status     conditionsViewStatus  `json:"status"`
+	Generation int32                `json:"generation"`
+	Status     conditionsViewStatus `json:"status"`
 }
 
 type conditionsViewStatus struct {
@@ -178,11 +178,70 @@ var clusterGetCmd = &cobra.Command{
 	},
 }
 
+// ---- cluster search ----
+
+var clusterSearchCmd = &cobra.Command{
+	Use:   "search [name]",
+	Short: "Search for a cluster by name and set as active context",
+	Args:  cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+
+		// No name arg: behave like `hf cluster get` using the state cluster-id.
+		if len(args) == 0 {
+			id := s.GetState("cluster-id")
+			if id == "" {
+				return fmt.Errorf("[ERROR] No cluster-id set in state. Run 'hf cluster create' or 'hf cluster search <name>' first.")
+			}
+			client := newAPIClient(s)
+			cluster, err := api.Get[resource.Cluster](context.Background(), client, "clusters/"+id)
+			if err != nil {
+				return handleAPIError(p, err)
+			}
+			return p.Print(cluster)
+		}
+
+		name := args[0]
+		client := newAPIClient(s)
+
+		list, err := api.Get[resource.ListResponse[resource.Cluster]](
+			context.Background(), client,
+			"clusters?search=name='"+name+"'",
+		)
+		if err != nil {
+			return handleAPIError(p, err)
+		}
+
+		if len(list.Items) == 0 {
+			p.Warn(fmt.Sprintf("No clusters found matching '%s'", name))
+			return p.Print([]resource.Cluster{})
+		}
+
+		if len(list.Items) > 1 {
+			p.Warn(fmt.Sprintf("Multiple clusters found matching '%s', using first result", name))
+		}
+
+		first := list.Items[0]
+		if setErr := s.SetState("cluster-id", first.ID); setErr != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "[WARN] Failed to persist cluster-id: %v\n", setErr)
+		} else {
+			p.Info(fmt.Sprintf("Cluster context set to '%s'", first.ID))
+		}
+
+		return p.Print(list.Items)
+	},
+}
+
 // ---- cluster create ----
 
 var clusterCreateCmd = &cobra.Command{
-	Use:   "create",
+	Use:   "create [name] [region] [version]",
 	Short: "Create a new cluster",
+	Args:  cobra.MaximumNArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s, err := loadConfig()
 		if err != nil {
@@ -190,6 +249,18 @@ var clusterCreateCmd = &cobra.Command{
 		}
 
 		name := clusterCreateName
+		region := "us-east-1"
+		version := "4.15.0"
+
+		if len(args) >= 1 {
+			name = args[0]
+		}
+		if len(args) >= 2 {
+			region = args[1]
+		}
+		if len(args) >= 3 {
+			version = args[2]
+		}
 		if name == "" {
 			name = "my-cluster"
 		}
@@ -209,8 +280,8 @@ var clusterCreateCmd = &cobra.Command{
 
 		spec := map[string]any{
 			"counter": "1",
-			"region":  "us-east-1",
-			"version": "4.15.0",
+			"region":  region,
+			"version": version,
 		}
 		if clusterCreateReplicas > 0 {
 			spec["replicas"] = strconv.Itoa(clusterCreateReplicas)
@@ -280,22 +351,102 @@ var clusterUpdateCmd = &cobra.Command{
 	},
 }
 
-// ---- cluster delete ----
+// ---- cluster patch ----
 
-var clusterDeleteCmd = &cobra.Command{
-	Use:   "delete <id>",
-	Short: "Delete a cluster",
-	Args:  cobra.ExactArgs(1),
+var clusterPatchCmd = &cobra.Command{
+	Use:   "patch {spec|labels} [cluster_id]",
+	Short: "Increment a counter field in cluster spec or labels",
+	Args:  cobra.MaximumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		id := args[0]
+		if len(args) == 0 || (args[0] != "spec" && args[0] != "labels") {
+			fmt.Fprintln(cmd.OutOrStdout(), "Usage: hf cluster patch {spec|labels} [cluster_id]")
+			fmt.Fprintln(cmd.OutOrStdout(), "")
+			fmt.Fprintln(cmd.OutOrStdout(), "Arguments:")
+			fmt.Fprintln(cmd.OutOrStdout(), "  spec|labels   Which section to increment the counter field in (required)")
+			fmt.Fprintln(cmd.OutOrStdout(), "  cluster_id    Cluster ID (default: current cluster)")
+			return fmt.Errorf("invalid arguments")
+		}
+
+		section := args[0]
+		explicit := ""
+		if len(args) == 2 {
+			explicit = args[1]
+		}
+
 		s, err := loadConfig()
 		if err != nil {
 			return err
 		}
+		id, err := s.ClusterID(explicit)
+		if err != nil {
+			return err
+		}
+
 		client := newAPIClient(s)
 		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
-		_, err = api.Delete[resource.Cluster](context.Background(), client, "clusters/"+id)
+		cluster, err := api.Get[resource.Cluster](context.Background(), client, "clusters/"+id)
+		if err != nil {
+			return handleAPIError(p, err)
+		}
+
+		var oldVal int
+		if section == "spec" {
+			if v, ok := cluster.Spec["counter"].(string); ok {
+				oldVal, _ = strconv.Atoi(v)
+			}
+		} else {
+			if v, ok := cluster.Labels["counter"]; ok {
+				oldVal, _ = strconv.Atoi(v)
+			}
+		}
+		newVal := oldVal + 1
+
+		p.Info(fmt.Sprintf("Incrementing %s.counter: %d -> %d", section, oldVal, newVal))
+
+		var body map[string]any
+		if section == "spec" {
+			body = map[string]any{
+				"spec": map[string]any{"counter": strconv.Itoa(newVal)},
+			}
+		} else {
+			body = map[string]any{
+				"labels": map[string]any{"counter": strconv.Itoa(newVal)},
+			}
+		}
+
+		_, err = api.Patch[resource.Cluster](context.Background(), client, "clusters/"+id, body)
+		if err != nil {
+			return handleAPIError(p, err)
+		}
+		return nil
+	},
+}
+
+// ---- cluster delete ----
+
+var clusterDeleteCmd = &cobra.Command{
+	Use:   "delete [id]",
+	Short: "Delete a cluster",
+	Args:  cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		explicit := ""
+		if len(args) > 0 {
+			explicit = args[0]
+		}
+		id, err := s.ClusterID(explicit)
+		if err != nil {
+			return err
+		}
+
+		client := newAPIClient(s)
+		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+
+		deleted, err := api.Delete[resource.Cluster](context.Background(), client, "clusters/"+id)
 		if err != nil {
 			var apiErr *api.APIError
 			if errors.As(err, &apiErr) && apiErr.Status == 404 {
@@ -303,7 +454,7 @@ var clusterDeleteCmd = &cobra.Command{
 			}
 			return handleAPIError(p, err)
 		}
-		return nil
+		return p.Print(deleted)
 	},
 }
 
@@ -389,20 +540,23 @@ var clusterStatusesCmd = &cobra.Command{
 		}
 
 		if outputFmt == "table" {
-			headers := []string{"ADAPTER", "GEN", "AVAILABLE"}
+			headers := []string{"ADAPTER", "GEN", "AVAILABLE", "FINALIZED"}
 			rows := make([][]string, 0, len(list.Items))
 			for _, as := range list.Items {
-				avail := "-"
+				avail, final := "-", "-"
 				for _, cond := range as.Conditions {
-					if cond.Type == "Available" {
+					switch cond.Type {
+					case "Available":
 						avail = output.StatusDot(cond.Status, noColor)
-						break
+					case "Finalized":
+						final = output.StatusDot(cond.Status, noColor)
 					}
 				}
 				rows = append(rows, []string{
 					as.Adapter,
 					strconv.Itoa(int(as.ObservedGeneration)),
 					avail,
+					final,
 				})
 			}
 			return p.PrintTable(headers, rows)
@@ -474,8 +628,10 @@ func init() {
 
 	clusterCmd.AddCommand(clusterListCmd)
 	clusterCmd.AddCommand(clusterGetCmd)
+	clusterCmd.AddCommand(clusterSearchCmd)
 	clusterCmd.AddCommand(clusterCreateCmd)
 	clusterCmd.AddCommand(clusterUpdateCmd)
+	clusterCmd.AddCommand(clusterPatchCmd)
 	clusterCmd.AddCommand(clusterDeleteCmd)
 	clusterCmd.AddCommand(clusterConditionsCmd)
 	clusterCmd.AddCommand(clusterStatusesCmd)

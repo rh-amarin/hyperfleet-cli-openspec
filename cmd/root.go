@@ -77,6 +77,18 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
+// helpOnNoArgs returns an Args validator that prints the command's help and fails
+// silently when zero arguments are supplied, falling back to ExactArgs(n) otherwise.
+func helpOnNoArgs(n int) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			_ = cmd.Help()
+			return fmt.Errorf("")
+		}
+		return cobra.ExactArgs(n)(cmd, args)
+	}
+}
+
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: ~/.config/hf/config.yaml)")
 	rootCmd.PersistentFlags().StringVarP(&outputFmt, "output", "o", "json", "output format: json, table, yaml")

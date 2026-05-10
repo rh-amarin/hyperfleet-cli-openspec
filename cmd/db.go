@@ -123,7 +123,7 @@ var dbQueryCmd = &cobra.Command{
 var dbExecCmd = &cobra.Command{
 	Use:   "exec <sql>",
 	Short: "Execute a DML SQL statement",
-	Args:  cobra.ExactArgs(1),
+	Args:  helpOnNoArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		_, pool, err := openDBPool(ctx)
@@ -156,7 +156,7 @@ var deleteOrder = []struct {
 var dbDeleteCmd = &cobra.Command{
 	Use:   "delete <target>",
 	Short: "Delete records from a table (clusters, nodepools, adapter_statuses, ALL)",
-	Args:  cobra.ExactArgs(1),
+	Args:  helpOnNoArgs(1),
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return []string{"clusters", "nodepools", "adapter_statuses", "ALL"}, cobra.ShellCompDirectiveNoFileComp
 	},

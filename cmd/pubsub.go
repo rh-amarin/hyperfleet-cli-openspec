@@ -94,7 +94,7 @@ var pubsubPublishCmd = &cobra.Command{
 var pubsubPublishClusterCmd = &cobra.Command{
 	Use:   "cluster <topic>",
 	Short: "Publish a cluster reconcile event to a Pub/Sub topic",
-	Args:  cobra.ExactArgs(1),
+	Args:  helpOnNoArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		topic := args[0]
 		s, err := loadConfig()
@@ -135,7 +135,7 @@ var pubsubPublishClusterCmd = &cobra.Command{
 var pubsubPublishNodePoolCmd = &cobra.Command{
 	Use:   "nodepool <topic>",
 	Short: "Publish a nodepool reconcile event to a Pub/Sub topic",
-	Args:  cobra.ExactArgs(1),
+	Args:  helpOnNoArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		topic := args[0]
 		s, err := loadConfig()

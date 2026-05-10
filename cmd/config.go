@@ -89,21 +89,28 @@ var configShowCmd = &cobra.Command{
 		}
 
 		w := cmd.OutOrStdout()
-		env := s.ActiveEnvironment()
-		if env != "" {
-			fmt.Fprintf(w, "active-environment: %s\n", env)
+
+		stateKeys := []string{"active-environment", "cluster-id", "cluster-name", "nodepool-id"}
+		stateVals := make(map[string]string)
+		for _, k := range stateKeys {
+			if v := s.GetState(k); v != "" {
+				stateVals[k] = v
+			}
 		}
 
-		sections := []string{"hyperfleet", "kubernetes", "maestro", "port-forward", "database", "rabbitmq", "registry"}
-		out := make(map[string]map[string]string, len(sections))
-		for _, sec := range sections {
+		allSections := []string{"state", "hyperfleet", "kubernetes", "maestro", "port-forward", "database", "rabbitmq", "registry"}
+		out := make(map[string]map[string]string, len(allSections))
+		if len(stateVals) > 0 {
+			out["state"] = stateVals
+		}
+		for _, sec := range []string{"hyperfleet", "kubernetes", "maestro", "port-forward", "database", "rabbitmq", "registry"} {
 			vals := resolvedSection(s, sec)
 			if len(vals) > 0 {
 				out[sec] = vals
 			}
 		}
 
-		b, err := marshalYAMLOrdered(out, sections)
+		b, err := marshalYAMLOrdered(out, allSections)
 		if err != nil {
 			return err
 		}
@@ -112,20 +119,31 @@ var configShowCmd = &cobra.Command{
 	},
 }
 
-// configGetCmd prints a single config value.
+// configGetCmd prints a single config or state value.
+// Key format: "section.key" for config values (e.g. hyperfleet.api-url),
+// or a plain key for state values (e.g. cluster-id).
 var configGetCmd = &cobra.Command{
-	Use:   "get <section> <key>",
-	Short: "Get a configuration value",
-	Args:  cobra.ExactArgs(2),
+	Use:   "get <key>",
+	Short: "Get a configuration or state value (use section.key for config, plain key for state)",
+	Args:  helpOnNoArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		section, key := args[0], args[1]
+		key := args[0]
 		s := config.NewFromEnv()
 		if err := s.Load(); err != nil {
 			return fmt.Errorf("[ERROR] loading config: %w", err)
 		}
-		val := s.Get(section, key)
+		if idx := strings.Index(key, "."); idx > 0 {
+			section, field := key[:idx], key[idx+1:]
+			val := s.Get(section, field)
+			if val == "" {
+				return fmt.Errorf("[ERROR] Config key '%s' not found", key)
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), val)
+			return nil
+		}
+		val := s.GetState(key)
 		if val == "" {
-			return fmt.Errorf("[ERROR] Config key '%s.%s' not found", section, key)
+			return fmt.Errorf("[ERROR] State key '%s' not found", key)
 		}
 		fmt.Fprintln(cmd.OutOrStdout(), val)
 		return nil
@@ -136,7 +154,7 @@ var configGetCmd = &cobra.Command{
 var configSetCmd = &cobra.Command{
 	Use:   "set <section> <key> <value>",
 	Short: "Set a configuration value",
-	Args:  cobra.ExactArgs(3),
+	Args:  helpOnNoArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		section, key, value := args[0], args[1], args[2]
 		if !validConfigSections[section] {
@@ -231,7 +249,7 @@ var configEnvCreateCmd = &cobra.Command{
 	Use:     "create <name>",
 	Aliases: []string{"new"},
 	Short:   "Create a new environment profile",
-	Args:    cobra.ExactArgs(1),
+	Args:    helpOnNoArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
 		s := config.NewFromEnv()
@@ -276,7 +294,7 @@ var configEnvCreateCmd = &cobra.Command{
 var configEnvActivateCmd = &cobra.Command{
 	Use:   "activate <name>",
 	Short: "Activate an environment profile",
-	Args:  cobra.ExactArgs(1),
+	Args:  helpOnNoArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
 		s := config.NewFromEnv()
@@ -295,7 +313,7 @@ var configEnvDeleteCmd = &cobra.Command{
 	Use:     "delete <name>",
 	Aliases: []string{"rm"},
 	Short:   "Delete an environment profile",
-	Args:    cobra.ExactArgs(1),
+	Args:    helpOnNoArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
 		s := config.NewFromEnv()
@@ -321,7 +339,7 @@ var configEnvDeleteCmd = &cobra.Command{
 var configEnvShowCmd = &cobra.Command{
 	Use:   "show <name>",
 	Short: "Show an environment profile",
-	Args:  cobra.ExactArgs(1),
+	Args:  helpOnNoArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
 		s := config.NewFromEnv()

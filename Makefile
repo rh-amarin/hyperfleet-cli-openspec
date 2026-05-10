@@ -3,7 +3,7 @@ MODULE    := github.com/rh-amarin/hyperfleet-cli
 VERSION   := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS   := -ldflags "-X $(MODULE)/internal/version.Version=$(VERSION)"
 
-.PHONY: build test vet clean
+.PHONY: build test vet clean lint completions
 
 ## build: compile the hf binary to bin/hf
 build:
@@ -21,3 +21,14 @@ vet:
 ## clean: remove the compiled binary
 clean:
 	rm -rf bin/
+
+## lint: run static analysis
+lint:
+	go vet ./...
+
+## completions: generate shell completion scripts into completions/
+completions: bin/hf
+	@mkdir -p completions
+	./bin/hf completion bash  > completions/hf.bash
+	./bin/hf completion zsh   > completions/_hf
+	./bin/hf completion fish  > completions/hf.fish

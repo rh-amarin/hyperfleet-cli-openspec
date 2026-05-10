@@ -2,18 +2,423 @@
 package cmd
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"strconv"
+
+	"github.com/rh-amarin/hyperfleet-cli/internal/api"
+	"github.com/rh-amarin/hyperfleet-cli/internal/output"
+	"github.com/rh-amarin/hyperfleet-cli/internal/resource"
 	"github.com/spf13/cobra"
 )
 
-// nodepoolCmd is the top-level group for all node pool operations.
+// nodepoolCmd is the top-level group for all nodepool operations.
 var nodepoolCmd = &cobra.Command{
 	Use:   "nodepool",
-	Short: "Manage HyperFleet node pools",
-	Long: `Manage HyperFleet node pools.
+	Short: "Manage HyperFleet nodepools",
+	Long: `Manage HyperFleet nodepools.
 
-Subcommands: create, get, list, search, patch, delete, id, conditions, statuses, adapter.`,
+Subcommands: create, get, list, update, delete, conditions, statuses.`,
+}
+
+// ---- flag vars ----
+
+var (
+	nodepoolCreateName     string
+	nodepoolCreateType     string
+	nodepoolCreateReplicas int
+	nodepoolUpdateName     string
+	nodepoolUpdateReplicas int
+)
+
+// ---- helpers ----
+
+// nodepoolType extracts the type from a nodepool's spec map.
+// Checks spec["platform"]["type"] first, then spec["type"] as fallback.
+func nodepoolType(np resource.NodePool) string {
+	if platform, ok := np.Spec["platform"].(map[string]any); ok {
+		if t, ok := platform["type"].(string); ok {
+			return t
+		}
+	}
+	if t, ok := np.Spec["type"].(string); ok {
+		return t
+	}
+	return ""
+}
+
+// nodepoolReplicas extracts replica count from a nodepool's spec map.
+func nodepoolReplicas(np resource.NodePool) string {
+	if r, ok := np.Spec["replicas"]; ok {
+		switch v := r.(type) {
+		case float64:
+			return strconv.Itoa(int(v))
+		case int:
+			return strconv.Itoa(v)
+		case int32:
+			return strconv.Itoa(int(v))
+		case string:
+			return v
+		}
+	}
+	return ""
+}
+
+// nodepoolOverallStatus derives a table status from nodepool conditions.
+func nodepoolOverallStatus(np resource.NodePool, nc bool) string {
+	available, reconciled := "", ""
+	for _, cond := range np.Status.Conditions {
+		switch cond.Type {
+		case "Available":
+			available = cond.Status
+		case "Reconciled":
+			reconciled = cond.Status
+		}
+	}
+	if available == "True" && reconciled == "True" {
+		return output.StatusDot("True", nc)
+	}
+	return output.StatusDot("False", nc)
+}
+
+// nodepoolConditionsView is the JSON shape emitted by `hf nodepool conditions`.
+type nodepoolConditionsView struct {
+	Generation int32                        `json:"generation"`
+	Status     nodepoolConditionsViewStatus `json:"status"`
+}
+
+type nodepoolConditionsViewStatus struct {
+	Conditions []resource.ResourceCondition `json:"conditions"`
+}
+
+// ---- nodepool list ----
+
+var nodepoolListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all nodepools",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		client := newAPIClient(s)
+		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+
+		list, err := api.Get[resource.ListResponse[resource.NodePool]](context.Background(), client, "nodepools")
+		if err != nil {
+			return handleAPIError(p, err)
+		}
+
+		if outputFmt == "table" {
+			headers := []string{"ID", "NAME", "TYPE", "GEN", "REPLICAS", "STATUS"}
+			rows := make([][]string, 0, len(list.Items))
+			for _, np := range list.Items {
+				rows = append(rows, []string{
+					np.ID,
+					np.Name,
+					nodepoolType(np),
+					strconv.Itoa(int(np.Generation)),
+					nodepoolReplicas(np),
+					nodepoolOverallStatus(np, noColor),
+				})
+			}
+			return p.PrintTable(headers, rows)
+		}
+		return p.Print(list)
+	},
+}
+
+// ---- nodepool get ----
+
+var nodepoolGetCmd = &cobra.Command{
+	Use:   "get [id]",
+	Short: "Get a nodepool by ID",
+	Args:  cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		explicit := ""
+		if len(args) > 0 {
+			explicit = args[0]
+		}
+		id, err := s.NodePoolID(explicit)
+		if err != nil {
+			return err
+		}
+
+		client := newAPIClient(s)
+		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+
+		np, err := api.Get[resource.NodePool](context.Background(), client, "nodepools/"+id)
+		if err != nil {
+			return handleAPIError(p, err)
+		}
+
+		if outputFmt == "table" {
+			headers := []string{"ID", "NAME", "TYPE", "GEN", "REPLICAS", "STATUS"}
+			rows := [][]string{{
+				np.ID,
+				np.Name,
+				nodepoolType(np),
+				strconv.Itoa(int(np.Generation)),
+				nodepoolReplicas(np),
+				nodepoolOverallStatus(np, noColor),
+			}}
+			return p.PrintTable(headers, rows)
+		}
+		return p.Print(np)
+	},
+}
+
+// ---- nodepool create ----
+
+var nodepoolCreateCmd = &cobra.Command{
+	Use:   "create",
+	Short: "Create a new nodepool",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+
+		name := nodepoolCreateName
+		if name == "" {
+			name = "my-nodepool"
+		}
+		npType := nodepoolCreateType
+		if npType == "" {
+			npType = "m4"
+		}
+
+		client := newAPIClient(s)
+		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+
+		// Duplicate check.
+		existing, err := api.Get[resource.ListResponse[resource.NodePool]](
+			context.Background(), client,
+			"nodepools?search=name='"+name+"'",
+		)
+		if err == nil && len(existing.Items) > 0 {
+			p.Warn(fmt.Sprintf("NodePool '%s' already exists, skipping creation", name))
+			return nil
+		}
+
+		spec := map[string]any{
+			"counter":  "1",
+			"platform": map[string]any{"type": npType},
+			"replicas": 1,
+		}
+		if nodepoolCreateReplicas > 0 {
+			spec["replicas"] = nodepoolCreateReplicas
+		}
+
+		body := map[string]any{
+			"kind": "NodePool",
+			"name": name,
+			"labels": map[string]string{
+				"counter": "1",
+			},
+			"spec": spec,
+		}
+
+		np, err := api.Post[resource.NodePool](context.Background(), client, "nodepools", body)
+		if err != nil {
+			return handleAPIError(p, err)
+		}
+
+		if setErr := s.SetState("nodepool-id", np.ID); setErr != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "[WARN] Failed to persist nodepool-id: %v\n", setErr)
+		} else {
+			p.Info(fmt.Sprintf("NodePool context set to '%s'", np.ID))
+		}
+
+		return p.Print(np)
+	},
+}
+
+// ---- nodepool update ----
+
+var nodepoolUpdateCmd = &cobra.Command{
+	Use:   "update <id>",
+	Short: "Update a nodepool",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		id := args[0]
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		client := newAPIClient(s)
+		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+
+		body := map[string]any{}
+		if nodepoolUpdateName != "" {
+			body["name"] = nodepoolUpdateName
+		}
+		if nodepoolUpdateReplicas > 0 {
+			if _, ok := body["spec"]; !ok {
+				body["spec"] = map[string]any{}
+			}
+			body["spec"].(map[string]any)["replicas"] = nodepoolUpdateReplicas
+		}
+
+		np, err := api.Patch[resource.NodePool](context.Background(), client, "nodepools/"+id, body)
+		if err != nil {
+			return handleAPIError(p, err)
+		}
+		return p.Print(np)
+	},
+}
+
+// ---- nodepool delete ----
+
+var nodepoolDeleteCmd = &cobra.Command{
+	Use:   "delete <id>",
+	Short: "Delete a nodepool",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		id := args[0]
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		client := newAPIClient(s)
+		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+
+		_, err = api.Delete[resource.NodePool](context.Background(), client, "nodepools/"+id)
+		if err != nil {
+			var apiErr *api.APIError
+			if errors.As(err, &apiErr) && apiErr.Status == 404 {
+				return fmt.Errorf("[ERROR] NodePool '%s' not found", id)
+			}
+			return handleAPIError(p, err)
+		}
+		return nil
+	},
+}
+
+// ---- nodepool conditions ----
+
+var nodepoolConditionsCmd = &cobra.Command{
+	Use:   "conditions [id]",
+	Short: "Get nodepool status conditions",
+	Args:  cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		explicit := ""
+		if len(args) > 0 {
+			explicit = args[0]
+		}
+		id, err := s.NodePoolID(explicit)
+		if err != nil {
+			return err
+		}
+
+		client := newAPIClient(s)
+		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+
+		np, err := api.Get[resource.NodePool](context.Background(), client, "nodepools/"+id)
+		if err != nil {
+			return handleAPIError(p, err)
+		}
+
+		if outputFmt == "table" {
+			headers := []string{"TYPE", "STATUS", "LAST TRANSITION", "REASON", "MESSAGE"}
+			rows := make([][]string, 0, len(np.Status.Conditions))
+			for _, cond := range np.Status.Conditions {
+				rows = append(rows, []string{
+					cond.Type,
+					output.StatusDot(cond.Status, noColor),
+					cond.LastTransitionTime,
+					cond.Reason,
+					cond.Message,
+				})
+			}
+			return p.PrintTable(headers, rows)
+		}
+
+		out := nodepoolConditionsView{
+			Generation: np.Generation,
+			Status:     nodepoolConditionsViewStatus{Conditions: np.Status.Conditions},
+		}
+		return p.Print(out)
+	},
+}
+
+// ---- nodepool statuses ----
+
+var nodepoolStatusesCmd = &cobra.Command{
+	Use:   "statuses [id]",
+	Short: "Get nodepool adapter statuses",
+	Args:  cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		explicit := ""
+		if len(args) > 0 {
+			explicit = args[0]
+		}
+		id, err := s.NodePoolID(explicit)
+		if err != nil {
+			return err
+		}
+
+		client := newAPIClient(s)
+		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+
+		list, err := api.Get[resource.ListResponse[resource.AdapterStatus]](
+			context.Background(), client, "nodepools/"+id+"/statuses",
+		)
+		if err != nil {
+			return handleAPIError(p, err)
+		}
+
+		if outputFmt == "table" {
+			headers := []string{"ADAPTER", "GEN", "AVAILABLE"}
+			rows := make([][]string, 0, len(list.Items))
+			for _, as := range list.Items {
+				avail := "-"
+				for _, cond := range as.Conditions {
+					if cond.Type == "Available" {
+						avail = output.StatusDot(cond.Status, noColor)
+						break
+					}
+				}
+				rows = append(rows, []string{
+					as.Adapter,
+					strconv.Itoa(int(as.ObservedGeneration)),
+					avail,
+				})
+			}
+			return p.PrintTable(headers, rows)
+		}
+		return p.Print(list)
+	},
 }
 
 func init() {
 	rootCmd.AddCommand(nodepoolCmd)
+
+	nodepoolCmd.AddCommand(nodepoolListCmd)
+	nodepoolCmd.AddCommand(nodepoolGetCmd)
+	nodepoolCmd.AddCommand(nodepoolCreateCmd)
+	nodepoolCmd.AddCommand(nodepoolUpdateCmd)
+	nodepoolCmd.AddCommand(nodepoolDeleteCmd)
+	nodepoolCmd.AddCommand(nodepoolConditionsCmd)
+	nodepoolCmd.AddCommand(nodepoolStatusesCmd)
+
+	nodepoolCreateCmd.Flags().StringVar(&nodepoolCreateName, "name", "", "nodepool name (default: my-nodepool)")
+	nodepoolCreateCmd.Flags().StringVar(&nodepoolCreateType, "type", "", "instance type (default: m4)")
+	nodepoolCreateCmd.Flags().IntVar(&nodepoolCreateReplicas, "replicas", 0, "number of replicas")
+
+	nodepoolUpdateCmd.Flags().StringVar(&nodepoolUpdateName, "name", "", "new nodepool name")
+	nodepoolUpdateCmd.Flags().IntVar(&nodepoolUpdateReplicas, "replicas", 0, "new number of replicas")
 }

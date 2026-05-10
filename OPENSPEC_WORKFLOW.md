@@ -181,3 +181,40 @@ Phase 2 implements the full `hf config` command tree: `show`, `get`, `set`, `env
 ### Verdict: PASS ✅
 
 Full lifecycle: branch → artifacts → implementation → verification (build/vet/test all pass) → archive → PR. 20+ unit tests, zero failures. Active-env guard, full config command tree, and doctor implemented.
+
+## Cycle 5 — Phase 3a Cluster Lifecycle (2026-05-10)
+
+### Context
+
+Phase 3a implements the full `hf cluster` command tree: `list`, `get`, `create`, `update`, `delete`, `conditions`, and `statuses`. This extends the stub `cmd/cluster.go` (which only registered the parent command) with real implementations backed by `internal/api`, `internal/config`, `internal/resource`, and `internal/output`. Run as a fully autonomous session using the OpenSpec workflow.
+
+### What WORKED ✅
+
+| Item | Detail |
+|---|---|
+| No new internal packages needed | All seven subcommands reuse `internal/api`, `internal/config`, `internal/resource`, `internal/output` from Phase 1+2 — zero new dependencies |
+| `runClusterCmd` wrapper pattern | Adding a cluster-specific test wrapper that resets `outputFmt`, `noColor`, `verbose`, and cluster flag vars before each test prevented state carry-over between tests. Necessary because pflag doesn't reset unset flags to defaults between cobra `Execute()` calls. |
+| `handleAPIError` helper | Single function dispatches RFC 7807 API errors as JSON (exit 0) vs non-API errors returned as Go errors (exit 1) — clean separation of error categories |
+| Duplicate-check guard on create | `hf cluster create` checks for existing clusters via `GET /clusters?search=name='<name>'` before POSTing — matches spec exactly |
+| State persistence on create | `SetState("cluster-id", id)` writes to `state.yaml`; verified in `TestClusterCreate` that the value persists correctly |
+| 14 cluster tests all pass | Full coverage: list (JSON+table), get (JSON, from state, 404), create (happy path, duplicate guard, defaults), update, delete (silent, 404), conditions, statuses (JSON+table) |
+| `go build ./...` + `go vet ./...` + `go test ./...` all pass on first try | No compilation or test errors after implementation |
+
+### What DIDN'T WORK / Gaps ❌
+
+| Item | Detail |
+|---|---|
+| Delta spec had conflicts with existing spec | First attempt at `openspec archive` failed because the delta spec's `## ADDED Requirements` included headers (`Create Cluster`, `Delete Cluster`, etc.) that already existed in the canonical `openspec/specs/cluster-lifecycle/spec.md`. Fixed by trimming the delta to only the truly new requirements (`List Clusters`, `Update Cluster`). |
+| `outputFmt` state carries over between tests | Cobra's pflag doesn't auto-reset persistent flag variables between `Execute()` calls. `TestClusterList_Table` sets `outputFmt = "table"` and subsequent tests expecting JSON fail. Fixed by adding `resetClusterFlags()` at the start of every cluster test via the `runClusterCmd` wrapper. |
+
+### Observations
+
+- The `PersistentPreRunE` active-env guard from Phase 2 works correctly for cluster commands — no additional guard code needed, the root-level hook fires for all subcommands.
+- RFC 7807 error handling pattern (print as JSON, return nil) is well-encapsulated in `handleAPIError`. Each command only needs to decide: is this an API error (exit 0) or a CLI error (exit 1)?
+- The `conditions` command fetches the full cluster object and extracts conditions client-side — not a separate `/conditions` endpoint. This matches the HyperFleet API design.
+- The `delete` command takes a slightly different approach for 404 errors (returns a formatted error string rather than printing raw JSON) to match the explicit spec requirement of `[ERROR] Cluster '<id>' not found`.
+- Flag-reset discipline in tests is essential when testing cobra CLIs with package-level flag vars.
+
+### Verdict: PASS ✅
+
+Full lifecycle: branch → OpenSpec artifacts (proposal/design/specs/tasks) → implementation (7 subcommands) → 14 unit tests → verification (build/vet/test) → archive → PR. Zero failures across all packages.

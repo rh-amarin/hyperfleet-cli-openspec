@@ -1,0 +1,495 @@
+package cmd
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// ---- test fixtures ----
+
+const clusterID = "019dc049-43a8-7a42-b44a-8d7f89e9e10f"
+
+var clusterJSON = `{
+  "id": "` + clusterID + `",
+  "kind": "Cluster",
+  "name": "test-cluster",
+  "generation": 1,
+  "labels": {"counter": "1"},
+  "spec": {"region": "us-east-1", "version": "4.15.0"},
+  "status": {
+    "conditions": [
+      {"type": "Available", "status": "True", "last_transition_time": "2026-05-10T00:00:00Z", "observed_generation": 1},
+      {"type": "Reconciled", "status": "True", "last_transition_time": "2026-05-10T00:00:00Z", "observed_generation": 1}
+    ]
+  },
+  "created_by": "user@example.com",
+  "created_time": "2026-05-10T00:00:00Z",
+  "href": "/api/hyperfleet/v1/clusters/` + clusterID + `"
+}`
+
+var clusterListJSON = `{
+  "items": [` + clusterJSON + `],
+  "kind": "ClusterList",
+  "page": 1,
+  "size": 1,
+  "total": 1
+}`
+
+var emptyListJSON = `{"items": [], "kind": "ClusterList", "page": 1, "size": 0, "total": 0}`
+
+var adapterStatusesJSON = `{
+  "items": [
+    {
+      "adapter": "cl-deployment",
+      "observed_generation": 1,
+      "conditions": [
+        {"type": "Available", "status": "True", "last_transition_time": "2026-05-10T00:00:00Z"}
+      ],
+      "created_time": "2026-05-10T00:00:00Z",
+      "last_report_time": "2026-05-10T00:00:00Z"
+    }
+  ],
+  "kind": "AdapterStatusList",
+  "page": 1,
+  "size": 1,
+  "total": 1
+}`
+
+// ---- helpers ----
+
+// setClusterIDInState writes state.yaml with the active env and cluster-id.
+func setClusterIDInState(t *testing.T, dir, envName, id string) {
+	t.Helper()
+	statePath := filepath.Join(dir, "state.yaml")
+	content := fmt.Sprintf("active-environment: %s\ncluster-id: %s\n", envName, id)
+	if err := os.WriteFile(statePath, []byte(content), 0600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// setupClusterEnv creates a temp dir with an env pointing to ts.URL and activates it.
+func setupClusterEnv(t *testing.T, ts *httptest.Server) string {
+	t.Helper()
+	dir := t.TempDir()
+	makeEnv(t, dir, "test", ts.URL)
+	setActiveEnv(t, dir, "test")
+	return dir
+}
+
+// resetClusterFlags resets all cluster and global flag vars to defaults.
+// Call before each test to prevent state carry-over from previous test runs.
+func resetClusterFlags() {
+	// Global flags
+	outputFmt = "json"
+	noColor = false
+	verbose = false
+	// Cluster-specific flags
+	clusterCreateName = ""
+	clusterCreateReplicas = 0
+	clusterCreateNPID = ""
+	clusterUpdateName = ""
+	clusterUpdateReplicas = 0
+}
+
+// runClusterCmd wraps runCmd and resets all flag state before each invocation
+// so tests are independent regardless of execution order.
+func runClusterCmd(t *testing.T, dir string, args ...string) (string, error) {
+	t.Helper()
+	resetClusterFlags()
+	return runCmd(t, dir, args...)
+}
+
+// apiPrefix is the URL path prefix for all API calls in tests.
+const apiPrefix = "/api/hyperfleet/v1"
+
+// ---- cluster list ----
+
+func TestClusterList(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterListJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	out, err := runClusterCmd(t, dir, "cluster", "list")
+	if err != nil {
+		t.Fatalf("cluster list: %v", err)
+	}
+	if !strings.Contains(out, clusterID) {
+		t.Errorf("expected cluster ID in output, got: %q", out)
+	}
+	// Verify it's valid JSON
+	if !strings.Contains(out, `"items"`) {
+		t.Errorf("expected JSON list response, got: %q", out)
+	}
+}
+
+func TestClusterList_Table(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, clusterListJSON)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	out, err := runClusterCmd(t, dir, "cluster", "list", "--output", "table")
+	if err != nil {
+		t.Fatalf("cluster list --output table: %v", err)
+	}
+	if !strings.Contains(out, "ID") || !strings.Contains(out, "NAME") {
+		t.Errorf("expected table headers, got: %q", out)
+	}
+	if !strings.Contains(out, "test-cluster") {
+		t.Errorf("expected cluster name in table, got: %q", out)
+	}
+}
+
+// ---- cluster get ----
+
+func TestClusterGet(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	out, err := runClusterCmd(t, dir, "cluster", "get", clusterID)
+	if err != nil {
+		t.Fatalf("cluster get: %v", err)
+	}
+	if !strings.Contains(out, clusterID) {
+		t.Errorf("expected cluster ID in output, got: %q", out)
+	}
+	if !strings.Contains(out, `"kind"`) {
+		t.Errorf("expected JSON cluster object, got: %q", out)
+	}
+}
+
+func TestClusterGet_FromState(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	setClusterIDInState(t, dir, "test", clusterID)
+
+	out, err := runClusterCmd(t, dir, "cluster", "get")
+	if err != nil {
+		t.Fatalf("cluster get (from state): %v", err)
+	}
+	if !strings.Contains(out, clusterID) {
+		t.Errorf("expected cluster ID in output, got: %q", out)
+	}
+}
+
+func TestClusterGet_NotFound(t *testing.T) {
+	notFoundJSON := `{"type":"https://api.hyperfleet.io/errors/not-found","title":"Resource Not Found","status":404,"detail":"Cluster not found","code":"HYPERFLEET-NTF-001"}`
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprint(w, notFoundJSON)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	out, err := runClusterCmd(t, dir, "cluster", "get", "00000000-0000-0000-0000-000000000000")
+	// API errors exit 0 (err == nil)
+	if err != nil {
+		t.Fatalf("cluster get 404 should exit 0, got error: %v", err)
+	}
+	// Output should contain the error JSON
+	if !strings.Contains(out, "Not Found") && !strings.Contains(out, "404") {
+		t.Errorf("expected error JSON in output, got: %q", out)
+	}
+}
+
+// ---- cluster create ----
+
+func TestClusterCreate(t *testing.T) {
+	resetClusterFlags()
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		// Duplicate check — returns empty list
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, emptyListJSON)
+		// POST create
+		case r.Method == http.MethodPost && r.URL.Path == apiPrefix+"/clusters":
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			fmt.Fprint(w, clusterJSON)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	out, err := runClusterCmd(t, dir, "cluster", "create", "--name", "test-cluster")
+	if err != nil {
+		t.Fatalf("cluster create: %v", err)
+	}
+	if !strings.Contains(out, clusterID) {
+		t.Errorf("expected cluster ID in output, got: %q", out)
+	}
+
+	// Verify cluster-id persisted to state.yaml
+	stateRaw, _ := os.ReadFile(filepath.Join(dir, "state.yaml"))
+	if !strings.Contains(string(stateRaw), clusterID) {
+		t.Errorf("cluster-id not persisted to state.yaml: %q", string(stateRaw))
+	}
+}
+
+func TestClusterCreate_DuplicateGuard(t *testing.T) {
+	resetClusterFlags()
+	postCalled := false
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters":
+			// Return existing cluster — triggers duplicate guard
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterListJSON)
+		case r.Method == http.MethodPost:
+			postCalled = true
+			w.WriteHeader(http.StatusCreated)
+			fmt.Fprint(w, clusterJSON)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	_, err := runClusterCmd(t, dir, "cluster", "create", "--name", "test-cluster")
+	if err != nil {
+		t.Fatalf("cluster create duplicate: %v", err)
+	}
+	if postCalled {
+		t.Error("POST should not have been called for duplicate cluster")
+	}
+}
+
+func TestClusterCreate_Defaults(t *testing.T) {
+	resetClusterFlags()
+	var capturedBody map[string]any
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet:
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, emptyListJSON)
+		case r.Method == http.MethodPost:
+			json.NewDecoder(r.Body).Decode(&capturedBody)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			fmt.Fprint(w, clusterJSON)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	// No --name flag → should use default "my-cluster"
+	_, err := runClusterCmd(t, dir, "cluster", "create")
+	if err != nil {
+		t.Fatalf("cluster create defaults: %v", err)
+	}
+	if capturedBody != nil {
+		if name, _ := capturedBody["name"].(string); name != "my-cluster" {
+			t.Errorf("expected default name 'my-cluster', got %q", name)
+		}
+	}
+}
+
+// ---- cluster update ----
+
+func TestClusterUpdate(t *testing.T) {
+	resetClusterFlags()
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPatch && r.URL.Path == apiPrefix+"/clusters/"+clusterID {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	out, err := runClusterCmd(t, dir, "cluster", "update", clusterID, "--name", "new-name")
+	if err != nil {
+		t.Fatalf("cluster update: %v", err)
+	}
+	if !strings.Contains(out, clusterID) {
+		t.Errorf("expected cluster ID in output, got: %q", out)
+	}
+}
+
+// ---- cluster delete ----
+
+func TestClusterDelete(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete && r.URL.Path == apiPrefix+"/clusters/"+clusterID {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	out, err := runClusterCmd(t, dir, "cluster", "delete", clusterID)
+	if err != nil {
+		t.Fatalf("cluster delete: %v", err)
+	}
+	// Silent success — no output expected
+	if strings.TrimSpace(out) != "" {
+		t.Errorf("cluster delete should be silent, got: %q", out)
+	}
+}
+
+func TestClusterDelete_NotFound(t *testing.T) {
+	notFoundJSON := `{"type":"https://api.hyperfleet.io/errors/not-found","title":"Resource Not Found","status":404,"detail":"Cluster not found"}`
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprint(w, notFoundJSON)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	_, err := runClusterCmd(t, dir, "cluster", "delete", "00000000-0000-0000-0000-000000000000")
+	// 404 on delete returns an error (exit 1)
+	if err == nil {
+		t.Fatal("expected error for cluster delete 404")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error message: got %q", err.Error())
+	}
+}
+
+// ---- cluster conditions ----
+
+func TestClusterConditions(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	out, err := runClusterCmd(t, dir, "cluster", "conditions", clusterID)
+	if err != nil {
+		t.Fatalf("cluster conditions: %v", err)
+	}
+	if !strings.Contains(out, `"generation"`) {
+		t.Errorf("expected generation in output, got: %q", out)
+	}
+	if !strings.Contains(out, `"conditions"`) {
+		t.Errorf("expected conditions in output, got: %q", out)
+	}
+	if !strings.Contains(out, "Available") {
+		t.Errorf("expected Available condition, got: %q", out)
+	}
+}
+
+func TestClusterConditions_FromState(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	setClusterIDInState(t, dir, "test", clusterID)
+
+	_, err := runClusterCmd(t, dir, "cluster", "conditions")
+	if err != nil {
+		t.Fatalf("cluster conditions (from state): %v", err)
+	}
+}
+
+// ---- cluster statuses ----
+
+func TestClusterStatuses(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/statuses" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, adapterStatusesJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	setClusterIDInState(t, dir, "test", clusterID)
+
+	out, err := runClusterCmd(t, dir, "cluster", "statuses")
+	if err != nil {
+		t.Fatalf("cluster statuses: %v", err)
+	}
+	if !strings.Contains(out, "cl-deployment") {
+		t.Errorf("expected adapter name in output, got: %q", out)
+	}
+	if !strings.Contains(out, `"AdapterStatusList"`) {
+		t.Errorf("expected AdapterStatusList kind, got: %q", out)
+	}
+}
+
+func TestClusterStatuses_Table(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/statuses" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, adapterStatusesJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	setClusterIDInState(t, dir, "test", clusterID)
+
+	out, err := runClusterCmd(t, dir, "cluster", "statuses", "--output", "table")
+	if err != nil {
+		t.Fatalf("cluster statuses --output table: %v", err)
+	}
+	if !strings.Contains(out, "ADAPTER") || !strings.Contains(out, "GEN") {
+		t.Errorf("expected table headers, got: %q", out)
+	}
+	if !strings.Contains(out, "cl-deployment") {
+		t.Errorf("expected adapter name in table, got: %q", out)
+	}
+}

@@ -77,6 +77,20 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
+// helpOnNoArgs returns an Args validator that prints the command's full help
+// and fails silently when zero arguments are supplied, falling back to
+// cobra.ExactArgs(n) otherwise. Relies on rootCmd.SilenceErrors=true so the
+// blank error string is not echoed to stderr.
+func helpOnNoArgs(n int) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			_ = cmd.Help()
+			return fmt.Errorf("")
+		}
+		return cobra.ExactArgs(n)(cmd, args)
+	}
+}
+
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: ~/.config/hf/config.yaml)")
 	rootCmd.PersistentFlags().StringVarP(&outputFmt, "output", "o", "json", "output format: json, table, yaml")

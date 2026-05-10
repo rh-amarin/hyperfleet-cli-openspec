@@ -322,7 +322,7 @@ var clusterCreateCmd = &cobra.Command{
 var clusterUpdateCmd = &cobra.Command{
 	Use:   "update <id>",
 	Short: "Update a cluster",
-	Args:  cobra.ExactArgs(1),
+	Args:  helpOnNoArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		id := args[0]
 		s, err := loadConfig()
@@ -575,7 +575,7 @@ var clusterAdapterCmd = &cobra.Command{
 var clusterAdapterPostStatusCmd = &cobra.Command{
 	Use:   "post-status <adapter_name> <True|False|Unknown> <generation>",
 	Short: "Post adapter status conditions for the current cluster",
-	Args:  cobra.ExactArgs(3),
+	Args:  helpOnNoArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		adapterName := args[0]
 		status := args[1]

@@ -154,7 +154,7 @@ Example:
 var kubeDebugCmd = &cobra.Command{
 	Use:   "debug <partial-deployment-name>",
 	Short: "Create and exec into a debug pod from a deployment template",
-	Args:  cobra.ExactArgs(1),
+	Args:  helpOnNoArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s, err := loadConfig()
 		if err != nil {

@@ -303,7 +303,7 @@ var nodepoolCreateCmd = &cobra.Command{
 var nodepoolUpdateCmd = &cobra.Command{
 	Use:   "update <id>",
 	Short: "Update a nodepool",
-	Args:  cobra.ExactArgs(1),
+	Args:  helpOnNoArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		id := args[0]
 		s, err := loadConfig()
@@ -409,7 +409,7 @@ var nodepoolPatchCmd = &cobra.Command{
 var nodepoolDeleteCmd = &cobra.Command{
 	Use:   "delete <id>",
 	Short: "Delete a nodepool",
-	Args:  cobra.ExactArgs(1),
+	Args:  helpOnNoArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		id := args[0]
 		s, err := loadConfig()

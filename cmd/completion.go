@@ -2,8 +2,6 @@
 package cmd
 
 import (
-	"os"
-
 	"github.com/spf13/cobra"
 )
 
@@ -19,20 +17,19 @@ Example (bash):
 Example (zsh):
   hf completion zsh > "${fpath[1]}/_hf"`,
 	ValidArgs: []string{"bash", "zsh", "fish", "powershell"},
-	Args:      cobra.ExactArgs(1),
+	Args:      cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		switch args[0] {
 		case "bash":
-			return rootCmd.GenBashCompletion(os.Stdout)
+			return rootCmd.GenBashCompletionV2(cmd.OutOrStdout(), true)
 		case "zsh":
-			return rootCmd.GenZshCompletion(os.Stdout)
+			return rootCmd.GenZshCompletion(cmd.OutOrStdout())
 		case "fish":
-			return rootCmd.GenFishCompletion(os.Stdout, true)
+			return rootCmd.GenFishCompletion(cmd.OutOrStdout(), true)
 		case "powershell":
-			return rootCmd.GenPowerShellCompletionWithDesc(os.Stdout)
-		default:
-			return cmd.Help()
+			return rootCmd.GenPowerShellCompletionWithDesc(cmd.OutOrStdout())
 		}
+		return nil
 	},
 }
 

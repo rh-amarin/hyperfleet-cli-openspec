@@ -1,1 +1,19 @@
-Live cluster not available in CI; unit tests cover all code paths via httptest.NewServer.
+Non-functional phase: CI/CD files added. Build/vet/test all pass.
+
+go build ./... — exit 0, no errors
+go vet ./...   — exit 0, no errors
+go test ./...  — exit 0, all packages pass
+
+GoReleaser config validated: .goreleaser.yaml uses schema version 2 with
+CGO_ENABLED=0 cross-compilation for linux/darwin/windows x amd64/arm64.
+Version injection via -X github.com/rh-amarin/hyperfleet-cli/internal/version.Version={{.Version}}.
+
+GitHub Actions:
+- .github/workflows/ci.yml: triggers on push/PR to main, runs build+vet+test
+- .github/workflows/release.yml: triggers on v* tags, runs GoReleaser
+
+Shell completions:
+- hf completion bash|zsh|fish|powershell all verified by unit tests
+  (TestCompletionBash, TestCompletionZsh, TestCompletionFish, TestCompletionPowerShell)
+
+No live cluster access required for this non-functional phase.

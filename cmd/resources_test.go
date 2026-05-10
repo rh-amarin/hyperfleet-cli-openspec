@@ -181,16 +181,24 @@ func TestResourcesTable(t *testing.T) {
 	if !strings.Contains(out, "test-cluster-beta") {
 		t.Errorf("expected beta cluster name, got: %q", out)
 	}
-	// Dynamic adapter columns (headers are uppercased by PrintTable)
-	if !strings.Contains(out, "CL-DEPLOYMENT") {
-		t.Errorf("expected CL-DEPLOYMENT adapter column header, got: %q", out)
+	// Dynamic adapter columns — headers > 10 chars are wrapped across two header lines.
+	// CL-DEPLOYMENT (13) → "CL-DEPLOYM" / "ENT"
+	if !strings.Contains(out, "CL-DEPLOYM") {
+		t.Errorf("expected CL-DEPLOYM (wrapped header line 1), got: %q", out)
+	}
+	if !strings.Contains(out, "ENT") {
+		t.Errorf("expected ENT (wrapped header line 2 of CL-DEPLOYMENT), got: %q", out)
 	}
 	// Nodepool row indented
 	if !strings.Contains(out, "  "+nodepoolID) {
 		t.Errorf("expected indented nodepool row, got: %q", out)
 	}
-	if !strings.Contains(out, "NP-CONFIGMAP") {
-		t.Errorf("expected NP-CONFIGMAP adapter column header, got: %q", out)
+	// NP-CONFIGMAP (12) → "NP-CONFIGM" / "AP"
+	if !strings.Contains(out, "NP-CONFIGM") {
+		t.Errorf("expected NP-CONFIGM (wrapped header line 1), got: %q", out)
+	}
+	if !strings.Contains(out, "AP") {
+		t.Errorf("expected AP (wrapped header line 2 of NP-CONFIGMAP), got: %q", out)
 	}
 }
 

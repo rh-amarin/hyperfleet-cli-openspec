@@ -84,19 +84,84 @@ func (p *Printer) printYAML(v any) error {
 }
 
 // PrintTable renders headers and rows as an aligned table.
-// Headers are uppercased. Columns are separated by tabs.
+// Headers are uppercased. Headers longer than 10 characters are wrapped
+// across multiple stacked lines so the table stays narrow.
 func (p *Printer) PrintTable(headers []string, rows [][]string) error {
 	tw := tabwriter.NewWriter(p.w, 0, 0, 2, ' ', 0)
-	// Upper-case headers
-	upper := make([]string, len(headers))
+
+	// Uppercase and wrap each header.
+	const maxHeaderWidth = 10
+	wrapped := make([][]string, len(headers))
+	maxLines := 0
 	for i, h := range headers {
-		upper[i] = strings.ToUpper(h)
+		lines := WrapHeader(strings.ToUpper(h), maxHeaderWidth)
+		wrapped[i] = lines
+		if len(lines) > maxLines {
+			maxLines = len(lines)
+		}
 	}
-	fmt.Fprintln(tw, strings.Join(upper, "\t"))
+
+	// Emit one tabwriter row per header line; pad short headers with "".
+	for line := 0; line < maxLines; line++ {
+		parts := make([]string, len(wrapped))
+		for col, lines := range wrapped {
+			if line < len(lines) {
+				parts[col] = lines[line]
+			}
+		}
+		fmt.Fprintln(tw, strings.Join(parts, "\t"))
+	}
+
 	for _, row := range rows {
 		fmt.Fprintln(tw, strings.Join(row, "\t"))
 	}
 	return tw.Flush()
+}
+
+// WrapHeader splits a header string into lines of at most maxWidth characters.
+// Splitting prefers underscore word boundaries; single tokens longer than
+// maxWidth are hard-broken at maxWidth.
+func WrapHeader(s string, maxWidth int) []string {
+	if len(s) <= maxWidth {
+		return []string{s}
+	}
+
+	tokens := strings.Split(s, "_")
+
+	var lines []string
+	current := ""
+	for _, tok := range tokens {
+		// Hard-break any single token that exceeds maxWidth.
+		for len(tok) > maxWidth {
+			if current != "" {
+				lines = append(lines, current)
+				current = ""
+			}
+			lines = append(lines, tok[:maxWidth])
+			tok = tok[maxWidth:]
+		}
+		if tok == "" {
+			continue
+		}
+
+		var candidate string
+		if current == "" {
+			candidate = tok
+		} else {
+			candidate = current + "_" + tok
+		}
+
+		if len(candidate) <= maxWidth {
+			current = candidate
+		} else {
+			lines = append(lines, current)
+			current = tok
+		}
+	}
+	if current != "" {
+		lines = append(lines, current)
+	}
+	return lines
 }
 
 // Warn writes a [WARN] message to stderr.

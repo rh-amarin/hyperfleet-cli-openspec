@@ -184,6 +184,124 @@ func indexOf(slice []string, s string) int {
 	return -1
 }
 
+func TestWrapHeader_ShortString(t *testing.T) {
+	got := output.WrapHeader("ID", 10)
+	if len(got) != 1 || got[0] != "ID" {
+		t.Errorf("short string: got %v", got)
+	}
+}
+
+func TestWrapHeader_ExactlyTen(t *testing.T) {
+	got := output.WrapHeader("ABCDEFGHIJ", 10) // exactly 10 chars
+	if len(got) != 1 || got[0] != "ABCDEFGHIJ" {
+		t.Errorf("exactly 10: got %v", got)
+	}
+}
+
+func TestWrapHeader_UnderscoreSplit(t *testing.T) {
+	got := output.WrapHeader("CLUSTER_NAME", 10)
+	want := []string{"CLUSTER", "NAME"}
+	if !equalSlice(got, want) {
+		t.Errorf("underscore split: got %v, want %v", got, want)
+	}
+}
+
+func TestWrapHeader_MultiSegment(t *testing.T) {
+	// "OBSERVED" (8) + "_GENERATION" would be 19 > 10 → split
+	// "GENERATION" is exactly 10 → fits on its own line
+	got := output.WrapHeader("OBSERVED_GENERATION", 10)
+	want := []string{"OBSERVED", "GENERATION"}
+	if !equalSlice(got, want) {
+		t.Errorf("multi-segment: got %v, want %v", got, want)
+	}
+}
+
+func TestWrapHeader_LongSingleToken(t *testing.T) {
+	// "PROVISIONING" is 12 chars, no underscore → hard-break at 10
+	got := output.WrapHeader("PROVISIONING", 10)
+	want := []string{"PROVISIONI", "NG"}
+	if !equalSlice(got, want) {
+		t.Errorf("long single token: got %v, want %v", got, want)
+	}
+}
+
+func TestWrapHeader_GreedyPack(t *testing.T) {
+	// "A" (1) + "_B" = 3 ≤ 10; "A_B" (3) + "_C" = 5 ≤ 10 → all fit in one line
+	got := output.WrapHeader("A_B_C", 10)
+	if len(got) != 1 || got[0] != "A_B_C" {
+		t.Errorf("greedy pack: got %v", got)
+	}
+
+	// "LONGTOKEN" (9) + "_X" = 11 > 10 → wrap; X alone on next line
+	got2 := output.WrapHeader("LONGTOKEN_X", 10)
+	want2 := []string{"LONGTOKEN", "X"}
+	if !equalSlice(got2, want2) {
+		t.Errorf("greedy pack split: got %v, want %v", got2, want2)
+	}
+}
+
+func TestPrintTable_LongHeader(t *testing.T) {
+	p, buf := newPrinter(t, "table")
+	headers := []string{"id", "cluster_name", "status"}
+	rows := [][]string{
+		{"1", "my-cluster", "running"},
+	}
+	if err := p.PrintTable(headers, rows); err != nil {
+		t.Fatalf("PrintTable: %v", err)
+	}
+	out := buf.String()
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	// Should have 3 lines: header line 1, header line 2, data row
+	if len(lines) != 3 {
+		t.Fatalf("expected 3 lines (2 header + 1 data), got %d:\n%s", len(lines), out)
+	}
+	// First header line contains "CLUSTER" (first wrap segment)
+	if !strings.Contains(lines[0], "CLUSTER") {
+		t.Errorf("line 0 missing CLUSTER: %q", lines[0])
+	}
+	// Second header line contains "NAME" (second wrap segment)
+	if !strings.Contains(lines[1], "NAME") {
+		t.Errorf("line 1 missing NAME: %q", lines[1])
+	}
+	// Data row is present
+	if !strings.Contains(lines[2], "my-cluster") {
+		t.Errorf("line 2 missing data: %q", lines[2])
+	}
+}
+
+func TestPrintTable_ShortHeaders(t *testing.T) {
+	p, buf := newPrinter(t, "table")
+	headers := []string{"id", "name", "status"}
+	rows := [][]string{
+		{"1", "cluster-a", "running"},
+		{"2", "cluster-b", "stopped"},
+	}
+	if err := p.PrintTable(headers, rows); err != nil {
+		t.Fatalf("PrintTable: %v", err)
+	}
+	out := buf.String()
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	// Short headers: exactly 1 header line + 2 data rows = 3 lines total
+	if len(lines) != 3 {
+		t.Fatalf("expected 3 lines (1 header + 2 data), got %d:\n%s", len(lines), out)
+	}
+	if !strings.Contains(lines[0], "ID") || !strings.Contains(lines[0], "NAME") || !strings.Contains(lines[0], "STATUS") {
+		t.Errorf("header line missing columns: %q", lines[0])
+	}
+}
+
+func equalSlice(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func TestWarnInfoError(t *testing.T) {
 	errBuf := &bytes.Buffer{}
 	outBuf := &bytes.Buffer{}

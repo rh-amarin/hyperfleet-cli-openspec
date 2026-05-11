@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"os"
 	"strings"
 	"testing"
 
@@ -199,12 +198,12 @@ func TestDBConfig_MasksPassword(t *testing.T) {
 }
 
 func TestDBConfig_EmptyPassword(t *testing.T) {
-	dir := setupDBEnv(t)
-	// Write a config.yaml that has an empty password.
-	cfgContent := "database:\n  host: myhost\n  port: \"5432\"\n  name: mydb\n  user: myuser\n  password: \"\"\n"
-	if err := os.WriteFile(dir+"/config.yaml", []byte(cfgContent), 0600); err != nil {
-		t.Fatal(err)
-	}
+	dir := t.TempDir()
+	// Write an env file that has an empty database password.
+	envContent := "hyperfleet:\n  api-url: http://localhost:8000\ndatabase:\n  host: myhost\n  port: \"5432\"\n  name: mydb\n  user: myuser\n  password: \"\"\n"
+	makeEnvRaw(t, dir, "test", envContent)
+	setActiveEnv(t, dir, "test")
+
 	out, err := runDBCmd(t, dir, &mockQuerier{}, "", "db", "config")
 	if err != nil {
 		t.Fatalf("db config empty pw: %v", err)

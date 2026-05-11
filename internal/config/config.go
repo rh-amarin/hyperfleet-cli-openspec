@@ -1,9 +1,9 @@
 // Package config manages the HyperFleet CLI configuration.
-// Configuration is split across two YAML files:
-//   - config.yaml: static settings (sections: hyperfleet, kubernetes, maestro, port-forward, database, rabbitmq, registry)
+// Configuration is split across two concerns:
+//   - environments/<name>.yaml: complete, self-contained settings for one environment
 //   - state.yaml: runtime state (flat top-level keys: active-environment, cluster-id, cluster-name, nodepool-id)
 //
-// Environment profiles are stored at environments/<name>.yaml and deep-merged at runtime.
+// There is no config.yaml. Each environment file contains all sections.
 package config
 
 import (
@@ -15,7 +15,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// defaults holds the built-in default configuration values.
+// defaults holds the built-in fallback configuration values.
 var defaults = map[string]map[string]string{
 	"hyperfleet": {
 		"api-url":     "http://localhost:8000",
@@ -28,18 +28,18 @@ var defaults = map[string]map[string]string{
 		"namespace": "",
 	},
 	"maestro": {
-		"consumer":              "cluster1",
-		"http-endpoint":        "http://localhost:8100",
-		"grpc-endpoint":        "localhost:8090",
-		"namespace":            "maestro",
+		"consumer":      "cluster1",
+		"http-endpoint": "http://localhost:8100",
+		"grpc-endpoint": "localhost:8090",
+		"namespace":     "maestro",
 	},
 	"port-forward": {
-		"api-port":                    "8000",
-		"pg-port":                     "5432",
-		"maestro-http-port":           "8100",
-		"maestro-http-remote-port":    "8000",
-		"maestro-grpc-port":           "8090",
-		"maestro-grpc-remote-port":    "8090",
+		"api-port":                 "8000",
+		"pg-port":                  "5432",
+		"maestro-http-port":        "8100",
+		"maestro-http-remote-port": "8000",
+		"maestro-grpc-port":        "8090",
+		"maestro-grpc-remote-port": "8090",
 	},
 	"database": {
 		"host":     "localhost",
@@ -72,9 +72,8 @@ var envVarMap = map[string][2]string{
 // Store manages the HyperFleet CLI configuration.
 type Store struct {
 	dir     string
-	config  map[string]map[string]string
 	state   map[string]string
-	profile map[string]map[string]string // active env profile, nil if none
+	profile map[string]map[string]string // active env file content, nil if none loaded
 }
 
 // New creates a Store that reads from the given config directory.
@@ -85,36 +84,16 @@ func New(configDir string) *Store {
 // ConfigDir returns the config directory path.
 func (s *Store) ConfigDir() string { return s.dir }
 
-// Load reads config.yaml, state.yaml, and the active environment profile from disk.
-// It creates the config directory and default files if they don't exist.
+// Load reads state.yaml and the active environment file from disk.
+// It creates the config directory and state.yaml if they don't exist.
 func (s *Store) Load() error {
 	if err := os.MkdirAll(filepath.Join(s.dir, "environments"), 0700); err != nil {
 		return fmt.Errorf("create config dir: %w", err)
 	}
 
-	s.config = deepCopyDefaults()
 	s.state = map[string]string{}
 	s.profile = nil
 
-	// Load config.yaml, creating it with defaults if absent.
-	cfgPath := filepath.Join(s.dir, "config.yaml")
-	if _, err := os.Stat(cfgPath); os.IsNotExist(err) {
-		if err := writeYAMLAtomic(cfgPath, mapToAny(s.config)); err != nil {
-			return fmt.Errorf("create config.yaml: %w", err)
-		}
-	} else {
-		raw, err := os.ReadFile(cfgPath)
-		if err != nil {
-			return fmt.Errorf("read config.yaml: %w", err)
-		}
-		var loaded map[string]map[string]string
-		if err := yaml.Unmarshal(raw, &loaded); err != nil {
-			return fmt.Errorf("parse config.yaml: %w", err)
-		}
-		deepMergeConfig(s.config, loaded)
-	}
-
-	// Load state.yaml, creating it empty if absent.
 	statePath := filepath.Join(s.dir, "state.yaml")
 	if _, err := os.Stat(statePath); os.IsNotExist(err) {
 		if err := writeYAMLAtomic(statePath, map[string]string{}); err != nil {
@@ -133,7 +112,6 @@ func (s *Store) Load() error {
 		}
 	}
 
-	// Load active environment profile if set.
 	if active := s.state["active-environment"]; active != "" {
 		profPath := filepath.Join(s.dir, "environments", active+".yaml")
 		raw, err := os.ReadFile(profPath)
@@ -149,17 +127,14 @@ func (s *Store) Load() error {
 }
 
 // Get returns a configuration value using the precedence chain:
-// HF_* env vars > active env profile > config.yaml > defaults.
+// HF_* env vars > active env file > built-in defaults.
 func (s *Store) Get(section, key string) string {
-	// Check environment variables first.
-	envKey := envKeyFor(section, key)
-	if envKey != "" {
+	if envKey := envKeyFor(section, key); envKey != "" {
 		if v := os.Getenv(envKey); v != "" {
 			return v
 		}
 	}
 
-	// Active environment profile.
 	if s.profile != nil {
 		if sec, ok := s.profile[section]; ok {
 			if v, ok := sec[key]; ok {
@@ -168,28 +143,47 @@ func (s *Store) Get(section, key string) string {
 		}
 	}
 
-	// config.yaml (already merged with defaults).
-	if s.config != nil {
-		if sec, ok := s.config[section]; ok {
-			if v, ok := sec[key]; ok {
-				return v
-			}
+	if sec, ok := defaults[section]; ok {
+		if v, ok := sec[key]; ok {
+			return v
 		}
 	}
 
 	return ""
 }
 
-// Set writes a configuration value to config.yaml and updates the in-memory store.
+// Set writes a configuration value to the active environment file.
+// Returns an error if no active environment is set.
 func (s *Store) Set(section, key, value string) error {
-	if s.config == nil {
-		s.config = deepCopyDefaults()
+	active := s.GetState("active-environment")
+	if active == "" {
+		return fmt.Errorf("[ERROR] no active environment — run 'hf config env create <name>'")
 	}
-	if _, ok := s.config[section]; !ok {
-		s.config[section] = map[string]string{}
+
+	profPath := filepath.Join(s.dir, "environments", active+".yaml")
+
+	var prof map[string]map[string]string
+	raw, err := os.ReadFile(profPath)
+	if err == nil {
+		_ = yaml.Unmarshal(raw, &prof)
 	}
-	s.config[section][key] = value
-	return writeYAMLAtomic(filepath.Join(s.dir, "config.yaml"), mapToAny(s.config))
+	if prof == nil {
+		prof = map[string]map[string]string{}
+	}
+	if _, ok := prof[section]; !ok {
+		prof[section] = map[string]string{}
+	}
+	prof[section][key] = value
+
+	if s.profile == nil {
+		s.profile = map[string]map[string]string{}
+	}
+	if _, ok := s.profile[section]; !ok {
+		s.profile[section] = map[string]string{}
+	}
+	s.profile[section][key] = value
+
+	return writeYAMLAtomic(profPath, mapToAny(prof))
 }
 
 // GetState returns a state value from state.yaml.
@@ -218,7 +212,7 @@ func (s *Store) ActiveEnvironment() string {
 func (s *Store) RequireActiveEnvironment() (string, error) {
 	env := s.ActiveEnvironment()
 	if env == "" {
-		return "", fmt.Errorf("[ERROR] no active environment — run 'hf config env activate <name>'")
+		return "", fmt.Errorf("[ERROR] no active environment — run 'hf config env create <name>'")
 	}
 	return env, nil
 }
@@ -247,6 +241,34 @@ func (s *Store) NodePoolID(explicit string) (string, error) {
 	return id, nil
 }
 
+// ActivateEnvironment sets the active environment in state.yaml after verifying it exists.
+func (s *Store) ActivateEnvironment(name string) error {
+	profPath := filepath.Join(s.dir, "environments", name+".yaml")
+	if _, err := os.Stat(profPath); os.IsNotExist(err) {
+		return fmt.Errorf("[ERROR] environment '%s' not found", name)
+	}
+	return s.SetState("active-environment", name)
+}
+
+// ListEnvironments returns all environment names in the environments directory.
+func (s *Store) ListEnvironments() ([]string, error) {
+	envDir := filepath.Join(s.dir, "environments")
+	entries, err := os.ReadDir(envDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var names []string
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".yaml") {
+			names = append(names, strings.TrimSuffix(e.Name(), ".yaml"))
+		}
+	}
+	return names, nil
+}
+
 // envKeyFor returns the environment variable name for a given section/key pair.
 func envKeyFor(section, key string) string {
 	for envVar, path := range envVarMap {
@@ -255,31 +277,6 @@ func envKeyFor(section, key string) string {
 		}
 	}
 	return ""
-}
-
-// deepCopyDefaults returns a fresh copy of the defaults map.
-func deepCopyDefaults() map[string]map[string]string {
-	out := make(map[string]map[string]string, len(defaults))
-	for sec, vals := range defaults {
-		cp := make(map[string]string, len(vals))
-		for k, v := range vals {
-			cp[k] = v
-		}
-		out[sec] = cp
-	}
-	return out
-}
-
-// deepMergeConfig merges src into dst. Values in src override dst.
-func deepMergeConfig(dst, src map[string]map[string]string) {
-	for sec, vals := range src {
-		if _, ok := dst[sec]; !ok {
-			dst[sec] = map[string]string{}
-		}
-		for k, v := range vals {
-			dst[sec][k] = v
-		}
-	}
 }
 
 // mapToAny converts map[string]map[string]string to map[string]any for YAML serialization.
@@ -338,50 +335,4 @@ func NewFromEnv() *Store {
 		dir = DefaultConfigDir()
 	}
 	return New(dir)
-}
-
-// ListEnvironments returns all environment names in the environments directory.
-func (s *Store) ListEnvironments() ([]string, error) {
-	envDir := filepath.Join(s.dir, "environments")
-	entries, err := os.ReadDir(envDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	var names []string
-	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".yaml") {
-			names = append(names, strings.TrimSuffix(e.Name(), ".yaml"))
-		}
-	}
-	return names, nil
-}
-
-// ActivateEnvironment sets the active environment in state.yaml after verifying it exists.
-func (s *Store) ActivateEnvironment(name string) error {
-	profPath := filepath.Join(s.dir, "environments", name+".yaml")
-	if _, err := os.Stat(profPath); os.IsNotExist(err) {
-		return fmt.Errorf("[ERROR] environment '%s' not found", name)
-	}
-	return s.SetState("active-environment", name)
-}
-
-// CountOverrides returns the number of keys overridden in an environment profile.
-func (s *Store) CountOverrides(name string) (int, error) {
-	profPath := filepath.Join(s.dir, "environments", name+".yaml")
-	raw, err := os.ReadFile(profPath)
-	if err != nil {
-		return 0, err
-	}
-	var prof map[string]map[string]string
-	if err := yaml.Unmarshal(raw, &prof); err != nil {
-		return 0, err
-	}
-	count := 0
-	for _, vals := range prof {
-		count += len(vals)
-	}
-	return count, nil
 }

@@ -1,6 +1,12 @@
-# Spec: config
+## REMOVED Requirements
 
-## Requirement: Show Configuration
+### Requirement: hf-config-env-new
+**Reason:** Replaced by `hf config env create` (see MODIFIED: hf-config-env-create below). Interactive prompting and flag-based creation are removed. The command is purely name-driven with template seeding.
+**Migration:** Use `hf config env create <name>` instead.
+
+## MODIFIED Requirements
+
+### Requirement: Show Configuration
 
 `hf config` (with no subcommand) and `hf config show` display the resolved configuration of the active environment.
 
@@ -33,17 +39,7 @@
 - **AND** secrets MUST be shown as `<set>` or `<not set>`
 - **AND** the active environment MUST NOT be changed
 
-#### Scenario: Show config for a named environment that is also the active environment
-
-- **GIVEN** the named environment is also the currently active environment
-- **WHEN** the user runs `hf config show <env-name>`
-- **THEN** the CLI MUST display the file path prefixed with `[active] `
-- **AND** display the values as usual
-- **AND** the active environment is NOT changed
-
----
-
-## Requirement: Set Configuration Value
+### Requirement: Set Configuration Value
 
 The CLI SHALL allow setting individual configuration properties using dotted section.key notation.
 
@@ -75,9 +71,7 @@ The CLI SHALL allow setting individual configuration properties using dotted sec
 - **THEN** the command MUST exit with code 1
 - **AND** MUST print the no-active-environment error with guidance
 
----
-
-## Requirement: hf-config-env-create
+### Requirement: hf-config-env-create
 
 `hf config env create <name>` creates a new named environment from the bundled template and immediately activates it.
 
@@ -106,65 +100,7 @@ The CLI SHALL allow setting individual configuration properties using dotted sec
 - **WHEN** the command is evaluated
 - **THEN** the CLI MUST show the command usage and exit with code 1
 
----
-
-## Requirement: hf-config-env-show
-
-`hf config env show <name>` displays the file location and values of a named environment profile without activating it.
-
-#### Scenario: Show named environment
-
-- **GIVEN** an environment named `<name>` exists at `~/.config/hf/environments/<name>.yaml`
-- **WHEN** the user runs `hf config env show <name>`
-- **THEN** the CLI MUST print the absolute file path of the environment file
-- **AND** display all key-value pairs defined in that file, grouped by section
-- **AND** secrets MUST be shown as `<set>` or `<not set>`
-- **AND** the currently active environment MUST NOT be changed
-
-#### Scenario: Non-existent environment
-
-- **GIVEN** no environment named `<name>` exists
-- **WHEN** the user runs `hf config env show <name>`
-- **THEN** the CLI MUST print `[ERROR] environment '<name>' not found`
-- **AND** exit with code 1
-
----
-
-## Requirement: Show Current Cluster and NodePool IDs
-
-`hf cluster id` and `hf nodepool id` display the currently active resource IDs from state.
-
-NOTE on severity: `hf cluster id` and `hf nodepool id` use `[WARN]` + exit 0 when no ID is set because they are purely informational — the absence of a stored ID is not an error condition for these commands. All other commands that *require* a cluster-id or nodepool-id to function use `[ERROR]` + exit 1.
-
-#### Scenario: Display cluster ID
-
-- **GIVEN** a cluster-id is set in state.yaml
-- **WHEN** the user runs `hf cluster id`
-- **THEN** the CLI MUST print the value of `cluster-id` from `~/.config/hf/state.yaml`
-
-#### Scenario: No cluster ID set
-
-- **GIVEN** no cluster-id is set in state.yaml
-- **WHEN** the user runs `hf cluster id`
-- **THEN** the CLI MUST print `[WARN] No cluster-id set in state`
-- **AND** exit with code 0
-
-#### Scenario: Display nodepool ID
-
-- **GIVEN** a nodepool-id is set in state.yaml
-- **WHEN** the user runs `hf nodepool id`
-- **THEN** the CLI MUST print the value of `nodepool-id` from `~/.config/hf/state.yaml`
-
-#### Scenario: No nodepool ID set
-
-- **GIVEN** no nodepool-id is set in state.yaml
-- **WHEN** the user runs `hf nodepool id`
-- **THEN** the CLI MUST print `[WARN] No nodepool-id set in state`
-- **AND** exit with code 0
-
----
-
-## Requirement: active-env-guard
+### Requirement: active-env-guard
 
 Commands that require a configured target must fail when no active environment is set.
 
@@ -185,3 +121,9 @@ Commands that require a configured target must fail when no active environment i
 - **GIVEN** no active environment is configured
 - **WHEN** the user runs any of: `hf config env list`, `hf config env create`, `hf config env activate`, `hf config env show`
 - **THEN** the command MUST succeed normally
+
+## REMOVED Requirements
+
+### Requirement: hf-config-doctor (doctor subcommand)
+**Reason:** Removed to simplify the command surface. Connectivity issues are surfaced through natural API errors when commands run.
+**Migration:** None required.

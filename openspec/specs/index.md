@@ -30,7 +30,8 @@ Organized to match the [output index](https://github.com/rh-amarin/hyperfleet-cl
 | # | Domain | Spec | Req | Scenarios |
 |---|--------|------|-----|-----------|
 | T1 | [Technical Architecture](technical-architecture/spec.md) | Go module structure, Cobra command tree, shared packages, dependency bundling | 10 | 19 |
-| T2 | [Configuration Model](config-model/spec.md) | Split YAML config (config.yaml + state.yaml), environment profiles, migration | 7 | 16 |
+| T2 | [Configuration Model](config-model/spec.md) | Self-contained environment files, precedence chain, state.yaml, secret handling | 8 | 18 |
+| T5 | [Config Template](config-template/spec.md) | Bundled environment template embedding and consistency requirements | 1 | 2 |
 | T3 | [Non-Functional](non-functional/spec.md) | Shell completions, output format flag, cross-compilation, testing, security | 9 | 26 |
 | T4 | [Output Formatting](output-formatting/spec.md) | Multi-format output dispatch, colored dot rendering, dynamic column ordering, JSON colorization | 5 | 18 |
 
@@ -48,7 +49,7 @@ Organized to match the [output index](https://github.com/rh-amarin/hyperfleet-cl
 |----------|--------|-----------|
 | Language | **Go** | Single binary, strong k8s ecosystem, cross-platform |
 | CLI Framework | **Cobra** | Industry standard (kubectl, gh, docker), subcommand trees, auto-completions |
-| Config Format | **Split YAML** | `config.yaml` for static settings, `state.yaml` for active state (top-level keys) |
+| Config Format | **Environment files + state** | Self-contained `environments/<name>.yaml` seeded from bundled template; `state.yaml` for active state (top-level keys) |
 | K8s Client | **client-go (bundled)** | Self-contained binary, no kubectl dependency |
 | DB Driver | **pgx** | Native Go PostgreSQL driver, no psql needed |
 | GCP Pub/Sub | **Cloud Go SDK** | Official library, no gcloud dependency |
@@ -73,7 +74,7 @@ Organized to match the [output index](https://github.com/rh-amarin/hyperfleet-cl
 
 ## Key Design Patterns
 
-1. **Split config**: `config.yaml` for connection settings, `state.yaml` for active cluster/nodepool/environment
+1. **Environment files**: Self-contained `environments/<name>.yaml` (seeded from bundled template) for all settings; `state.yaml` for active cluster/nodepool/environment
 2. **Shared internal functions**: Commands reuse `internal/` packages (e.g., `api.FindClusterByName`, `config.SetClusterID`) rather than invoking each other as subprocesses
 3. **Defaults over usage**: Create commands with no args use defaults, not usage display
 4. **Generation tracking**: Resources track generation; adapters report observed_generation
@@ -81,7 +82,7 @@ Organized to match the [output index](https://github.com/rh-amarin/hyperfleet-cl
 6. **Multi-format output**: `--output json|table|yaml` on every data-producing command
 7. **Zero external deps for core**: Only GCP credentials needed for Pub/Sub commands; all other commands are fully self-contained
 9. **RFC 7807 errors**: API errors follow Problem Details format
-10. **Config precedence**: flags > env vars > environment profile > config.yaml > defaults
+10. **Config precedence**: flags > env vars > active environment file > built-in defaults
 
 ## Environment Context
 

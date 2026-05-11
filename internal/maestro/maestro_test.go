@@ -17,8 +17,15 @@ import (
 func newTestClient(t *testing.T, serverURL string) *maestro.Client {
 	t.Helper()
 	dir := t.TempDir()
-	cfg := filepath.Join(dir, "config.yaml")
-	if err := os.WriteFile(cfg, []byte("maestro:\n  http-endpoint: "+serverURL+"\n"), 0o600); err != nil {
+	envDir := filepath.Join(dir, "environments")
+	if err := os.MkdirAll(envDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	envContent := "maestro:\n  http-endpoint: " + serverURL + "\n"
+	if err := os.WriteFile(filepath.Join(envDir, "test.yaml"), []byte(envContent), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "state.yaml"), []byte("active-environment: test\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	s := config.New(dir)

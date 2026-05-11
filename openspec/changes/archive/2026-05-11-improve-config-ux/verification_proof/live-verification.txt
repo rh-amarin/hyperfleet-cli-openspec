@@ -1,0 +1,86 @@
+=== hf config (no args, no active env) ===
+[ERROR] no active environment
+  → run 'hf config env create <name>' to create one
+  → run 'hf config env activate <name>' to activate an existing one
+
+=== hf config env create local2 ===
+Environment 'local2' created and activated.
+Edit your configuration: /tmp/hf-verify-19905/environments/local2.yaml
+
+=== hf config show ===
+state:
+  active-environment: local2
+hyperfleet:
+  api-url: http://localhost:8000
+  api-version: v1
+  gcp-project: hcm-hyperfleet
+  token: <not set>
+kubernetes:
+  context:
+  namespace:
+maestro:
+  consumer: cluster1
+  grpc-endpoint: localhost:8090
+  http-endpoint: http://localhost:8100
+  namespace: maestro
+port-forward:
+  api-port: 8000
+  maestro-grpc-port: 8090
+  maestro-grpc-remote-port: 8090
+  maestro-http-port: 8100
+  maestro-http-remote-port: 8000
+  pg-port: 5432
+database:
+  host: localhost
+  name: hyperfleet
+  password: <set>
+  port: 5432
+  user: hyperfleet
+rabbitmq:
+  host: localhost
+  mgmt-port: 15672
+  password: <set>
+  user: guest
+  vhost: /
+registry:
+  name:
+
+=== hf config set hyperfleet.api-url http://localhost:9000 ===
+
+=== hf config get hyperfleet.api-url ===
+http://localhost:9000
+
+=== hf config env list ===
+NAME    ACTIVE
+local2  ✓
+
+=== hf config set (bad format) ===
+[ERROR] key must be in section.key format (e.g. hyperfleet.api-url)
+
+=== hf config --help ===
+Manage hf configuration.
+
+Subcommands: show, get, set, env.
+
+Usage:
+  hf config [flags]
+  hf config [command]
+
+Available Commands:
+  env         Manage environment profiles
+  get         Get a configuration or state value (use section.key for config, plain key for state)
+  set         Set a configuration value in the active environment file
+  show        Show the active configuration, or a named environment profile
+
+Flags:
+  -h, --help   help for config
+
+Global Flags:
+      --api-token string   override API bearer token for this invocation
+      --api-url string     override HyperFleet API URL for this invocation
+      --config string      config file (default: ~/.config/hf/config.yaml)
+      --no-color           disable colored output
+  -o, --output string      output format: json, table, yaml (default "json")
+  -v, --verbose            enable verbose/debug logging
+
+Use "hf config [command] --help" for more information about a command.

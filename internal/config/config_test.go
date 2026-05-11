@@ -18,7 +18,56 @@ func newTestStore(t *testing.T) *config.Store {
 	return s
 }
 
-func TestDefaults(t *testing.T) {
+// writeEnv creates a named environment file in dir/environments/<name>.yaml.
+func writeEnv(t *testing.T, dir, name, content string) {
+	t.Helper()
+	envDir := filepath.Join(dir, "environments")
+	if err := os.MkdirAll(envDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(envDir, name+".yaml"), []byte(content), 0600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// ---- Load ----
+
+func TestLoad_NoConfigYAMLCreated(t *testing.T) {
+	dir := t.TempDir()
+	s := config.New(dir)
+	if err := s.Load(); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "config.yaml")); !os.IsNotExist(err) {
+		t.Error("Load must not create config.yaml")
+	}
+}
+
+func TestLoad_StateYAMLCreated(t *testing.T) {
+	dir := t.TempDir()
+	s := config.New(dir)
+	if err := s.Load(); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "state.yaml")); err != nil {
+		t.Errorf("Load must create state.yaml: %v", err)
+	}
+}
+
+func TestLoad_EnvironmentsDirCreated(t *testing.T) {
+	dir := t.TempDir()
+	s := config.New(dir)
+	if err := s.Load(); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "environments")); err != nil {
+		t.Errorf("Load must create environments/ dir: %v", err)
+	}
+}
+
+// ---- Get precedence ----
+
+func TestGet_Defaults(t *testing.T) {
 	s := newTestStore(t)
 
 	if got := s.Get("hyperfleet", "api-url"); got != "http://localhost:8000" {
@@ -35,7 +84,7 @@ func TestDefaults(t *testing.T) {
 	}
 }
 
-func TestEnvVarOverride(t *testing.T) {
+func TestGet_EnvVarOverridesDefault(t *testing.T) {
 	s := newTestStore(t)
 
 	t.Setenv("HF_API_URL", "http://custom-api:9000")
@@ -49,14 +98,10 @@ func TestEnvVarOverride(t *testing.T) {
 	}
 }
 
-func TestEnvVarHigherThanProfile(t *testing.T) {
+func TestGet_ActiveEnvFileOverridesDefault(t *testing.T) {
 	dir := t.TempDir()
-	// Create an env profile that sets api-url
-	if err := os.MkdirAll(filepath.Join(dir, "environments"), 0700); err != nil {
-		t.Fatal(err)
-	}
-	profContent := "hyperfleet:\n  api-url: http://profile-api:8888\n"
-	if err := os.WriteFile(filepath.Join(dir, "environments", "myenv.yaml"), []byte(profContent), 0600); err != nil {
+	writeEnv(t, dir, "myenv", "hyperfleet:\n  api-url: http://profile-api:8888\n")
+	if err := os.WriteFile(filepath.Join(dir, "state.yaml"), []byte("active-environment: myenv\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -65,48 +110,72 @@ func TestEnvVarHigherThanProfile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Activate the profile
-	if err := s.SetState("active-environment", "myenv"); err != nil {
-		t.Fatal(err)
+	if got := s.Get("hyperfleet", "api-url"); got != "http://profile-api:8888" {
+		t.Errorf("env file override: got %q, want http://profile-api:8888", got)
 	}
-	// Reload so the profile is applied
-	s2 := config.New(dir)
-	if err := s2.Load(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Profile should override file
-	if got := s2.Get("hyperfleet", "api-url"); got != "http://profile-api:8888" {
-		t.Errorf("profile override: got %q, want %q", got, "http://profile-api:8888")
-	}
-
-	// Env var should override profile
-	t.Setenv("HF_API_URL", "http://envvar-api:7777")
-	if got := s2.Get("hyperfleet", "api-url"); got != "http://envvar-api:7777" {
-		t.Errorf("env var over profile: got %q, want %q", got, "http://envvar-api:7777")
+	// Keys not in env file still fall back to defaults
+	if got := s.Get("hyperfleet", "api-version"); got != "v1" {
+		t.Errorf("default fallback: got %q", got)
 	}
 }
 
-func TestSetAndPersist(t *testing.T) {
+func TestGet_EnvVarOverridesActiveEnvFile(t *testing.T) {
 	dir := t.TempDir()
+	writeEnv(t, dir, "myenv", "hyperfleet:\n  api-url: http://profile-api:8888\n")
+	if err := os.WriteFile(filepath.Join(dir, "state.yaml"), []byte("active-environment: myenv\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
 	s := config.New(dir)
 	if err := s.Load(); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := s.Set("hyperfleet", "api-url", "http://new-api:1234"); err != nil {
+	t.Setenv("HF_API_URL", "http://envvar-api:7777")
+	if got := s.Get("hyperfleet", "api-url"); got != "http://envvar-api:7777" {
+		t.Errorf("env var over active env file: got %q, want http://envvar-api:7777", got)
+	}
+}
+
+// ---- Set ----
+
+func TestSet_WritesToActiveEnvFile(t *testing.T) {
+	dir := t.TempDir()
+	writeEnv(t, dir, "dev", "hyperfleet:\n  api-url: http://dev:8000\n")
+	if err := os.WriteFile(filepath.Join(dir, "state.yaml"), []byte("active-environment: dev\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	s := config.New(dir)
+	if err := s.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Set("hyperfleet", "api-version", "v2"); err != nil {
 		t.Fatalf("Set: %v", err)
 	}
 
-	// Reload from disk — value should persist
+	// Reload and verify persistence
 	s2 := config.New(dir)
 	if err := s2.Load(); err != nil {
 		t.Fatal(err)
 	}
-	if got := s2.Get("hyperfleet", "api-url"); got != "http://new-api:1234" {
-		t.Errorf("persisted value: got %q", got)
+	if got := s2.Get("hyperfleet", "api-version"); got != "v2" {
+		t.Errorf("persisted value: got %q, want v2", got)
 	}
 }
+
+func TestSet_ErrorWhenNoActiveEnv(t *testing.T) {
+	s := newTestStore(t)
+	err := s.Set("hyperfleet", "api-url", "http://x:8000")
+	if err == nil {
+		t.Fatal("expected error when no active environment")
+	}
+	if !contains(err.Error(), "no active environment") {
+		t.Errorf("error message: got %q", err.Error())
+	}
+}
+
+// ---- State ----
 
 func TestAtomicStateWrite(t *testing.T) {
 	s := newTestStore(t)
@@ -114,12 +183,10 @@ func TestAtomicStateWrite(t *testing.T) {
 	if err := s.SetState("cluster-id", "cl-abc-123"); err != nil {
 		t.Fatalf("SetState: %v", err)
 	}
-
 	if got := s.GetState("cluster-id"); got != "cl-abc-123" {
 		t.Errorf("GetState: got %q", got)
 	}
 
-	// Verify file was written with correct permissions
 	statePath := filepath.Join(s.ConfigDir(), "state.yaml")
 	info, err := os.Stat(statePath)
 	if err != nil {
@@ -130,54 +197,16 @@ func TestAtomicStateWrite(t *testing.T) {
 	}
 }
 
-func TestEnvProfileDeepMerge(t *testing.T) {
-	dir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir, "environments"), 0700); err != nil {
-		t.Fatal(err)
-	}
-
-	// Profile only overrides api-url; other keys should still come from defaults
-	profContent := "hyperfleet:\n  api-url: http://env-api:8888\ndatabase:\n  host: db.prod.internal\n"
-	if err := os.WriteFile(filepath.Join(dir, "environments", "prod.yaml"), []byte(profContent), 0600); err != nil {
-		t.Fatal(err)
-	}
-	// Write state with active-environment
-	stateContent := "active-environment: prod\n"
-	if err := os.WriteFile(filepath.Join(dir, "state.yaml"), []byte(stateContent), 0600); err != nil {
-		t.Fatal(err)
-	}
-
-	s := config.New(dir)
-	if err := s.Load(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Overridden by profile
-	if got := s.Get("hyperfleet", "api-url"); got != "http://env-api:8888" {
-		t.Errorf("profile api-url: got %q", got)
-	}
-	if got := s.Get("database", "host"); got != "db.prod.internal" {
-		t.Errorf("profile database.host: got %q", got)
-	}
-	// Not overridden — should still be default
-	if got := s.Get("database", "port"); got != "5432" {
-		t.Errorf("default database.port: got %q", got)
-	}
-	if got := s.Get("hyperfleet", "api-version"); got != "v1" {
-		t.Errorf("default api-version: got %q", got)
-	}
-}
+// ---- RequireActiveEnvironment ----
 
 func TestRequireActiveEnvironment(t *testing.T) {
 	s := newTestStore(t)
 
-	// No active env → error
 	_, err := s.RequireActiveEnvironment()
 	if err == nil {
 		t.Fatal("expected error when no active environment")
 	}
 
-	// Set active env → no error
 	if err := s.SetState("active-environment", "dev"); err != nil {
 		t.Fatal(err)
 	}
@@ -186,26 +215,25 @@ func TestRequireActiveEnvironment(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if env != "dev" {
-		t.Errorf("RequireActiveEnvironment: got %q, want %q", env, "dev")
+		t.Errorf("RequireActiveEnvironment: got %q, want dev", env)
 	}
 }
+
+// ---- ClusterID / NodePoolID ----
 
 func TestClusterIDResolution(t *testing.T) {
 	s := newTestStore(t)
 
-	// No state, no explicit → error
 	_, err := s.ClusterID("")
 	if err == nil {
 		t.Fatal("expected error when no cluster ID")
 	}
 
-	// Explicit arg wins
 	id, err := s.ClusterID("explicit-id")
 	if err != nil || id != "explicit-id" {
 		t.Errorf("explicit: got %q, %v", id, err)
 	}
 
-	// State fallback
 	if err := s.SetState("cluster-id", "state-id"); err != nil {
 		t.Fatal(err)
 	}
@@ -215,19 +243,14 @@ func TestClusterIDResolution(t *testing.T) {
 	}
 }
 
-func TestConfigFilePermissions(t *testing.T) {
-	dir := t.TempDir()
-	s := config.New(dir)
-	if err := s.Load(); err != nil {
-		t.Fatal(err)
-	}
-
-	cfgPath := filepath.Join(dir, "config.yaml")
-	info, err := os.Stat(cfgPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if perm := info.Mode().Perm(); perm != 0600 {
-		t.Errorf("config.yaml perm: got %o, want 0600", perm)
-	}
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		func() bool {
+			for i := 0; i <= len(s)-len(substr); i++ {
+				if s[i:i+len(substr)] == substr {
+					return true
+				}
+			}
+			return false
+		}())
 }

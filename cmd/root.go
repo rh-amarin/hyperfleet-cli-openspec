@@ -26,9 +26,7 @@ var rootCmd = &cobra.Command{
 	Use:   "hf",
 	Short: "HyperFleet CLI — manage HyperFleet clusters",
 	Long: `hf is a self-contained CLI for managing HyperFleet clusters.
-It replaces a suite of bash scripts with a single binary — no external tools required.
-
-Run 'hf config doctor' to verify connectivity to the HyperFleet API.`,
+It replaces a suite of bash scripts with a single binary — no external tools required.`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -40,21 +38,18 @@ Run 'hf config doctor' to verify connectivity to the HyperFleet API.`,
 			return fmt.Errorf("[ERROR] loading config: %w", err)
 		}
 		if _, err := s.RequireActiveEnvironment(); err != nil {
-			return fmt.Errorf("[ERROR] No active environment. Run 'hf config env activate <name>' to set one.")
+			return fmt.Errorf("[ERROR] no active environment\n  → run 'hf config env create <name>' to create one\n  → run 'hf config env activate <name>' to activate an existing one")
 		}
 		return nil
 	},
 }
 
 // isBypassCommand returns true for commands that may run without an active environment.
-// Bypassed: all `config env *` subcommands, `config doctor`, version, completion, help,
+// Bypassed: all `config env *` subcommands, version, completion, help,
 // and cobra's built-in completion helpers.
 func isBypassCommand(cmd *cobra.Command) bool {
 	path := cmd.CommandPath()
 	if strings.Contains(path, "config env") {
-		return true
-	}
-	if strings.HasSuffix(path, "config doctor") {
 		return true
 	}
 	leaf := cmd.Name()

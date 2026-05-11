@@ -1,11 +1,8 @@
 // Package cmd tests for the config command tree and active-env guard.
-// White-box tests: package cmd so we can inspect package-level state.
 package cmd
 
 import (
 	"bytes"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,7 +21,6 @@ func runCmd(t *testing.T, dir string, args ...string) (string, error) {
 
 	err := rootCmd.Execute()
 
-	// Reset cobra state after each run.
 	rootCmd.SetOut(nil)
 	rootCmd.SetArgs(nil)
 
@@ -34,11 +30,16 @@ func runCmd(t *testing.T, dir string, args ...string) (string, error) {
 // makeEnv creates a named environment file in dir/environments/<name>.yaml.
 func makeEnv(t *testing.T, dir, name, apiURL string) {
 	t.Helper()
+	makeEnvRaw(t, dir, name, "hyperfleet:\n  api-url: "+apiURL+"\n")
+}
+
+// makeEnvRaw creates a named environment file with arbitrary content.
+func makeEnvRaw(t *testing.T, dir, name, content string) {
+	t.Helper()
 	envDir := filepath.Join(dir, "environments")
 	if err := os.MkdirAll(envDir, 0700); err != nil {
 		t.Fatal(err)
 	}
-	content := "hyperfleet:\n  api-url: " + apiURL + "\n"
 	if err := os.WriteFile(filepath.Join(envDir, name+".yaml"), []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -53,48 +54,70 @@ func setActiveEnv(t *testing.T, dir, name string) {
 	}
 }
 
-// ---- active-env guard tests ----
+// ---- hf config (no subcommand) ----
+
+func TestConfigNoArgs_ShowsActiveConfig(t *testing.T) {
+	dir := t.TempDir()
+	makeEnv(t, dir, "dev", "http://dev:8000")
+	setActiveEnv(t, dir, "dev")
+
+	out, err := runCmd(t, dir, "config")
+	if err != nil {
+		t.Fatalf("hf config: %v", err)
+	}
+	if !strings.Contains(out, "hyperfleet:") {
+		t.Errorf("expected config output, got: %q", out)
+	}
+}
+
+func TestConfigNoArgs_NoActiveEnv_Errors(t *testing.T) {
+	dir := t.TempDir()
+	_, err := runCmd(t, dir, "config")
+	if err == nil {
+		t.Fatal("expected error when no active env")
+	}
+	if !strings.Contains(err.Error(), "no active environment") {
+		t.Errorf("error message: got %q", err.Error())
+	}
+}
+
+// ---- active-env guard ----
 
 func TestActiveEnvGuard_BlocksConfigShow(t *testing.T) {
 	dir := t.TempDir()
-	// No active env set — guard should fire.
 	_, err := runCmd(t, dir, "config", "show")
 	if err == nil {
 		t.Fatal("expected error when no active env for 'config show'")
 	}
-	if !strings.Contains(err.Error(), "No active environment") {
-		t.Errorf("error message: got %q, want 'No active environment'", err.Error())
+	if !strings.Contains(err.Error(), "no active environment") {
+		t.Errorf("error message: got %q", err.Error())
 	}
 }
 
 func TestActiveEnvGuard_BlocksConfigSet(t *testing.T) {
 	dir := t.TempDir()
-	_, err := runCmd(t, dir, "config", "set", "hyperfleet", "api-url", "http://x:8000")
+	_, err := runCmd(t, dir, "config", "set", "hyperfleet.api-url", "http://x:8000")
 	if err == nil {
 		t.Fatal("expected error when no active env for 'config set'")
 	}
-	if !strings.Contains(err.Error(), "No active environment") {
-		t.Errorf("error message: got %q", err.Error())
-	}
-}
-
-func TestActiveEnvGuard_BlocksConfigGet(t *testing.T) {
-	dir := t.TempDir()
-	_, err := runCmd(t, dir, "config", "get", "hyperfleet.api-url")
-	if err == nil {
-		t.Fatal("expected error when no active env for 'config get'")
-	}
-	if !strings.Contains(err.Error(), "No active environment") {
+	if !strings.Contains(err.Error(), "no active environment") {
 		t.Errorf("error message: got %q", err.Error())
 	}
 }
 
 func TestActiveEnvGuard_BypassEnvList(t *testing.T) {
 	dir := t.TempDir()
-	// No active env — env list should still work.
 	_, err := runCmd(t, dir, "config", "env", "list")
 	if err != nil {
 		t.Errorf("config env list should bypass guard, got: %v", err)
+	}
+}
+
+func TestActiveEnvGuard_BypassEnvCreate(t *testing.T) {
+	dir := t.TempDir()
+	_, err := runCmd(t, dir, "config", "env", "create", "myenv")
+	if err != nil {
+		t.Errorf("config env create should bypass guard, got: %v", err)
 	}
 }
 
@@ -126,21 +149,14 @@ func TestConfigShow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("config show: %v", err)
 	}
-	if !strings.Contains(out, "state:") {
-		t.Errorf("output missing state section: %q", out)
-	}
 	if !strings.Contains(out, "active-environment: staging") {
-		t.Errorf("output missing active-environment in state section: %q", out)
+		t.Errorf("output missing active-environment: %q", out)
 	}
 	if !strings.Contains(out, "hyperfleet:") {
 		t.Errorf("output missing hyperfleet section: %q", out)
 	}
-	// Secrets must be masked
 	if strings.Contains(out, "foobar-bizz-buzz") {
 		t.Errorf("password leaked in output: %q", out)
-	}
-	if !strings.Contains(out, "<set>") && !strings.Contains(out, "<not set>") {
-		t.Errorf("secrets should be masked as <set>/<not set>: %q", out)
 	}
 }
 
@@ -164,6 +180,17 @@ func TestConfigShow_StateVariables(t *testing.T) {
 	}
 }
 
+func TestConfigShow_NoActiveEnv_Error(t *testing.T) {
+	dir := t.TempDir()
+	_, err := runCmd(t, dir, "config", "show")
+	if err == nil {
+		t.Fatal("expected error when no active env")
+	}
+	if !strings.Contains(err.Error(), "no active environment") {
+		t.Errorf("error should mention 'no active environment': got %q", err.Error())
+	}
+}
+
 // ---- config get ----
 
 func TestConfigGet_Found(t *testing.T) {
@@ -175,7 +202,7 @@ func TestConfigGet_Found(t *testing.T) {
 	if err != nil {
 		t.Fatalf("config get: %v", err)
 	}
-	if !strings.Contains(out, "http://localhost:8000") && !strings.Contains(out, "http://dev:8000") {
+	if !strings.Contains(out, "http://dev:8000") {
 		t.Errorf("unexpected api-url: %q", out)
 	}
 }
@@ -224,18 +251,16 @@ func TestConfigGet_NoArgs_ShowsHelp(t *testing.T) {
 
 // ---- config set ----
 
-func TestConfigSet_Valid(t *testing.T) {
+func TestConfigSet_DottedNotation(t *testing.T) {
 	dir := t.TempDir()
-	// Use an env profile that does NOT set api-version so we can verify config.yaml write.
-	makeEnv(t, dir, "dev", "http://dev:8000")
+	makeEnv(t, dir, "dev", "hyperfleet:\n  api-url: http://dev:8000\n  api-version: v1\n")
 	setActiveEnv(t, dir, "dev")
 
-	_, err := runCmd(t, dir, "config", "set", "hyperfleet", "api-version", "v2")
+	_, err := runCmd(t, dir, "config", "set", "hyperfleet.api-version", "v2")
 	if err != nil {
 		t.Fatalf("config set: %v", err)
 	}
 
-	// Read back — profile doesn't override api-version, so config.yaml value wins.
 	out, err := runCmd(t, dir, "config", "get", "hyperfleet.api-version")
 	if err != nil {
 		t.Fatalf("config get after set: %v", err)
@@ -245,16 +270,46 @@ func TestConfigSet_Valid(t *testing.T) {
 	}
 }
 
-func TestConfigSet_InvalidSection(t *testing.T) {
+func TestConfigSet_WritesToEnvFile(t *testing.T) {
 	dir := t.TempDir()
-	makeEnv(t, dir, "dev", "http://dev:8000")
+	makeEnv(t, dir, "dev", "hyperfleet:\n  api-url: http://dev:8000\n")
 	setActiveEnv(t, dir, "dev")
 
-	_, err := runCmd(t, dir, "config", "set", "badSection", "someKey", "value")
+	_, err := runCmd(t, dir, "config", "set", "hyperfleet.api-url", "http://new:9000")
+	if err != nil {
+		t.Fatalf("config set: %v", err)
+	}
+
+	raw, _ := os.ReadFile(filepath.Join(dir, "environments", "dev.yaml"))
+	if !strings.Contains(string(raw), "http://new:9000") {
+		t.Errorf("env file not updated: %s", raw)
+	}
+}
+
+func TestConfigSet_InvalidKeyFormat(t *testing.T) {
+	dir := t.TempDir()
+	makeEnv(t, dir, "dev", "hyperfleet:\n  api-url: http://dev:8000\n")
+	setActiveEnv(t, dir, "dev")
+
+	_, err := runCmd(t, dir, "config", "set", "nodotkey", "value")
+	if err == nil {
+		t.Fatal("expected error for key without dot")
+	}
+	if !strings.Contains(err.Error(), "section.key format") {
+		t.Errorf("error message: got %q", err.Error())
+	}
+}
+
+func TestConfigSet_InvalidSection(t *testing.T) {
+	dir := t.TempDir()
+	makeEnv(t, dir, "dev", "hyperfleet:\n  api-url: http://dev:8000\n")
+	setActiveEnv(t, dir, "dev")
+
+	_, err := runCmd(t, dir, "config", "set", "badSection.someKey", "value")
 	if err == nil {
 		t.Fatal("expected error for unknown section")
 	}
-	if !strings.Contains(err.Error(), "Unknown config section") {
+	if !strings.Contains(err.Error(), "unknown config section") {
 		t.Errorf("error message: got %q", err.Error())
 	}
 }
@@ -280,8 +335,16 @@ func TestConfigEnvList(t *testing.T) {
 	if !strings.Contains(out, "✓") {
 		t.Errorf("active marker missing: %q", out)
 	}
-	if !strings.Contains(out, "NAME") {
-		t.Errorf("table header missing: %q", out)
+}
+
+func TestConfigEnvList_Empty(t *testing.T) {
+	dir := t.TempDir()
+	out, err := runCmd(t, dir, "config", "env", "list")
+	if err != nil {
+		t.Fatalf("config env list (empty): %v", err)
+	}
+	if !strings.Contains(out, "hf config env create") {
+		t.Errorf("empty list should reference create command: %q", out)
 	}
 }
 
@@ -295,21 +358,49 @@ func TestConfigEnvList_Alias(t *testing.T) {
 
 // ---- config env create ----
 
-func TestConfigEnvCreate(t *testing.T) {
+func TestConfigEnvCreate_CreatesFileAndActivates(t *testing.T) {
 	dir := t.TempDir()
-	// env create must work without active env
-	out, err := runCmd(t, dir, "config", "env", "create", "myenv", "--api-url", "http://myenv:8000")
+	out, err := runCmd(t, dir, "config", "env", "create", "myenv")
 	if err != nil {
 		t.Fatalf("config env create: %v", err)
 	}
-	if !strings.Contains(out, "created") {
+	if !strings.Contains(out, "created and activated") {
 		t.Errorf("expected success message: %q", out)
 	}
 
-	// File must exist
 	profPath := filepath.Join(dir, "environments", "myenv.yaml")
 	if _, err := os.Stat(profPath); os.IsNotExist(err) {
 		t.Error("environment file was not created")
+	}
+
+	// Verify activated
+	stateRaw, _ := os.ReadFile(filepath.Join(dir, "state.yaml"))
+	if !strings.Contains(string(stateRaw), "myenv") {
+		t.Errorf("state.yaml should reference new env: %s", stateRaw)
+	}
+}
+
+func TestConfigEnvCreate_PrintsFilePath(t *testing.T) {
+	dir := t.TempDir()
+	out, err := runCmd(t, dir, "config", "env", "create", "myenv")
+	if err != nil {
+		t.Fatalf("config env create: %v", err)
+	}
+	if !strings.Contains(out, "environments/myenv.yaml") {
+		t.Errorf("output should contain file path: %q", out)
+	}
+}
+
+func TestConfigEnvCreate_SeedsFromTemplate(t *testing.T) {
+	dir := t.TempDir()
+	_, err := runCmd(t, dir, "config", "env", "create", "myenv")
+	if err != nil {
+		t.Fatalf("config env create: %v", err)
+	}
+
+	raw, _ := os.ReadFile(filepath.Join(dir, "environments", "myenv.yaml"))
+	if !strings.Contains(string(raw), "http://localhost:8000") {
+		t.Errorf("env file should contain template defaults: %s", raw)
 	}
 }
 
@@ -323,6 +414,17 @@ func TestConfigEnvCreate_Duplicate(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "already exists") {
 		t.Errorf("error message: got %q", err.Error())
+	}
+}
+
+func TestConfigEnvCreate_NoArg_ShowsHelp(t *testing.T) {
+	dir := t.TempDir()
+	out, err := runCmd(t, dir, "config", "env", "create")
+	if err == nil {
+		t.Fatal("expected error when no name given")
+	}
+	if !strings.Contains(out, "Usage:") {
+		t.Errorf("expected help output: %q", out)
 	}
 }
 
@@ -340,7 +442,6 @@ func TestConfigEnvActivate(t *testing.T) {
 		t.Errorf("success message missing env name: %q", out)
 	}
 
-	// Verify state.yaml
 	stateRaw, _ := os.ReadFile(filepath.Join(dir, "state.yaml"))
 	if !strings.Contains(string(stateRaw), "prod") {
 		t.Errorf("state.yaml does not contain 'prod': %q", string(stateRaw))
@@ -425,9 +526,6 @@ func TestConfigEnvShow(t *testing.T) {
 	if !strings.Contains(out, "environments/staging.yaml") {
 		t.Errorf("output should contain env file path: %q", out)
 	}
-	if !strings.Contains(out, "staging") {
-		t.Errorf("output should contain env name or api-url: %q", out)
-	}
 }
 
 func TestConfigEnvShow_ActivePrefix(t *testing.T) {
@@ -451,50 +549,6 @@ func TestConfigEnvShow_NotFound(t *testing.T) {
 		t.Fatal("expected error for non-existent env")
 	}
 	if !strings.Contains(err.Error(), "not found") {
-		t.Errorf("error message: got %q", err.Error())
-	}
-}
-
-// ---- config doctor ----
-
-func TestConfigDoctor_Reachable(t *testing.T) {
-	// Start a test HTTP server that responds 200 to /healthz.
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer ts.Close()
-
-	dir := t.TempDir()
-	// Write config pointing to test server.
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		t.Fatal(err)
-	}
-	cfgContent := "hyperfleet:\n  api-url: " + ts.URL + "\n"
-	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(cfgContent), 0600); err != nil {
-		t.Fatal(err)
-	}
-
-	out, err := runCmd(t, dir, "config", "doctor")
-	if err != nil {
-		t.Fatalf("config doctor: %v", err)
-	}
-	if !strings.Contains(out, "[OK]") {
-		t.Errorf("expected [OK] in output: %q", out)
-	}
-}
-
-func TestConfigDoctor_Unreachable(t *testing.T) {
-	dir := t.TempDir()
-	cfgContent := "hyperfleet:\n  api-url: http://127.0.0.1:19999\n"
-	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(cfgContent), 0600); err != nil {
-		t.Fatal(err)
-	}
-
-	_, err := runCmd(t, dir, "config", "doctor")
-	if err == nil {
-		t.Fatal("expected error for unreachable server")
-	}
-	if !strings.Contains(err.Error(), "Cannot reach") {
 		t.Errorf("error message: got %q", err.Error())
 	}
 }

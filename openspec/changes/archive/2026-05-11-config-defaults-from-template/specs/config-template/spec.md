@@ -67,10 +67,3 @@ The CLI SHALL ship a default environment template embedded in the binary. The te
     name: ""
   ```
 
-## REMOVED Requirements
-
-### Requirement: Template consistency with built-in defaults
-
-**Reason:** The built-in defaults map in `internal/config` is removed. The template IS the defaults — there is no longer a separate Go map to compare against, so a consistency test is structurally unnecessary.
-
-**Migration:** No action required. The `TestConfigTemplateMatchesDefaults` test in `cmd/assets_test.go` MUST be deleted.

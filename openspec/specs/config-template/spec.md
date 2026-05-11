@@ -1,14 +1,31 @@
 # Spec: config-template
 
-## Requirement: Bundled environment template
+## Purpose
 
-The CLI SHALL ship a default environment template embedded in the binary, used as the seed for new environment files.
+Define the bundled environment template embedded in the binary that seeds new environment files and provides built-in configuration defaults.
+## Requirements
+### Requirement: Bundled environment template
+
+The CLI SHALL ship a default environment template embedded in the binary. The template serves two purposes: it seeds new environment files created by `hf config env create`, and it provides the built-in default values for the `internal/config` package.
 
 #### Scenario: Template file location and embedding
 
 - **WHEN** the binary is compiled
-- **THEN** the file at `cmd/assets/config-template.yaml` MUST be embedded using `//go:embed`
-- **AND** it MUST contain all configuration sections with their default values:
+- **THEN** the file at `internal/config/assets/config-template.yaml` MUST be embedded using `//go:embed` in the `internal/config` package
+- **AND** the embedded bytes MUST be exported as `config.ConfigTemplateYAML []byte`
+- **AND** `cmd/config.go` MUST use `config.ConfigTemplateYAML` (not its own embed) when seeding new environment files
+
+#### Scenario: Template drives built-in defaults
+
+- **WHEN** the `internal/config` package is initialized
+- **THEN** it MUST parse `config-template.yaml` into the `defaults` map at `init()` time
+- **AND** `Store.Get()` MUST return values from this parsed map when no active environment profile supplies a value
+- **AND** there MUST be no separate hardcoded default map in Go source code
+
+#### Scenario: Template content
+
+- **WHEN** the binary is compiled
+- **THEN** `internal/config/assets/config-template.yaml` MUST contain all configuration sections with their default values:
   ```yaml
   hyperfleet:
     api-url: "http://localhost:8000"
@@ -52,8 +69,3 @@ The CLI SHALL ship a default environment template embedded in the binary, used a
     name: ""
   ```
 
-#### Scenario: Template consistency with built-in defaults
-
-- **WHEN** the `internal/config` package resolves a value via built-in defaults
-- **THEN** the value MUST match the corresponding value in `cmd/assets/config-template.yaml`
-- **AND** a unit test MUST assert this consistency by parsing the template file and comparing each key against the `defaults` map

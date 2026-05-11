@@ -26,4 +26,4 @@
 - [x] 5.1 `go build ./...` succeeds
 - [x] 5.2 `go vet ./...` passes
 - [x] 5.3 `go test ./... 2>&1 | tee verification_proof/tests.txt`
-- [ ] 5.4 Commit `verification_proof/` to git
+- [x] 5.4 Commit `verification_proof/` to git

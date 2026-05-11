@@ -3,6 +3,7 @@ package cmd
 
 import (
 	"context"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -187,27 +188,44 @@ func collectConditionCols(entries []clusterEntry) []string {
 	return cols
 }
 
-// collectAdapterCols returns unique adapter names across all adapter statuses in insertion order.
+// collectAdapterCols returns unique adapter names sorted by the earliest
+// created_time seen for each adapter across all entries. RFC 3339 strings
+// compare lexicographically in chronological order, so no parsing is needed.
+// Adapters with the same (or absent) timestamp are sorted alphabetically.
 func collectAdapterCols(entries []clusterEntry) []string {
-	seen := map[string]bool{}
-	var cols []string
-	add := func(name string) {
-		if !seen[name] {
-			seen[name] = true
-			cols = append(cols, name)
+	earliest := map[string]string{} // adapter name → earliest created_time
+
+	consider := func(as resource.AdapterStatus) {
+		t := as.CreatedTime
+		prev, seen := earliest[as.Adapter]
+		if !seen || (t != "" && (prev == "" || t < prev)) {
+			earliest[as.Adapter] = t
 		}
 	}
+
 	for _, e := range entries {
 		for _, as := range e.adapterStatuses {
-			add(as.Adapter)
+			consider(as)
 		}
 		for _, statuses := range e.npStatuses {
 			for _, as := range statuses {
-				add(as.Adapter)
+				consider(as)
 			}
 		}
 	}
-	return cols
+
+	names := make([]string, 0, len(earliest))
+	for name := range earliest {
+		names = append(names, name)
+	}
+	sort.Slice(names, func(i, j int) bool {
+		ti, tj := earliest[names[i]], earliest[names[j]]
+		if ti != tj {
+			return ti < tj
+		}
+		return names[i] < names[j]
+	})
+	return names
 }
 
 // adapterDot returns the status cell for a named adapter column.

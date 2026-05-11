@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -88,6 +89,43 @@ func IsProcessAlive(pid int) bool {
 	return proc.Signal(syscall.Signal(0)) == nil
 }
 
+// IsPortListening reports whether a process is accepting TCP connections on
+// the given local port. It attempts a connection to 127.0.0.1:<port> with a
+// short timeout, so it works without any external tools on both macOS and Linux.
+func IsPortListening(port int) bool {
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 200*time.Millisecond)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
+}
+
+// PIDForPort returns the PID of the process listening on the given TCP port.
+// It runs lsof, which is available on both macOS and Linux, and parses its
+// field-mode output (-F p) to extract just the PID line.
+func PIDForPort(port int) (int, error) {
+	out, err := exec.Command("lsof",
+		"-i", fmt.Sprintf("TCP:%d", port),
+		"-sTCP:LISTEN",
+		"-n", "-P",
+		"-F", "p",
+	).Output()
+	if err != nil {
+		return 0, fmt.Errorf("lsof: %w", err)
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "p") {
+			pid, err := strconv.Atoi(line[1:])
+			if err == nil && pid > 0 {
+				return pid, nil
+			}
+		}
+	}
+	return 0, fmt.Errorf("no process listening on TCP port %d", port)
+}
+
 // FindRunningPod returns the name of the first pod whose name contains pattern.
 // Returns PodNotReadyError (non-nil, with pod name) when found but not Running.
 func FindRunningPod(ctx context.Context, cs kubernetes.Interface, namespace, pattern string) (string, error) {
@@ -148,14 +186,25 @@ func StartPortForward(kubeconfigPath, namespace, name, podPattern string, localP
 	return &PortForward{Name: name, PID: pid, LocalPort: localPort, RemotePort: remotePort}, nil
 }
 
-// StopPortForward terminates the named port-forward daemon and removes its PID file.
+// StopPortForward terminates the named port-forward and removes its tracking file.
+// It prefers to kill the process actually listening on the local port (found via
+// PIDForPort) so that externally-restarted tunnels are handled correctly. If the
+// port is not currently bound it falls back to the PID recorded at start time.
 func StopPortForward(name string) error {
-	pid, _, _, err := readPIDFile(name)
+	storedPID, localPort, _, err := readPIDFile(name)
 	if err != nil {
 		return fmt.Errorf("no port-forward found for %q", name)
 	}
-	if proc, err := os.FindProcess(pid); err == nil {
-		_ = proc.Signal(syscall.SIGTERM)
+
+	pid := storedPID
+	if activePID, pidErr := PIDForPort(localPort); pidErr == nil {
+		pid = activePID
+	}
+
+	if pid > 0 {
+		if proc, err := os.FindProcess(pid); err == nil {
+			_ = proc.Signal(syscall.SIGTERM)
+		}
 	}
 	return os.Remove(pidFilePath(name))
 }

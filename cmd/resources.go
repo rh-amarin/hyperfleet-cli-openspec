@@ -50,33 +50,43 @@ func runResources(cmd *cobra.Command, _ []string) error {
 	if resourcesWatchMode && effectiveFmt == "table" {
 		ctx, cancel := watchContext(context.Background())
 		defer cancel()
-		return runWatch(ctx, cmd.OutOrStdout(), resourcesWatchSecs, func(tick int) error {
-			return fetchAndRenderResources(cmd, effectiveFmt, tick, resourcesWatchSecs)
+
+		var (
+			cachedEntries  []clusterEntry
+			cachedCondCols []string
+			cachedAdCols   []string
+		)
+		return runWatchFast(ctx, cmd.OutOrStdout(), resourcesWatchSecs, func(tick int, refresh bool) error {
+			if refresh || cachedEntries == nil {
+				entries, condCols, adCols, err := fetchResourceEntries(cmd)
+				if err != nil {
+					p := output.NewPrinter("table", noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+					return handleAPIError(p, err)
+				}
+				cachedEntries, cachedCondCols, cachedAdCols = entries, condCols, adCols
+			}
+			return renderResourcesTable(cmd, cachedEntries, cachedCondCols, cachedAdCols, tick, resourcesWatchSecs)
 		})
 	}
 
 	return fetchAndRenderResources(cmd, effectiveFmt, 0, 0)
 }
 
-func fetchAndRenderResources(cmd *cobra.Command, effectiveFmt string, tick, frequencySecs int) error {
+// fetchResourceEntries fetches all clusters with their adapter statuses and nodepools
+// for table rendering. Returns raw errors without printing them.
+func fetchResourceEntries(cmd *cobra.Command) (entries []clusterEntry, condCols, adCols []string, err error) {
 	s, err := loadConfig()
 	if err != nil {
-		return err
+		return
 	}
 	client := newAPIClient(s)
-	p := output.NewPrinter(effectiveFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
 	clusterList, err := api.Get[resource.ListResponse[resource.Cluster]](context.Background(), client, "clusters")
 	if err != nil {
-		return handleAPIError(p, err)
+		return
 	}
 
-	if effectiveFmt != "table" {
-		return p.Print(clusterList)
-	}
-
-	// Fetch adapter statuses and nodepools for each cluster.
-	entries := make([]clusterEntry, 0, len(clusterList.Items))
+	entries = make([]clusterEntry, 0, len(clusterList.Items))
 	for _, cl := range clusterList.Items {
 		var adStatuses resource.ListResponse[resource.AdapterStatus]
 		adStatuses, _ = api.Get[resource.ListResponse[resource.AdapterStatus]](
@@ -106,8 +116,14 @@ func fetchAndRenderResources(cmd *cobra.Command, effectiveFmt string, tick, freq
 		})
 	}
 
-	condCols := collectConditionCols(entries)
-	adapterCols := collectAdapterCols(entries)
+	condCols = collectConditionCols(entries)
+	adCols = collectAdapterCols(entries)
+	return
+}
+
+// renderResourcesTable renders the cluster+nodepool table from pre-fetched data.
+func renderResourcesTable(cmd *cobra.Command, entries []clusterEntry, condCols, adapterCols []string, tick, frequencySecs int) error {
+	p := output.NewPrinter("table", noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
 	headers := make([]string, 0, 3+len(condCols)+len(adapterCols))
 	headers = append(headers, "ID", "NAME", "GEN")
@@ -123,6 +139,29 @@ func fetchAndRenderResources(cmd *cobra.Command, effectiveFmt string, tick, freq
 	}
 
 	return p.PrintTable(headers, rows)
+}
+
+func fetchAndRenderResources(cmd *cobra.Command, effectiveFmt string, tick, frequencySecs int) error {
+	if effectiveFmt != "table" {
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		client := newAPIClient(s)
+		p := output.NewPrinter(effectiveFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+		clusterList, err := api.Get[resource.ListResponse[resource.Cluster]](context.Background(), client, "clusters")
+		if err != nil {
+			return handleAPIError(p, err)
+		}
+		return p.Print(clusterList)
+	}
+
+	entries, condCols, adCols, err := fetchResourceEntries(cmd)
+	if err != nil {
+		p := output.NewPrinter(effectiveFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+		return handleAPIError(p, err)
+	}
+	return renderResourcesTable(cmd, entries, condCols, adCols, tick, frequencySecs)
 }
 
 // collectConditionCols returns unique condition types (excluding *Successful) in insertion order.

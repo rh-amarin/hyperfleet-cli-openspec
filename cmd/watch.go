@@ -47,3 +47,39 @@ func runWatch(ctx context.Context, out io.Writer, s int, fn func(tick int) error
 		}
 	}
 }
+
+// runWatchFast is like runWatch but decouples the spinner refresh rate (500 ms) from the
+// data-fetch interval (every s seconds). fn receives refresh=true on data ticks and
+// refresh=false on intermediate spinner-only ticks, allowing the caller to skip API calls
+// on fast ticks and re-render from cached data instead.
+func runWatchFast(ctx context.Context, out io.Writer, s int, fn func(tick int, refresh bool) error) error {
+	const spinnerInterval = 500 * time.Millisecond
+	spinnerTicker := time.NewTicker(spinnerInterval)
+	dataTicker := time.NewTicker(time.Duration(s) * time.Second)
+	defer spinnerTicker.Stop()
+	defer dataTicker.Stop()
+
+	tick := 0
+	fmt.Fprint(out, ansiClear)
+	if err := fn(tick, true); err != nil {
+		return err
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-dataTicker.C:
+			tick++
+			fmt.Fprint(out, ansiClear)
+			if err := fn(tick, true); err != nil {
+				return err
+			}
+		case <-spinnerTicker.C:
+			tick++
+			fmt.Fprint(out, ansiClear)
+			if err := fn(tick, false); err != nil {
+				return err
+			}
+		}
+	}
+}

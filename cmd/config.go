@@ -12,7 +12,9 @@ import (
 	"text/tabwriter"
 
 	"github.com/rh-amarin/hyperfleet-cli/internal/config"
+	"github.com/rh-amarin/hyperfleet-cli/internal/output"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 	"gopkg.in/yaml.v3"
 )
 
@@ -69,6 +71,21 @@ var configShowCmd = &cobra.Command{
 
 		w := cmd.OutOrStdout()
 
+		// Determine whether to suppress ANSI color codes.
+		nc := noColor
+		if !nc {
+			if f, ok := w.(*os.File); ok {
+				if !term.IsTerminal(int(f.Fd())) {
+					nc = true
+				}
+			} else {
+				nc = true
+			}
+			if os.Getenv("NO_COLOR") != "" {
+				nc = true
+			}
+		}
+
 		stateKeys := []string{"active-environment", "cluster-id", "cluster-name", "nodepool-id"}
 		stateVals := make(map[string]string)
 		for _, k := range stateKeys {
@@ -79,24 +96,38 @@ var configShowCmd = &cobra.Command{
 
 		fmt.Fprintln(w, s.EnvFilePath(active))
 
-		allSections := []string{"hyperfleet", "kubernetes", "maestro", "port-forward", "database", "rabbitmq", "registry", "state"}
-		out := make(map[string]map[string]string, len(allSections))
-		if len(stateVals) > 0 {
-			out["state"] = stateVals
-		}
-		for _, sec := range []string{"hyperfleet", "kubernetes", "maestro", "port-forward", "database", "rabbitmq", "registry"} {
+		// Marshal config sections and state block separately.
+		configSections := []string{"hyperfleet", "kubernetes", "maestro", "port-forward", "database", "rabbitmq", "registry"}
+		cfgMap := make(map[string]map[string]string, len(configSections))
+		for _, sec := range configSections {
 			vals := resolvedSection(s, sec)
 			if len(vals) > 0 {
-				out[sec] = vals
+				cfgMap[sec] = vals
 			}
 		}
 
-		b, err := marshalYAMLOrdered(out, allSections)
+		cfgBytes, err := marshalYAMLOrdered(cfgMap, configSections)
 		if err != nil {
 			return err
 		}
-		_, err = w.Write(b)
-		return err
+		_, err = fmt.Fprint(w, output.ColorizeYAMLSections(string(cfgBytes), nc))
+		if err != nil {
+			return err
+		}
+
+		if len(stateVals) > 0 {
+			fmt.Fprintln(w, output.SectionSeparator(nc))
+			stateMap := map[string]map[string]string{"state": stateVals}
+			stateBytes, err := marshalYAMLOrdered(stateMap, []string{"state"})
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprint(w, output.ColorizeYAMLSections(string(stateBytes), nc))
+			if err != nil {
+				return err
+			}
+		}
+		return nil
 	},
 }
 

@@ -7,6 +7,7 @@
 package config
 
 import (
+	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,49 +16,16 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// defaults holds the built-in fallback configuration values.
-var defaults = map[string]map[string]string{
-	"hyperfleet": {
-		"api-url":     "http://localhost:8000",
-		"api-version": "v1",
-		"token":       "",
-		"gcp-project": "hcm-hyperfleet",
-	},
-	"kubernetes": {
-		"context":   "",
-		"namespace": "",
-	},
-	"maestro": {
-		"consumer":      "cluster1",
-		"http-endpoint": "http://localhost:8100",
-		"grpc-endpoint": "localhost:8090",
-		"namespace":     "maestro",
-	},
-	"port-forward": {
-		"api-port":                 "8000",
-		"pg-port":                  "5432",
-		"maestro-http-port":        "8100",
-		"maestro-http-remote-port": "8000",
-		"maestro-grpc-port":        "8090",
-		"maestro-grpc-remote-port": "8090",
-	},
-	"database": {
-		"host":     "localhost",
-		"port":     "5432",
-		"name":     "hyperfleet",
-		"user":     "hyperfleet",
-		"password": "foobar-bizz-buzz",
-	},
-	"rabbitmq": {
-		"host":      "localhost",
-		"mgmt-port": "15672",
-		"user":      "guest",
-		"password":  "guest",
-		"vhost":     "/",
-	},
-	"registry": {
-		"name": "",
-	},
+//go:embed assets/config-template.yaml
+var ConfigTemplateYAML []byte
+
+// defaults is populated at init time from the embedded config-template.yaml.
+var defaults map[string]map[string]string
+
+func init() {
+	if err := yaml.Unmarshal(ConfigTemplateYAML, &defaults); err != nil {
+		panic(fmt.Sprintf("config: parse embedded template: %v", err))
+	}
 }
 
 // envVarMap maps environment variable names to config paths.

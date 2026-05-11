@@ -246,7 +246,7 @@ var configEnvCreateCmd = &cobra.Command{
 			return fmt.Errorf("[ERROR] environment '%s' already exists", name)
 		}
 
-		if err := os.WriteFile(profPath, configTemplateYAML, 0600); err != nil {
+		if err := os.WriteFile(profPath, config.ConfigTemplateYAML, 0600); err != nil {
 			return err
 		}
 		if err := s.ActivateEnvironment(name); err != nil {

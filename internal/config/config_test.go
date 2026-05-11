@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/rh-amarin/hyperfleet-cli/internal/config"
+	"gopkg.in/yaml.v3"
 )
 
 func newTestStore(t *testing.T) *config.Store {
@@ -240,6 +241,21 @@ func TestClusterIDResolution(t *testing.T) {
 	id, err = s.ClusterID("")
 	if err != nil || id != "state-id" {
 		t.Errorf("state fallback: got %q, %v", id, err)
+	}
+}
+
+// ---- ConfigTemplateYAML ----
+
+func TestConfigTemplateYAML_NonEmptyAndParses(t *testing.T) {
+	if len(config.ConfigTemplateYAML) == 0 {
+		t.Fatal("ConfigTemplateYAML must not be empty")
+	}
+	var m map[string]map[string]string
+	if err := yaml.Unmarshal(config.ConfigTemplateYAML, &m); err != nil {
+		t.Fatalf("ConfigTemplateYAML does not parse as YAML: %v", err)
+	}
+	if len(m) == 0 {
+		t.Fatal("ConfigTemplateYAML parsed to an empty map")
 	}
 }
 

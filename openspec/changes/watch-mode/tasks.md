@@ -44,6 +44,6 @@
 - [x] 7.1 Run `go vet ./...` — fix any issues
 - [x] 7.2 Run `go build ./...` — fix any compilation errors
 - [x] 7.3 Run `go test ./...` — all tests pass; save output to `verification_proof/unit_tests.txt`
-- [ ] 7.4 Live verification: run `hf cluster list --output table --watch -s 3` against real cluster; save terminal output to `verification_proof/live_cluster_watch.txt`
-- [ ] 7.5 Live verification: run `hf nodepool list --output table --watch -s 3`; save output to `verification_proof/live_nodepool_watch.txt`
-- [ ] 7.6 Live verification: run `hf table --watch -s 3`; save output to `verification_proof/live_table_watch.txt`
+- [x] 7.4 Live verification: run `hf cluster list --output table --watch -s 3` against real cluster; save terminal output to `verification_proof/live_cluster_watch.txt`
+- [x] 7.5 Live verification: run `hf nodepool list --output table --watch -s 3`; save output to `verification_proof/live_nodepool_watch.txt`
+- [x] 7.6 Live verification: run `hf table --watch -s 3`; save output to `verification_proof/live_table_watch.txt`

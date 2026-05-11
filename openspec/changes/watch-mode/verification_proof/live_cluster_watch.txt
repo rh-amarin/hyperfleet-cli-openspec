@@ -1,0 +1,6 @@
+[H[2JID                                    NAME            GEN  STATUS
+019e16fd-046b-7b2c-b0bd-c94dedf35cd2  hp-diag-delete  1    [31m●[0m
+[H[2JID                                    NAME            GEN  STATUS
+019e16fd-046b-7b2c-b0bd-c94dedf35cd2  hp-diag-delete  1    [31m●[0m
+[H[2JID                                    NAME            GEN  STATUS
+019e16fd-046b-7b2c-b0bd-c94dedf35cd2  hp-diag-delete  1    [32m●[0m

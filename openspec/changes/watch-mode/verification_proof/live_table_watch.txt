@@ -1,0 +1,12 @@
+[H[2JID                                    NAME            GEN  READY  RECONCILED  AVAILABLE  CL-DEPLOYM  CL-INVALID  CL-JOB  CL-MAESTRO  CL-NAMESPA  CL-PRECOND
+                                                                                         ENT         -RESOURCE                       CE          ITION-ERRO
+                                                                                                                                                 R
+019e16fd-046b-7b2c-b0bd-c94dedf35cd2  hp-diag-delete  2 ❌  [31m●[0m 2    [31m●[0m 2         [32m●[0m 2        -           -           -       -           -           -
+[H[2JID                                    NAME            GEN  READY  RECONCILED  AVAILABLE  CL-DEPLOYM  CL-INVALID  CL-JOB  CL-MAESTRO  CL-NAMESPA  CL-PRECOND
+                                                                                         ENT         -RESOURCE                       CE          ITION-ERRO
+                                                                                                                                                 R
+019e16fd-046b-7b2c-b0bd-c94dedf35cd2  hp-diag-delete  2 ❌  [31m●[0m 2    [31m●[0m 2         [32m●[0m 2        -           -           -       -           -           -
+[H[2JID                                    NAME            GEN  READY  RECONCILED  AVAILABLE  CL-DEPLOYM  CL-INVALID  CL-JOB  CL-MAESTRO  CL-NAMESPA  CL-PRECOND
+                                                                                         ENT         -RESOURCE                       CE          ITION-ERRO
+                                                                                                                                                 R
+019e16fd-046b-7b2c-b0bd-c94dedf35cd2  hp-diag-delete  2 ❌  [31m●[0m 2    [31m●[0m 2         [32m●[0m 2        -           -           -       -           -           -

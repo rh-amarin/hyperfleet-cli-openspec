@@ -1,0 +1,41 @@
+Script started on 2026-05-11 13:20:35+00:00 [COMMAND="./bin/hf config" <not executed on terminal>]
+/app/.config/hf/environments/live.yaml
+[1;36mhyperfleet:[0m
+  [1;37mapi-url[0m[2m: [0m[32mhttp://34.175.170.44:8000[0m
+  [1;37mapi-version[0m[2m: [0m[32mv1[0m
+  [1;37mgcp-project[0m[2m: [0m[32mhcm-hyperfleet[0m
+  [1;37mtoken[0m[2m: [0m[2m<not set>[0m
+[1;36mkubernetes:[0m
+  [1;37mcontext[0m[2m:[0m
+  [1;37mnamespace[0m[2m:[0m
+[1;36mmaestro:[0m
+  [1;37mconsumer[0m[2m: [0m[32mcluster1[0m
+  [1;37mgrpc-endpoint[0m[2m: [0m[32mlocalhost:8090[0m
+  [1;37mhttp-endpoint[0m[2m: [0m[32mhttp://localhost:8100[0m
+  [1;37mnamespace[0m[2m: [0m[32mmaestro[0m
+[1;36mport-forward:[0m
+  [1;37mapi-port[0m[2m: [0m[32m8000[0m
+  [1;37mmaestro-grpc-port[0m[2m: [0m[32m8090[0m
+  [1;37mmaestro-grpc-remote-port[0m[2m: [0m[32m8090[0m
+  [1;37mmaestro-http-port[0m[2m: [0m[32m8100[0m
+  [1;37mmaestro-http-remote-port[0m[2m: [0m[32m8000[0m
+  [1;37mpg-port[0m[2m: [0m[32m5432[0m
+[1;36mdatabase:[0m
+  [1;37mhost[0m[2m: [0m[32mlocalhost[0m
+  [1;37mname[0m[2m: [0m[32mhyperfleet[0m
+  [1;37mpassword[0m[2m: [0m[2m<set>[0m
+  [1;37mport[0m[2m: [0m[32m5432[0m
+  [1;37muser[0m[2m: [0m[32mhyperfleet[0m
+[1;36mrabbitmq:[0m
+  [1;37mhost[0m[2m: [0m[32mlocalhost[0m
+  [1;37mmgmt-port[0m[2m: [0m[32m15672[0m
+  [1;37mpassword[0m[2m: [0m[2m<set>[0m
+  [1;37muser[0m[2m: [0m[32mguest[0m
+  [1;37mvhost[0m[2m: [0m[32m/[0m
+[1;36mregistry:[0m
+  [1;37mname[0m[2m:[0m
+────────────────────────────────────────
+[1;36mstate:[0m
+  [1;37mactive-environment[0m[2m: [0m[32mlive[0m
+
+Script done on 2026-05-11 13:20:35+00:00 [COMMAND_EXIT_CODE="0"]

@@ -6,13 +6,19 @@ import (
 
 const (
 	ansiBoldCyan  = "\033[1;36m"
+	ansiBoldWhite = "\033[1;37m"
+	ansiDim       = "\033[2m"
 	ansiResetBold = "\033[0m"
 
 	sectionSeparatorStr = "────────────────────────────────────────"
 )
 
-// ColorizeYAMLSections scans s line-by-line and wraps top-level YAML section-header
-// lines (matching ^(\w[\w-]*):\s*$) with bold-cyan ANSI codes.
+// ColorizeYAMLSections scans s line-by-line and applies ANSI coloring:
+//   - Top-level section headers (^word:$) → bold cyan
+//   - Indented key: value lines → bold-white key, dim separator, green value
+//   - Indented key: <sentinel> lines → bold-white key, dim separator, dim value
+//   - Indented key: (no value) lines → bold-white key, dim colon
+//
 // When noColor is true the input is returned unchanged.
 func ColorizeYAMLSections(s string, noColor bool) string {
 	if noColor {
@@ -22,7 +28,46 @@ func ColorizeYAMLSections(s string, noColor bool) string {
 	for i, line := range lines {
 		if isSectionHeader(line) {
 			lines[i] = ansiBoldCyan + line + ansiResetBold
+			continue
 		}
+
+		trimmed := strings.TrimLeft(line, " \t")
+		if trimmed == line || trimmed == "" {
+			continue
+		}
+		indent := line[:len(line)-len(trimmed)]
+
+		colonIdx := strings.IndexByte(trimmed, ':')
+		if colonIdx < 0 {
+			continue
+		}
+
+		key := trimmed[:colonIdx]
+		rest := trimmed[colonIdx+1:]
+
+		if strings.TrimSpace(rest) == "" {
+			lines[i] = indent + ansiBoldWhite + key + ansiResetBold + ansiDim + ":" + ansiResetBold
+			continue
+		}
+
+		// Preserve the space after ":" when present.
+		var sep, value string
+		if strings.HasPrefix(rest, " ") {
+			sep = ": "
+			value = rest[1:]
+		} else {
+			sep = ":"
+			value = rest
+		}
+
+		var coloredValue string
+		if strings.HasPrefix(value, "<") && strings.HasSuffix(value, ">") {
+			coloredValue = ansiDim + value + ansiResetBold
+		} else {
+			coloredValue = ansiGreen + value + ansiResetBold
+		}
+
+		lines[i] = indent + ansiBoldWhite + key + ansiResetBold + ansiDim + sep + ansiResetBold + coloredValue
 	}
 	return strings.Join(lines, "\n")
 }
@@ -33,22 +78,18 @@ func isSectionHeader(line string) bool {
 	if len(line) == 0 {
 		return false
 	}
-	// Must start with a word character.
 	if !isWordChar(rune(line[0])) {
 		return false
 	}
-	// Find the colon.
 	colonIdx := strings.Index(line, ":")
 	if colonIdx < 0 {
 		return false
 	}
-	// All characters before the colon must be word chars or '-'.
 	for _, r := range line[:colonIdx] {
 		if !isWordChar(r) && r != '-' {
 			return false
 		}
 	}
-	// Everything after the colon must be whitespace only.
 	rest := line[colonIdx+1:]
 	return strings.TrimRight(rest, " \t") == ""
 }

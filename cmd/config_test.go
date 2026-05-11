@@ -180,6 +180,21 @@ func TestConfigShow_StateVariables(t *testing.T) {
 	}
 }
 
+func TestConfigShow_EnvFilePath(t *testing.T) {
+	dir := t.TempDir()
+	makeEnv(t, dir, "prod", "http://prod:8000")
+	setActiveEnv(t, dir, "prod")
+
+	out, err := runCmd(t, dir, "config", "show")
+	if err != nil {
+		t.Fatalf("config show: %v", err)
+	}
+	want := filepath.Join(dir, "environments", "prod.yaml")
+	if !strings.Contains(out, want) {
+		t.Errorf("output missing env file path %q: got %q", want, out)
+	}
+}
+
 func TestConfigShow_NoActiveEnv_Error(t *testing.T) {
 	dir := t.TempDir()
 	_, err := runCmd(t, dir, "config", "show")

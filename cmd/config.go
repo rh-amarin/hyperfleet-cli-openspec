@@ -77,6 +77,8 @@ var configShowCmd = &cobra.Command{
 			}
 		}
 
+		fmt.Fprintln(w, s.EnvFilePath(active))
+
 		allSections := []string{"hyperfleet", "kubernetes", "maestro", "port-forward", "database", "rabbitmq", "registry", "state"}
 		out := make(map[string]map[string]string, len(allSections))
 		if len(stateVals) > 0 {

@@ -84,6 +84,11 @@ func New(configDir string) *Store {
 // ConfigDir returns the config directory path.
 func (s *Store) ConfigDir() string { return s.dir }
 
+// EnvFilePath returns the absolute path of the named environment file.
+func (s *Store) EnvFilePath(name string) string {
+	return filepath.Join(s.dir, "environments", name+".yaml")
+}
+
 // Load reads state.yaml and the active environment file from disk.
 // It creates the config directory and state.yaml if they don't exist.
 func (s *Store) Load() error {

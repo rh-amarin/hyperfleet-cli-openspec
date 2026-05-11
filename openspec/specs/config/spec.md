@@ -8,13 +8,13 @@ Manage HyperFleet CLI configuration through environment profiles and runtime sta
 
 `hf config` and `hf config show` MUST display the active environment's configuration sections followed by a `state:` block at the bottom listing all non-empty runtime state variables.
 
-#### Scenario: Active environment set — state variables included
+#### Scenario: Active environment file path displayed
 
-- **GIVEN** an active environment is configured and state.yaml contains any of: active-environment, cluster-id, cluster-name, nodepool-id
-- **WHEN** the user runs `hf config` or `hf config show`
-- **THEN** a `state:` section MUST appear last in the output, after all config sections
-- **AND** it MUST list all non-empty state keys (active-environment, cluster-id, cluster-name, nodepool-id) as YAML key-value pairs
-- **AND** the existing config sections (hyperfleet, kubernetes, …) MUST precede the state block
+- **GIVEN** an active environment is configured
+- **WHEN** the user runs `hf config` or `hf config show` (no argument)
+- **THEN** the CLI MUST print the absolute path of the active environment file
+- **AND** the path MUST appear before the YAML sections
+- **AND** the path MUST be the resolved absolute path of `~/.config/hf/environments/<name>.yaml`
 
 ### Requirement: Set Configuration Value
 

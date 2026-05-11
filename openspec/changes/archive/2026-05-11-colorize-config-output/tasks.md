@@ -21,4 +21,4 @@
 - [x] 4.2 `go vet ./...` passes
 - [x] 4.3 `go test ./... 2>&1 | tee verification_proof/tests.txt`
 - [x] 4.4 Run `hf config` against the live cluster and save output to `verification_proof/live.txt`
-- [ ] 4.5 Commit `verification_proof/` to git
+- [x] 4.5 Commit `verification_proof/` to git

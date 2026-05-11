@@ -22,4 +22,4 @@
 - [x] 3.2 `go vet ./...` passes
 - [x] 3.3 `go test ./... 2>&1 | tee openspec/changes/yaml-key-value-colorize/verification_proof/tests.txt`
 - [x] 3.4 Run `hf config` against http://34.175.170.44:8000/ and save raw output (with ANSI) to `openspec/changes/yaml-key-value-colorize/verification_proof/live.txt`
-- [ ] 3.5 Commit everything and push to main
+- [x] 3.5 Commit everything and push to main

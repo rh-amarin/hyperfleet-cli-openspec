@@ -211,15 +211,20 @@ func collectAdapterCols(entries []clusterEntry) []string {
 }
 
 // adapterDot returns the status cell for a named adapter column.
-// When the adapter has a recent last_report_time (within 2×frequencySecs), a spinner frame is prepended.
+// In watch mode (frequencySecs > 0) a 2-char spinner slot is always reserved so
+// column widths stay stable: active adapters show the animated frame, inactive
+// ones show two spaces, and the table never re-flows between renders.
 func adapterDot(statuses []resource.AdapterStatus, adName, condKey string, tick, frequencySecs int) string {
 	for _, as := range statuses {
 		if as.Adapter == adName {
 			for _, c := range as.Conditions {
 				if c.Type == condKey {
 					cell := output.StatusDot(c.Status, noColor) + " " + strconv.Itoa(int(as.ObservedGeneration))
-					if output.IsActive(as.LastReportTime, frequencySecs) {
+					switch {
+					case output.IsActive(as.LastReportTime, frequencySecs):
 						cell = output.SpinnerFrame(tick) + " " + cell
+					case frequencySecs > 0:
+						cell = "  " + cell // reserve space so columns don't shift
 					}
 					return cell
 				}

@@ -79,7 +79,7 @@ func TestRunWatch_StopsOnFnError(t *testing.T) {
 	}
 }
 
-func TestRunWatch_ClearsScreenBeforeEachCall(t *testing.T) {
+func TestRunWatch_UsesAltScreenAndClearsOnRender(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -93,8 +93,15 @@ func TestRunWatch_ClearsScreenBeforeEachCall(t *testing.T) {
 	}()
 
 	<-done
-	if !bytes.Contains(buf.Bytes(), []byte(ansiClear)) {
-		t.Error("expected ANSI clear sequence in output")
+	got := buf.Bytes()
+	if !bytes.Contains(got, []byte(ansiAltEnter)) {
+		t.Error("expected alternate-screen enter sequence")
+	}
+	if !bytes.Contains(got, []byte(ansiAltExit)) {
+		t.Error("expected alternate-screen exit sequence")
+	}
+	if !bytes.Contains(got, []byte(ansiHome)) {
+		t.Error("expected cursor-home sequence before each render")
 	}
 }
 
@@ -209,7 +216,7 @@ func TestRunWatchFast_StopsOnFnError(t *testing.T) {
 	}
 }
 
-func TestRunWatchFast_ClearsScreenBeforeEachCall(t *testing.T) {
+func TestRunWatchFast_UsesAltScreenAndClearsOnRender(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -223,7 +230,14 @@ func TestRunWatchFast_ClearsScreenBeforeEachCall(t *testing.T) {
 	}()
 
 	<-done
-	if !bytes.Contains(buf.Bytes(), []byte(ansiClear)) {
-		t.Error("expected ANSI clear sequence in output")
+	got := buf.Bytes()
+	if !bytes.Contains(got, []byte(ansiAltEnter)) {
+		t.Error("expected alternate-screen enter sequence")
+	}
+	if !bytes.Contains(got, []byte(ansiAltExit)) {
+		t.Error("expected alternate-screen exit sequence")
+	}
+	if !bytes.Contains(got, []byte(ansiHome)) {
+		t.Error("expected cursor-home sequence before each render")
 	}
 }

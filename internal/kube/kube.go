@@ -270,6 +270,46 @@ func StreamLogsFiltered(ctx context.Context, cs kubernetes.Interface, namespace,
 	return nil
 }
 
+// CollectLogs fetches log lines from all pods whose name contains podPattern,
+// going back sinceSeconds seconds, and returns all lines as a flat slice.
+// Per-pod errors are silently skipped; only the pod list call can return an error.
+func CollectLogs(ctx context.Context, cs kubernetes.Interface, namespace, podPattern string, sinceSeconds int64) ([]string, error) {
+	pods, err := cs.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	var lines []string
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	for _, pod := range pods.Items {
+		if !strings.Contains(pod.Name, podPattern) {
+			continue
+		}
+		wg.Add(1)
+		go func(podName string) {
+			defer wg.Done()
+			req := cs.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
+				SinceSeconds: &sinceSeconds,
+			})
+			rc, err := req.Stream(ctx)
+			if err != nil {
+				return
+			}
+			defer rc.Close()
+			scanner := bufio.NewScanner(rc)
+			var podLines []string
+			for scanner.Scan() {
+				podLines = append(podLines, scanner.Text())
+			}
+			mu.Lock()
+			lines = append(lines, podLines...)
+			mu.Unlock()
+		}(pod.Name)
+	}
+	wg.Wait()
+	return lines, nil
+}
+
 // RunCurlPod creates or reuses an hf-curl pod and runs curl inside it via SPDY exec.
 func RunCurlPod(ctx context.Context, kubeconfigPath, namespace string, curlArgs []string, w io.Writer) error {
 	cs, err := NewClientset(kubeconfigPath)
@@ -453,7 +493,7 @@ func streamPodLogsFiltered(ctx context.Context, cs kubernetes.Interface, namespa
 		if strings.HasPrefix(line, "{") {
 			continue
 		}
-		fields := parseLogfmt(line)
+		fields := ParseLogfmt(line)
 		if clusterID != "" && fields["cluster_id"] != clusterID {
 			continue
 		}
@@ -462,7 +502,8 @@ func streamPodLogsFiltered(ctx context.Context, cs kubernetes.Interface, namespa
 	return scanner.Err()
 }
 
-func parseLogfmt(line string) map[string]string {
+// ParseLogfmt parses a logfmt-encoded log line into a key→value map.
+func ParseLogfmt(line string) map[string]string {
 	result := map[string]string{}
 	s := line
 	for len(s) > 0 {

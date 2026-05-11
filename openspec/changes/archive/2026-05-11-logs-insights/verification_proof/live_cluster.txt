@@ -1,0 +1,22 @@
+$ export KUBECONFIG=/tmp/kubeconfig-token.yaml
+$ ./bin/hf logs insights -s 2m
+
+API  (last 2m)
+  GET    /api/hyperfleet/v1/clusters               OK: 26   ERR: 0
+  GET    /api/hyperfleet/v1/clusters/:id           OK: 45   ERR: 0
+  PATCH  /api/hyperfleet/v1/clusters/:id           OK: 1    ERR: 0
+  GET    /api/hyperfleet/v1/clusters/:id/statuses  OK: 18   ERR: 0
+  POST   /api/hyperfleet/v1/clusters/:id/statuses  OK: 54   ERR: 0
+  GET    /api/hyperfleet/v1/nodepools              OK: 24   ERR: 0
+
+SENTINEL  (last 2m)
+  amarin-e2e-clusters   cycles: 25   published: 9    skipped: 11
+  amarin-e2e-nodepools  cycles: 25   published: 0    skipped: 0
+
+ADAPTERS  (last 2m)
+  cl-deployment          executions: 9    phases: param_extraction(9) preconditions(9) resources(9) post_actions(9)
+  cl-invalid-resource    executions: 9    phases: param_extraction(9) preconditions(9) resources(9) post_actions(9)
+  cl-job                 executions: 9    phases: param_extraction(9) preconditions(9) resources(9) post_actions(9)
+  cl-maestro             executions: 9    phases: param_extraction(9) preconditions(9) resources(9) post_actions(9)
+  cl-namespace           executions: 9    phases: param_extraction(9) preconditions(9) resources(9) post_actions(9)
+  cl-precondition-error  executions: 9    phases: param_extraction(9) preconditions(9) resources(9) post_actions(9)

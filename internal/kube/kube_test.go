@@ -2,6 +2,9 @@ package kube
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,7 +12,10 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 )
 
 // minimalKubeconfig is a valid kubeconfig YAML for BuildConfig tests.
@@ -163,7 +169,7 @@ func TestListPortForwards_WithPIDFile(t *testing.T) {
 
 func TestParseLogfmt(t *testing.T) {
 	line := `time=2024-01-01T00:00:00Z level=info msg="hello world" cluster_id=abc123`
-	fields := parseLogfmt(line)
+	fields := ParseLogfmt(line)
 	checks := map[string]string{
 		"time":       "2024-01-01T00:00:00Z",
 		"level":      "info",
@@ -189,6 +195,68 @@ func TestResolveKubeconfig_EnvVar(t *testing.T) {
 	got := resolveKubeconfig("")
 	if got != "/env/path" {
 		t.Errorf("expected /env/path, got %s", got)
+	}
+}
+
+func TestCollectLogs(t *testing.T) {
+	const ns = "test-ns"
+	mux := http.NewServeMux()
+	podList := corev1.PodList{
+		Items: []corev1.Pod{
+			{ObjectMeta: metav1.ObjectMeta{Name: "myapp-abc", Namespace: ns}},
+			{ObjectMeta: metav1.ObjectMeta{Name: "other-xyz", Namespace: ns}},
+		},
+	}
+	mux.HandleFunc("/api/v1/namespaces/"+ns+"/pods", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(podList)
+	})
+	mux.HandleFunc("/api/v1/namespaces/"+ns+"/pods/myapp-abc/log", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("line one\nline two\n"))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	cfg := &rest.Config{Host: srv.URL, ContentConfig: rest.ContentConfig{GroupVersion: &corev1.SchemeGroupVersion, NegotiatedSerializer: scheme.Codecs}}
+	cs, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		t.Fatalf("NewForConfig: %v", err)
+	}
+
+	lines, err := CollectLogs(context.Background(), cs, ns, "myapp", 60)
+	if err != nil {
+		t.Fatalf("CollectLogs error: %v", err)
+	}
+	if len(lines) != 2 {
+		t.Fatalf("expected 2 lines, got %d: %v", len(lines), lines)
+	}
+	if lines[0] != "line one" || lines[1] != "line two" {
+		t.Errorf("unexpected lines: %v", lines)
+	}
+}
+
+func TestCollectLogs_NoPods(t *testing.T) {
+	const ns = "test-ns"
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/namespaces/"+ns+"/pods", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(corev1.PodList{})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	cfg := &rest.Config{Host: srv.URL, ContentConfig: rest.ContentConfig{GroupVersion: &corev1.SchemeGroupVersion, NegotiatedSerializer: scheme.Codecs}}
+	cs, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		t.Fatalf("NewForConfig: %v", err)
+	}
+
+	lines, err := CollectLogs(context.Background(), cs, ns, "myapp", 60)
+	if err != nil {
+		t.Fatalf("CollectLogs error: %v", err)
+	}
+	if len(lines) != 0 {
+		t.Errorf("expected 0 lines for no pods, got %d", len(lines))
 	}
 }
 

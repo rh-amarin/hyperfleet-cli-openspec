@@ -5,9 +5,7 @@
 Define error handling behavior, usage messages, and edge cases across all CLI commands to ensure consistent and predictable behavior for the CLI reimplementation.
 
 > API errors MUST follow RFC 7807 Problem Details format as defined in `api-client/spec.md` Requirement: RFC 7807 Error Parsing. This spec documents the CLI-level display behavior for those errors.
-
 ## Requirements
-
 ### Requirement: API Error Format
 
 The CLI SHALL output HyperFleet API errors in RFC 7807 Problem Details format.
@@ -70,31 +68,25 @@ Commands that create resources SHALL use defaults rather than showing usage when
 
 ### Requirement: Usage Messages for Required Arguments
 
-Commands that require arguments SHALL show usage when arguments are missing.
+All user-facing commands with required positional arguments MUST display the full Cobra help text (not a bare arg-count error) when invoked with zero arguments.
 
-#### Scenario: Cluster patch with no arguments
+#### Scenario: Any command with required positional args called with zero args
 
-- GIVEN no arguments are provided
-- WHEN the user runs `hf cluster patch`
-- THEN the CLI MUST display: `Usage: hf cluster patch {spec|labels} [cluster_id]`
-- AND list argument descriptions
-- AND exit with code 1
+- **GIVEN** a command requires one or more positional arguments
+- **AND** the user runs that command with zero arguments
+- **THEN** the CLI MUST display the full Cobra help text for that command (Usage, Flags, description)
+- **AND** exit with code 1
+- **AND** MUST NOT print the bare Cobra message "accepts N arg(s), received 0"
 
-#### Scenario: NodePool patch with no arguments
+This applies to all user-facing commands including but not limited to:
+`hf config get`, `hf config set`, `hf config env create`, `hf config env activate`,
+`hf config env delete`, `hf config env show`, `hf cluster update`, `hf cluster adapter post-status`,
+`hf nodepool update`, `hf nodepool delete`, `hf pubsub publish cluster`, `hf pubsub publish nodepool`,
+`hf kube debug`, `hf db exec`, `hf db delete`.
 
-- GIVEN no arguments are provided
-- WHEN the user runs `hf nodepool patch`
-- THEN the CLI MUST display: `Usage: hf nodepool patch {spec|labels} [nodepool_id]`
-- AND list argument descriptions
-- AND exit with code 1
-- NOTE: `spec` patches the `spec.counter` field (a counter integer stored as a string); the patch payload is valid JSON containing at least a `counter` property. No spec file is required.
+Exception: commands that use defaults when no args are provided (e.g. `hf cluster create`, `hf nodepool create`) retain that behaviour and MUST NOT show usage.
 
-#### Scenario: Adapter post-status with no arguments
-
-- GIVEN no arguments are provided
-- WHEN the user runs `hf cluster adapter post-status`
-- THEN the CLI MUST display usage with argument descriptions and an example
-- AND exit with code 1
+Exception: internal/hidden commands (e.g. `hf kube _daemon`) retain `cobra.ExactArgs` and are not user-facing.
 
 ### Requirement: Exit Code Conventions
 

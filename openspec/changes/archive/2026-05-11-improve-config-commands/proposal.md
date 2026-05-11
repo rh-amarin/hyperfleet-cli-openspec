@@ -4,7 +4,7 @@ The `hf config show` output omits the runtime state variables (cluster-id, clust
 
 ## What Changes
 
-- `hf config show` — adds a `state:` block at the top of the resolved config output, listing all non-empty state variables (active-environment, cluster-id, cluster-name, nodepool-id).
+- `hf config show` — adds a `state:` block at the bottom of the resolved config output, listing all non-empty state variables (active-environment, cluster-id, cluster-name, nodepool-id).
 - `hf config get` — reduced from two args (`<section> <key>`) to one (`<key>`), using `section.key` dot notation for config values (e.g. `hyperfleet.api-url`) or a plain key for state values (e.g. `cluster-id`). **BREAKING** for existing scripts using the two-arg form.
 - All commands with required positional args — when called with zero arguments, show the command's full Cobra help text and exit 1, instead of the bare "accepts N arg(s), received 0" message.
 

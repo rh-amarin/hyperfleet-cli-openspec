@@ -1,3 +1,5 @@
+=== RUN   TestConfigTemplateMatchesDefaults
+--- PASS: TestConfigTemplateMatchesDefaults (0.00s)
 === RUN   TestClusterList
 --- PASS: TestClusterList (0.00s)
 === RUN   TestClusterList_Table
@@ -9,12 +11,15 @@
 === RUN   TestClusterGet_NotFound
 --- PASS: TestClusterGet_NotFound (0.00s)
 === RUN   TestClusterCreate
+[INFO] Created default cluster template at /tmp/TestClusterCreate193279997/001/cluster-template.json
 [INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
 --- PASS: TestClusterCreate (0.00s)
 === RUN   TestClusterCreate_DuplicateGuard
+[INFO] Created default cluster template at /tmp/TestClusterCreate_DuplicateGuard1535118945/001/cluster-template.json
 [WARN] Cluster 'test-cluster' already exists, skipping creation
 --- PASS: TestClusterCreate_DuplicateGuard (0.00s)
 === RUN   TestClusterCreate_Defaults
+[INFO] Created default cluster template at /tmp/TestClusterCreate_Defaults3314810480/001/cluster-template.json
 [INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
 --- PASS: TestClusterCreate_Defaults (0.00s)
 === RUN   TestClusterUpdate
@@ -56,6 +61,7 @@
 === RUN   TestClusterPatch_NoArgs
 --- PASS: TestClusterPatch_NoArgs (0.00s)
 === RUN   TestClusterCreate_PositionalArgs
+[INFO] Created default cluster template at /tmp/TestClusterCreate_PositionalArgs3391034825/001/cluster-template.json
 [INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
 --- PASS: TestClusterCreate_PositionalArgs (0.00s)
 === RUN   TestClusterAdapterPostStatus
@@ -63,6 +69,15 @@
 --- PASS: TestClusterAdapterPostStatus (0.00s)
 === RUN   TestClusterAdapterPostStatus_InvalidStatus
 --- PASS: TestClusterAdapterPostStatus_InvalidStatus (0.00s)
+=== RUN   TestClusterCreate_Template_NameFromPositionalArg
+[INFO] Created default cluster template at /tmp/TestClusterCreate_Template_NameFromPositionalArg3173106254/001/cluster-template.json
+[INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
+--- PASS: TestClusterCreate_Template_NameFromPositionalArg (0.00s)
+=== RUN   TestClusterCreate_FileFlag
+[INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
+--- PASS: TestClusterCreate_FileFlag (0.00s)
+=== RUN   TestClusterCreate_MalformedTemplate
+--- PASS: TestClusterCreate_MalformedTemplate (0.00s)
 === RUN   TestCompletionBash
 --- PASS: TestCompletionBash (0.00s)
 === RUN   TestCompletionZsh
@@ -71,14 +86,18 @@
 --- PASS: TestCompletionFish (0.00s)
 === RUN   TestCompletionPowerShell
 --- PASS: TestCompletionPowerShell (0.00s)
+=== RUN   TestConfigNoArgs_ShowsActiveConfig
+--- PASS: TestConfigNoArgs_ShowsActiveConfig (0.00s)
+=== RUN   TestConfigNoArgs_NoActiveEnv_Errors
+--- PASS: TestConfigNoArgs_NoActiveEnv_Errors (0.00s)
 === RUN   TestActiveEnvGuard_BlocksConfigShow
 --- PASS: TestActiveEnvGuard_BlocksConfigShow (0.00s)
 === RUN   TestActiveEnvGuard_BlocksConfigSet
 --- PASS: TestActiveEnvGuard_BlocksConfigSet (0.00s)
-=== RUN   TestActiveEnvGuard_BlocksConfigGet
---- PASS: TestActiveEnvGuard_BlocksConfigGet (0.00s)
 === RUN   TestActiveEnvGuard_BypassEnvList
 --- PASS: TestActiveEnvGuard_BypassEnvList (0.00s)
+=== RUN   TestActiveEnvGuard_BypassEnvCreate
+--- PASS: TestActiveEnvGuard_BypassEnvCreate (0.00s)
 === RUN   TestActiveEnvGuard_BypassEnvActivate
 --- PASS: TestActiveEnvGuard_BypassEnvActivate (0.00s)
 === RUN   TestActiveEnvGuard_BypassVersion
@@ -88,6 +107,8 @@ dev
 --- PASS: TestConfigShow (0.00s)
 === RUN   TestConfigShow_StateVariables
 --- PASS: TestConfigShow_StateVariables (0.00s)
+=== RUN   TestConfigShow_NoActiveEnv_Error
+--- PASS: TestConfigShow_NoActiveEnv_Error (0.00s)
 === RUN   TestConfigGet_Found
 --- PASS: TestConfigGet_Found (0.00s)
 === RUN   TestConfigGet_NotFound
@@ -96,18 +117,30 @@ dev
 --- PASS: TestConfigGet_StateKey (0.00s)
 === RUN   TestConfigGet_NoArgs_ShowsHelp
 --- PASS: TestConfigGet_NoArgs_ShowsHelp (0.00s)
-=== RUN   TestConfigSet_Valid
---- PASS: TestConfigSet_Valid (0.00s)
+=== RUN   TestConfigSet_DottedNotation
+--- PASS: TestConfigSet_DottedNotation (0.00s)
+=== RUN   TestConfigSet_WritesToEnvFile
+--- PASS: TestConfigSet_WritesToEnvFile (0.00s)
+=== RUN   TestConfigSet_InvalidKeyFormat
+--- PASS: TestConfigSet_InvalidKeyFormat (0.00s)
 === RUN   TestConfigSet_InvalidSection
 --- PASS: TestConfigSet_InvalidSection (0.00s)
 === RUN   TestConfigEnvList
 --- PASS: TestConfigEnvList (0.00s)
+=== RUN   TestConfigEnvList_Empty
+--- PASS: TestConfigEnvList_Empty (0.00s)
 === RUN   TestConfigEnvList_Alias
 --- PASS: TestConfigEnvList_Alias (0.00s)
-=== RUN   TestConfigEnvCreate
---- PASS: TestConfigEnvCreate (0.00s)
+=== RUN   TestConfigEnvCreate_CreatesFileAndActivates
+--- PASS: TestConfigEnvCreate_CreatesFileAndActivates (0.00s)
+=== RUN   TestConfigEnvCreate_PrintsFilePath
+--- PASS: TestConfigEnvCreate_PrintsFilePath (0.00s)
+=== RUN   TestConfigEnvCreate_SeedsFromTemplate
+--- PASS: TestConfigEnvCreate_SeedsFromTemplate (0.00s)
 === RUN   TestConfigEnvCreate_Duplicate
 --- PASS: TestConfigEnvCreate_Duplicate (0.00s)
+=== RUN   TestConfigEnvCreate_NoArg_ShowsHelp
+--- PASS: TestConfigEnvCreate_NoArg_ShowsHelp (0.00s)
 === RUN   TestConfigEnvActivate
 --- PASS: TestConfigEnvActivate (0.00s)
 === RUN   TestConfigEnvActivate_NotFound
@@ -126,10 +159,6 @@ dev
 --- PASS: TestConfigEnvShow_ActivePrefix (0.00s)
 === RUN   TestConfigEnvShow_NotFound
 --- PASS: TestConfigEnvShow_NotFound (0.00s)
-=== RUN   TestConfigDoctor_Reachable
---- PASS: TestConfigDoctor_Reachable (0.00s)
-=== RUN   TestConfigDoctor_Unreachable
---- PASS: TestConfigDoctor_Unreachable (0.00s)
 === RUN   TestDBQuery_TableOutput
 --- PASS: TestDBQuery_TableOutput (0.00s)
 === RUN   TestDBQuery_JSONOutput
@@ -176,12 +205,15 @@ dev
 === RUN   TestNodepoolGet_NotFound
 --- PASS: TestNodepoolGet_NotFound (0.00s)
 === RUN   TestNodepoolCreate
+[INFO] Created default nodepool template at /tmp/TestNodepoolCreate2224309725/001/nodepool-template.json
 [INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
 --- PASS: TestNodepoolCreate (0.00s)
 === RUN   TestNodepoolCreate_DuplicateGuard
+[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_DuplicateGuard1923983808/001/nodepool-template.json
 [WARN] NodePool 'test-nodepool' already exists, skipping creation
 --- PASS: TestNodepoolCreate_DuplicateGuard (0.00s)
 === RUN   TestNodepoolCreate_Defaults
+[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_Defaults527563349/001/nodepool-template.json
 [INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
 --- PASS: TestNodepoolCreate_Defaults (0.00s)
 === RUN   TestNodepoolUpdate
@@ -223,6 +255,15 @@ dev
 === RUN   TestNodePoolAdapterPostStatus
 [INFO] Posted adapter status for np-configmap on nodepool 019dc049-e76c-7be1-b201-0db50e2c8ecb
 --- PASS: TestNodePoolAdapterPostStatus (0.00s)
+=== RUN   TestNodepoolCreate_Template_NameFromPositionalArg
+[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_Template_NameFromPositionalArg965938249/001/nodepool-template.json
+[INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
+--- PASS: TestNodepoolCreate_Template_NameFromPositionalArg (0.00s)
+=== RUN   TestNodepoolCreate_FileFlag
+[INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
+--- PASS: TestNodepoolCreate_FileFlag (0.00s)
+=== RUN   TestNodepoolCreate_MalformedTemplate
+--- PASS: TestNodepoolCreate_MalformedTemplate (0.00s)
 === RUN   TestPubSubList_NoTopics
 --- PASS: TestPubSubList_NoTopics (0.00s)
 === RUN   TestPubSubList_WithTopics
@@ -265,5 +306,17 @@ dev
 --- PASS: TestExecuteHelp (0.00s)
 === RUN   TestGlobalFlagsRegistered
 --- PASS: TestGlobalFlagsRegistered (0.00s)
+=== RUN   TestLoadTemplate_AutoCreatesDefault
+--- PASS: TestLoadTemplate_AutoCreatesDefault (0.00s)
+=== RUN   TestLoadTemplate_ExistingFile
+--- PASS: TestLoadTemplate_ExistingFile (0.00s)
+=== RUN   TestLoadTemplate_FlagFileOverride
+--- PASS: TestLoadTemplate_FlagFileOverride (0.00s)
+=== RUN   TestLoadTemplate_MalformedJSON
+--- PASS: TestLoadTemplate_MalformedJSON (0.00s)
+=== RUN   TestLoadTemplate_FlagFileMissing
+--- PASS: TestLoadTemplate_FlagFileMissing (0.00s)
+=== RUN   TestLoadTemplate_NodepoolDefault
+--- PASS: TestLoadTemplate_NodepoolDefault (0.00s)
 PASS
-ok  	github.com/rh-amarin/hyperfleet-cli/cmd	0.189s
+ok  	github.com/rh-amarin/hyperfleet-cli/cmd	0.173s

@@ -77,7 +77,7 @@ var configShowCmd = &cobra.Command{
 			}
 		}
 
-		allSections := []string{"state", "hyperfleet", "kubernetes", "maestro", "port-forward", "database", "rabbitmq", "registry"}
+		allSections := []string{"hyperfleet", "kubernetes", "maestro", "port-forward", "database", "rabbitmq", "registry", "state"}
 		out := make(map[string]map[string]string, len(allSections))
 		if len(stateVals) > 0 {
 			out["state"] = stateVals

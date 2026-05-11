@@ -1,49 +1,22 @@
 # Spec: config
 
-## Requirement: Show Configuration
+## Purpose
 
-`hf config` (with no subcommand) and `hf config show` display the resolved configuration of the active environment.
+Manage HyperFleet CLI configuration through environment profiles and runtime state. Provides commands to show, get, and set configuration values, manage named environment profiles, and display active resource IDs.
+## Requirements
+### Requirement: Show Configuration
 
-#### Scenario: Active environment set
+`hf config` and `hf config show` MUST display the active environment's configuration sections followed by a `state:` block at the bottom listing all non-empty runtime state variables.
 
-- **GIVEN** an active environment is configured in state.yaml
+#### Scenario: Active environment set — state variables included
+
+- **GIVEN** an active environment is configured and state.yaml contains any of: active-environment, cluster-id, cluster-name, nodepool-id
 - **WHEN** the user runs `hf config` or `hf config show`
-- **THEN** the active environment name MUST be printed at the top
-- **AND** config values MUST be shown grouped by section
-- **AND** secrets (token, database.password, rabbitmq.password) MUST be shown as `<set>` or `<not set>`
+- **THEN** a `state:` section MUST appear last in the output, after all config sections
+- **AND** it MUST list all non-empty state keys (active-environment, cluster-id, cluster-name, nodepool-id) as YAML key-value pairs
+- **AND** the existing config sections (hyperfleet, kubernetes, …) MUST precede the state block
 
-#### Scenario: No active environment
-
-- **GIVEN** no active environment is configured
-- **WHEN** the user runs `hf config` or `hf config show`
-- **THEN** the command MUST exit with code 1
-- **AND** MUST print:
-  ```
-  [ERROR] no active environment
-    → run 'hf config env create <name>' to create one
-    → run 'hf config env activate <name>' to activate an existing one
-  ```
-
-#### Scenario: Show config for a named environment
-
-- **GIVEN** environment profiles exist in `~/.config/hf/environments/`
-- **WHEN** the user runs `hf config show <env-name>`
-- **THEN** the CLI MUST display the absolute file path of that environment file
-- **AND** display the values defined in that file grouped by section
-- **AND** secrets MUST be shown as `<set>` or `<not set>`
-- **AND** the active environment MUST NOT be changed
-
-#### Scenario: Show config for a named environment that is also the active environment
-
-- **GIVEN** the named environment is also the currently active environment
-- **WHEN** the user runs `hf config show <env-name>`
-- **THEN** the CLI MUST display the file path prefixed with `[active] `
-- **AND** display the values as usual
-- **AND** the active environment is NOT changed
-
----
-
-## Requirement: Set Configuration Value
+### Requirement: Set Configuration Value
 
 The CLI SHALL allow setting individual configuration properties using dotted section.key notation.
 
@@ -77,9 +50,9 @@ The CLI SHALL allow setting individual configuration properties using dotted sec
 
 ---
 
-## Requirement: hf-config-env-create
+### Requirement: hf-config-env-create
 
-`hf config env create <name>` creates a new named environment from the bundled template and immediately activates it.
+`hf config env create <name>` SHALL create a new named environment from the bundled template and immediately activate it.
 
 #### Scenario: Create environment with new name
 
@@ -108,9 +81,9 @@ The CLI SHALL allow setting individual configuration properties using dotted sec
 
 ---
 
-## Requirement: hf-config-env-show
+### Requirement: hf-config-env-show
 
-`hf config env show <name>` displays the file location and values of a named environment profile without activating it.
+`hf config env show <name>` SHALL display the file location and values of a named environment profile without activating it.
 
 #### Scenario: Show named environment
 
@@ -130,9 +103,9 @@ The CLI SHALL allow setting individual configuration properties using dotted sec
 
 ---
 
-## Requirement: Show Current Cluster and NodePool IDs
+### Requirement: Show Current Cluster and NodePool IDs
 
-`hf cluster id` and `hf nodepool id` display the currently active resource IDs from state.
+`hf cluster id` and `hf nodepool id` SHALL display the currently active resource IDs from state.
 
 NOTE on severity: `hf cluster id` and `hf nodepool id` use `[WARN]` + exit 0 when no ID is set because they are purely informational — the absence of a stored ID is not an error condition for these commands. All other commands that *require* a cluster-id or nodepool-id to function use `[ERROR]` + exit 1.
 
@@ -164,9 +137,9 @@ NOTE on severity: `hf cluster id` and `hf nodepool id` use `[WARN]` + exit 0 whe
 
 ---
 
-## Requirement: active-env-guard
+### Requirement: active-env-guard
 
-Commands that require a configured target must fail when no active environment is set.
+Commands that require a configured target MUST fail when no active environment is set.
 
 #### Scenario: Command requires active env, none set
 
@@ -185,3 +158,33 @@ Commands that require a configured target must fail when no active environment i
 - **GIVEN** no active environment is configured
 - **WHEN** the user runs any of: `hf config env list`, `hf config env create`, `hf config env activate`, `hf config env show`
 - **THEN** the command MUST succeed normally
+
+### Requirement: Get Configuration Value
+
+`hf config get <key>` SHALL retrieve a single configuration or state value. Use `section.key` dot notation for config values or a plain key for state values.
+
+#### Scenario: Get a config value
+
+- **GIVEN** an active environment is set
+- **WHEN** the user runs `hf config get hyperfleet.api-url`
+- **THEN** the CLI MUST print the resolved value of `api-url` in the `hyperfleet` section
+
+#### Scenario: Get a state value
+
+- **GIVEN** an active environment is set and cluster-id is present in state.yaml
+- **WHEN** the user runs `hf config get cluster-id`
+- **THEN** the CLI MUST print the value of `cluster-id` from state.yaml
+
+#### Scenario: Key not found
+
+- **GIVEN** an active environment is set
+- **WHEN** the user runs `hf config get hyperfleet.nonexistent`
+- **THEN** the CLI MUST print `[ERROR] Config key 'hyperfleet.nonexistent' not found`
+- **AND** exit with code 1
+
+#### Scenario: No arguments provided
+
+- **GIVEN** the user runs `hf config get` with no arguments
+- **THEN** the CLI MUST display the command's full help text
+- **AND** exit with code 1
+

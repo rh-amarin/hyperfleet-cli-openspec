@@ -1,0 +1,36 @@
+hyperfleet:
+  api-url: http://34.175.170.44:8000
+  api-version: v1
+  gcp-project: hcm-hyperfleet
+  token: <not set>
+kubernetes:
+  context:
+  namespace: amarin-e2e
+maestro:
+  consumer: cluster1
+  grpc-endpoint: localhost:8090
+  http-endpoint: http://localhost:8100
+  namespace: maestro
+port-forward:
+  api-port: 8000
+  maestro-grpc-port: 8090
+  maestro-grpc-remote-port: 8090
+  maestro-http-port: 8100
+  maestro-http-remote-port: 8000
+  pg-port: 5432
+database:
+  host: localhost
+  name: hyperfleet
+  password: <set>
+  port: 5432
+  user: hyperfleet
+rabbitmq:
+  host: localhost
+  mgmt-port: 15672
+  password: <set>
+  user: guest
+  vhost: /
+registry:
+  name:
+state:
+  active-environment: e2e

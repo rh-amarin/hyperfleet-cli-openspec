@@ -26,6 +26,12 @@ var tableCmd = &cobra.Command{
 	RunE:  runResources,
 }
 
+// watch flags for resources / table commands.
+var (
+	resourcesWatchMode bool
+	resourcesWatchSecs int
+)
+
 // clusterEntry holds a fetched cluster with its adapter statuses and nodepools.
 type clusterEntry struct {
 	cluster         resource.Cluster
@@ -35,19 +41,37 @@ type clusterEntry struct {
 }
 
 func runResources(cmd *cobra.Command, _ []string) error {
+	// Default to table when --output was not explicitly provided.
+	effectiveFmt := outputFmt
+	if !rootCmd.PersistentFlags().Changed("output") {
+		effectiveFmt = "table"
+	}
+
+	if resourcesWatchMode && effectiveFmt == "table" {
+		ctx, cancel := watchContext(context.Background())
+		defer cancel()
+		return runWatch(ctx, cmd.OutOrStdout(), resourcesWatchSecs, func(tick int) error {
+			return fetchAndRenderResources(cmd, effectiveFmt, tick, resourcesWatchSecs)
+		})
+	}
+
+	return fetchAndRenderResources(cmd, effectiveFmt, 0, 0)
+}
+
+func fetchAndRenderResources(cmd *cobra.Command, effectiveFmt string, tick, frequencySecs int) error {
 	s, err := loadConfig()
 	if err != nil {
 		return err
 	}
 	client := newAPIClient(s)
-	p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+	p := output.NewPrinter(effectiveFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
 	clusterList, err := api.Get[resource.ListResponse[resource.Cluster]](context.Background(), client, "clusters")
 	if err != nil {
 		return handleAPIError(p, err)
 	}
 
-	if outputFmt != "table" {
+	if effectiveFmt != "table" {
 		return p.Print(clusterList)
 	}
 
@@ -92,9 +116,9 @@ func runResources(cmd *cobra.Command, _ []string) error {
 
 	rows := make([][]string, 0)
 	for _, e := range entries {
-		rows = append(rows, buildClusterRow(e.cluster, e.adapterStatuses, condCols, adapterCols))
+		rows = append(rows, buildClusterRow(e.cluster, e.adapterStatuses, condCols, adapterCols, tick, frequencySecs))
 		for _, np := range e.nodepools {
-			rows = append(rows, buildNodePoolRow(np, e.npStatuses[np.ID], condCols, adapterCols))
+			rows = append(rows, buildNodePoolRow(np, e.npStatuses[np.ID], condCols, adapterCols, tick, frequencySecs))
 		}
 	}
 
@@ -147,12 +171,18 @@ func collectAdapterCols(entries []clusterEntry) []string {
 	return cols
 }
 
-func adapterDot(statuses []resource.AdapterStatus, adName, condKey string) string {
+// adapterDot returns the status cell for a named adapter column.
+// When the adapter has a recent last_report_time (within 2×frequencySecs), a spinner frame is prepended.
+func adapterDot(statuses []resource.AdapterStatus, adName, condKey string, tick, frequencySecs int) string {
 	for _, as := range statuses {
 		if as.Adapter == adName {
 			for _, c := range as.Conditions {
 				if c.Type == condKey {
-					return output.StatusDot(c.Status, noColor) + " " + strconv.Itoa(int(as.ObservedGeneration))
+					cell := output.StatusDot(c.Status, noColor) + " " + strconv.Itoa(int(as.ObservedGeneration))
+					if output.IsActive(as.LastReportTime, frequencySecs) {
+						cell = output.SpinnerFrame(tick) + " " + cell
+					}
+					return cell
 				}
 			}
 			return "-"
@@ -161,7 +191,7 @@ func adapterDot(statuses []resource.AdapterStatus, adName, condKey string) strin
 	return "-"
 }
 
-func buildClusterRow(cl resource.Cluster, statuses []resource.AdapterStatus, condCols, adapterCols []string) []string {
+func buildClusterRow(cl resource.Cluster, statuses []resource.AdapterStatus, condCols, adapterCols []string, tick, frequencySecs int) []string {
 	isDeleted := cl.DeletedTime != ""
 	gen := strconv.Itoa(int(cl.Generation))
 	if isDeleted {
@@ -184,12 +214,12 @@ func buildClusterRow(cl resource.Cluster, statuses []resource.AdapterStatus, con
 		row = append(row, val)
 	}
 	for _, adName := range adapterCols {
-		row = append(row, adapterDot(statuses, adName, condKey))
+		row = append(row, adapterDot(statuses, adName, condKey, tick, frequencySecs))
 	}
 	return row
 }
 
-func buildNodePoolRow(np resource.NodePool, statuses []resource.AdapterStatus, condCols, adapterCols []string) []string {
+func buildNodePoolRow(np resource.NodePool, statuses []resource.AdapterStatus, condCols, adapterCols []string, tick, frequencySecs int) []string {
 	isDeleted := np.DeletedTime != ""
 	gen := strconv.Itoa(int(np.Generation))
 	if isDeleted {
@@ -212,7 +242,7 @@ func buildNodePoolRow(np resource.NodePool, statuses []resource.AdapterStatus, c
 		row = append(row, val)
 	}
 	for _, adName := range adapterCols {
-		row = append(row, adapterDot(statuses, adName, condKey))
+		row = append(row, adapterDot(statuses, adName, condKey, tick, frequencySecs))
 	}
 	return row
 }
@@ -220,4 +250,9 @@ func buildNodePoolRow(np resource.NodePool, statuses []resource.AdapterStatus, c
 func init() {
 	rootCmd.AddCommand(resourcesCmd)
 	rootCmd.AddCommand(tableCmd)
+
+	for _, cmd := range []*cobra.Command{resourcesCmd, tableCmd} {
+		cmd.Flags().BoolVar(&resourcesWatchMode, "watch", false, "continuously refresh the table")
+		cmd.Flags().IntVarP(&resourcesWatchSecs, "seconds", "s", 5, "refresh interval in seconds (used with --watch)")
+	}
 }

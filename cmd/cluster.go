@@ -34,6 +34,8 @@ var (
 	clusterCreateNPID     string
 	clusterUpdateName     string
 	clusterUpdateReplicas int
+	clusterListWatch      bool
+	clusterListWatchSecs  int
 )
 
 // ---- helpers ----
@@ -108,33 +110,44 @@ var clusterListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all clusters",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		s, err := loadConfig()
-		if err != nil {
-			return err
+		if clusterListWatch && outputFmt == "table" {
+			ctx, cancel := watchContext(context.Background())
+			defer cancel()
+			return runWatch(ctx, cmd.OutOrStdout(), clusterListWatchSecs, func(tick int) error {
+				return fetchAndRenderClusterList(cmd, tick, clusterListWatchSecs)
+			})
 		}
-		client := newAPIClient(s)
-		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
-
-		list, err := api.Get[resource.ListResponse[resource.Cluster]](context.Background(), client, "clusters")
-		if err != nil {
-			return handleAPIError(p, err)
-		}
-
-		if outputFmt == "table" {
-			headers := []string{"ID", "NAME", "GEN", "STATUS"}
-			rows := make([][]string, 0, len(list.Items))
-			for _, c := range list.Items {
-				rows = append(rows, []string{
-					c.ID,
-					c.Name,
-					strconv.Itoa(int(c.Generation)),
-					clusterOverallStatus(c, noColor),
-				})
-			}
-			return p.PrintTable(headers, rows)
-		}
-		return p.Print(list)
+		return fetchAndRenderClusterList(cmd, 0, 0)
 	},
+}
+
+func fetchAndRenderClusterList(cmd *cobra.Command, tick, frequencySecs int) error {
+	s, err := loadConfig()
+	if err != nil {
+		return err
+	}
+	client := newAPIClient(s)
+	p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+
+	list, err := api.Get[resource.ListResponse[resource.Cluster]](context.Background(), client, "clusters")
+	if err != nil {
+		return handleAPIError(p, err)
+	}
+
+	if outputFmt == "table" {
+		headers := []string{"ID", "NAME", "GEN", "STATUS"}
+		rows := make([][]string, 0, len(list.Items))
+		for _, c := range list.Items {
+			rows = append(rows, []string{
+				c.ID,
+				c.Name,
+				strconv.Itoa(int(c.Generation)),
+				clusterOverallStatus(c, noColor),
+			})
+		}
+		return p.PrintTable(headers, rows)
+	}
+	return p.Print(list)
 }
 
 // ---- cluster get ----
@@ -641,4 +654,7 @@ func init() {
 
 	clusterUpdateCmd.Flags().StringVar(&clusterUpdateName, "name", "", "new cluster name")
 	clusterUpdateCmd.Flags().IntVar(&clusterUpdateReplicas, "replicas", 0, "new number of replicas")
+
+	clusterListCmd.Flags().BoolVar(&clusterListWatch, "watch", false, "continuously refresh the table (requires --output table)")
+	clusterListCmd.Flags().IntVarP(&clusterListWatchSecs, "seconds", "s", 5, "refresh interval in seconds (used with --watch)")
 }

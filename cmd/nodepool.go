@@ -32,6 +32,8 @@ var (
 	nodepoolCreateReplicas int
 	nodepoolUpdateName     string
 	nodepoolUpdateReplicas int
+	nodepoolListWatch      bool
+	nodepoolListWatchSecs  int
 )
 
 // ---- helpers ----
@@ -100,35 +102,46 @@ var nodepoolListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all nodepools",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		s, err := loadConfig()
-		if err != nil {
-			return err
+		if nodepoolListWatch && outputFmt == "table" {
+			ctx, cancel := watchContext(context.Background())
+			defer cancel()
+			return runWatch(ctx, cmd.OutOrStdout(), nodepoolListWatchSecs, func(tick int) error {
+				return fetchAndRenderNodepoolList(cmd, tick, nodepoolListWatchSecs)
+			})
 		}
-		client := newAPIClient(s)
-		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
-
-		list, err := api.Get[resource.ListResponse[resource.NodePool]](context.Background(), client, "nodepools")
-		if err != nil {
-			return handleAPIError(p, err)
-		}
-
-		if outputFmt == "table" {
-			headers := []string{"ID", "NAME", "TYPE", "GEN", "REPLICAS", "STATUS"}
-			rows := make([][]string, 0, len(list.Items))
-			for _, np := range list.Items {
-				rows = append(rows, []string{
-					np.ID,
-					np.Name,
-					nodepoolType(np),
-					strconv.Itoa(int(np.Generation)),
-					nodepoolReplicas(np),
-					nodepoolOverallStatus(np, noColor),
-				})
-			}
-			return p.PrintTable(headers, rows)
-		}
-		return p.Print(list)
+		return fetchAndRenderNodepoolList(cmd, 0, 0)
 	},
+}
+
+func fetchAndRenderNodepoolList(cmd *cobra.Command, tick, frequencySecs int) error {
+	s, err := loadConfig()
+	if err != nil {
+		return err
+	}
+	client := newAPIClient(s)
+	p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+
+	list, err := api.Get[resource.ListResponse[resource.NodePool]](context.Background(), client, "nodepools")
+	if err != nil {
+		return handleAPIError(p, err)
+	}
+
+	if outputFmt == "table" {
+		headers := []string{"ID", "NAME", "TYPE", "GEN", "REPLICAS", "STATUS"}
+		rows := make([][]string, 0, len(list.Items))
+		for _, np := range list.Items {
+			rows = append(rows, []string{
+				np.ID,
+				np.Name,
+				nodepoolType(np),
+				strconv.Itoa(int(np.Generation)),
+				nodepoolReplicas(np),
+				nodepoolOverallStatus(np, noColor),
+			})
+		}
+		return p.PrintTable(headers, rows)
+	}
+	return p.Print(list)
 }
 
 // ---- nodepool get ----
@@ -635,4 +648,7 @@ func init() {
 
 	nodepoolUpdateCmd.Flags().StringVar(&nodepoolUpdateName, "name", "", "new nodepool name")
 	nodepoolUpdateCmd.Flags().IntVar(&nodepoolUpdateReplicas, "replicas", 0, "new number of replicas")
+
+	nodepoolListCmd.Flags().BoolVar(&nodepoolListWatch, "watch", false, "continuously refresh the table (requires --output table)")
+	nodepoolListCmd.Flags().IntVarP(&nodepoolListWatchSecs, "seconds", "s", 5, "refresh interval in seconds (used with --watch)")
 }

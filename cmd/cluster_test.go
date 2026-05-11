@@ -97,6 +97,8 @@ func resetClusterFlags() {
 	clusterCreateNPID = ""
 	clusterUpdateName = ""
 	clusterUpdateReplicas = 0
+	clusterListWatch = false
+	clusterListWatchSecs = 5
 }
 
 // runClusterCmd wraps runCmd and resets all flag state before each invocation
@@ -920,5 +922,27 @@ func TestClusterCreate_MalformedTemplate(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "loading template") {
 		t.Errorf("expected 'loading template' in error, got: %v", err)
+	}
+}
+
+// ---- cluster list watch flags ----
+
+func TestClusterListWatchFlagRegistered(t *testing.T) {
+	f := clusterListCmd.Flags().Lookup("watch")
+	if f == nil {
+		t.Fatal("--watch flag not registered on clusterListCmd")
+	}
+	if f.DefValue != "false" {
+		t.Errorf("--watch default = %q, want %q", f.DefValue, "false")
+	}
+}
+
+func TestClusterListSecondsFlagRegistered(t *testing.T) {
+	f := clusterListCmd.Flags().Lookup("seconds")
+	if f == nil {
+		t.Fatal("-s/--seconds flag not registered on clusterListCmd")
+	}
+	if f.DefValue != "5" {
+		t.Errorf("-s default = %q, want %q", f.DefValue, "5")
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // clusterBetaID is a second cluster used in combined table tests.
@@ -150,6 +151,11 @@ func resetResourcesFlags() {
 	outputFmt = "json"
 	noColor = false
 	verbose = false
+	resourcesWatchMode = false
+	resourcesWatchSecs = 5
+	if f := rootCmd.PersistentFlags().Lookup("output"); f != nil {
+		f.Changed = false
+	}
 }
 
 func runResourcesCmd(t *testing.T, dir string, args ...string) (string, error) {
@@ -241,5 +247,134 @@ func TestResourcesJSON(t *testing.T) {
 	}
 	if !strings.Contains(out, "test-cluster-alpha") {
 		t.Errorf("expected cluster name in JSON, got: %q", out)
+	}
+}
+
+// ---- resources / table watch flags and default format ----
+
+func TestResourcesDefaultsToTable(t *testing.T) {
+	ts := setupResourcesServer(t)
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	setClusterIDInState(t, dir, "test", clusterID)
+
+	// No --output flag: should render as table
+	out, err := runResourcesCmd(t, dir, "resources")
+	if err != nil {
+		t.Fatalf("resources (no --output): %v", err)
+	}
+	if strings.Contains(out, `"items"`) {
+		t.Errorf("expected table output (not JSON) when no --output flag, got: %q", out)
+	}
+	if !strings.Contains(out, "ID") || !strings.Contains(out, "NAME") {
+		t.Errorf("expected table headers, got: %q", out)
+	}
+}
+
+func TestTableDefaultsToTable(t *testing.T) {
+	ts := setupResourcesServer(t)
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	setClusterIDInState(t, dir, "test", clusterID)
+
+	out, err := runResourcesCmd(t, dir, "table")
+	if err != nil {
+		t.Fatalf("table (no --output): %v", err)
+	}
+	if strings.Contains(out, `"items"`) {
+		t.Errorf("expected table output (not JSON) when no --output flag on 'table' cmd, got: %q", out)
+	}
+	if !strings.Contains(out, "ID") {
+		t.Errorf("expected table headers, got: %q", out)
+	}
+}
+
+func TestResourcesOutputJSON(t *testing.T) {
+	ts := setupResourcesServer(t)
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	setClusterIDInState(t, dir, "test", clusterID)
+
+	out, err := runResourcesCmd(t, dir, "resources", "--output", "json")
+	if err != nil {
+		t.Fatalf("resources --output json: %v", err)
+	}
+	if !strings.Contains(out, `"items"`) {
+		t.Errorf("expected JSON output with --output json, got: %q", out)
+	}
+}
+
+func TestResourcesWatchFlagRegistered(t *testing.T) {
+	f := resourcesCmd.Flags().Lookup("watch")
+	if f == nil {
+		t.Fatal("--watch flag not registered on resourcesCmd")
+	}
+	if f.DefValue != "false" {
+		t.Errorf("--watch default = %q, want %q", f.DefValue, "false")
+	}
+}
+
+func TestResourcesSecondsFlagRegistered(t *testing.T) {
+	f := resourcesCmd.Flags().Lookup("seconds")
+	if f == nil {
+		t.Fatal("-s/--seconds flag not registered on resourcesCmd")
+	}
+	if f.DefValue != "5" {
+		t.Errorf("-s default = %q, want %q", f.DefValue, "5")
+	}
+}
+
+func TestTableWatchFlagRegistered(t *testing.T) {
+	f := tableCmd.Flags().Lookup("watch")
+	if f == nil {
+		t.Fatal("--watch flag not registered on tableCmd")
+	}
+}
+
+func TestResourcesSpinnerForActiveAdapter(t *testing.T) {
+	// Build a server that returns an adapter with a very recent last_report_time.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters":
+			fmt.Fprint(w, resourcesClusterListJSON)
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/statuses":
+			// last_report_time = now → adapter is active
+			activeJSON := `{"items":[{"adapter":"cl-active","observed_generation":3,` +
+				`"conditions":[{"type":"Available","status":"True","last_transition_time":"2026-05-10T00:00:00Z"}],` +
+				`"created_time":"2026-05-10T00:00:00Z","last_report_time":"` + time.Now().UTC().Format(time.RFC3339) + `"}],` +
+				`"kind":"AdapterStatusList","page":1,"size":1,"total":1}`
+			fmt.Fprint(w, activeJSON)
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterBetaID+"/statuses":
+			fmt.Fprint(w, emptyAdapterStatusesJSON)
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools":
+			fmt.Fprint(w, emptyNodepoolListJSON)
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterBetaID+"/nodepools":
+			fmt.Fprint(w, emptyNodepoolListJSON)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	setClusterIDInState(t, dir, "test", clusterID)
+
+	// Non-watch render with frequencySecs=0 → IsActive returns false → no spinner
+	out, err := runResourcesCmd(t, dir, "resources")
+	if err != nil {
+		t.Fatalf("resources: %v", err)
+	}
+	if !strings.Contains(out, "CL-ACTIVE") {
+		t.Errorf("expected CL-ACTIVE adapter column header in output, got: %q", out)
+	}
+	// No spinner when not in watch mode (frequencySecs=0 → IsActive=false)
+	for _, frame := range []string{"⠋", "⠙", "⠹", "⠸"} {
+		if strings.Contains(out, frame) {
+			t.Errorf("unexpected spinner frame %q in non-watch output", frame)
+		}
 	}
 }

@@ -95,6 +95,8 @@ func resetNodepoolFlags() {
 	nodepoolCreateReplicas = 0
 	nodepoolUpdateName = ""
 	nodepoolUpdateReplicas = 0
+	nodepoolListWatch = false
+	nodepoolListWatchSecs = 5
 }
 
 // runNodepoolCmd wraps runCmd and resets all nodepool flag state before each invocation.
@@ -866,5 +868,27 @@ func TestNodepoolCreate_MalformedTemplate(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "loading template") {
 		t.Errorf("expected 'loading template' in error, got: %v", err)
+	}
+}
+
+// ---- nodepool list watch flags ----
+
+func TestNodepoolListWatchFlagRegistered(t *testing.T) {
+	f := nodepoolListCmd.Flags().Lookup("watch")
+	if f == nil {
+		t.Fatal("--watch flag not registered on nodepoolListCmd")
+	}
+	if f.DefValue != "false" {
+		t.Errorf("--watch default = %q, want %q", f.DefValue, "false")
+	}
+}
+
+func TestNodepoolListSecondsFlagRegistered(t *testing.T) {
+	f := nodepoolListCmd.Flags().Lookup("seconds")
+	if f == nil {
+		t.Fatal("-s/--seconds flag not registered on nodepoolListCmd")
+	}
+	if f.DefValue != "5" {
+		t.Errorf("-s default = %q, want %q", f.DefValue, "5")
 	}
 }

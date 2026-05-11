@@ -334,6 +334,58 @@ func TestPrintTable_ANSIAlignment(t *testing.T) {
 	}
 }
 
+// displayCol returns the terminal column at which substr first appears in line,
+// counting display width (wide chars = 2 cols) rather than byte offset.
+// Returns -1 if not found.
+func displayCol(line, substr string) int {
+	idx := strings.Index(line, substr)
+	if idx < 0 {
+		return -1
+	}
+	col := 0
+	for _, r := range line[:idx] {
+		if r >= 0x2600 && r <= 0x27BF || // Misc Symbols / Dingbats (❌ etc.)
+			r >= 0x1F200 && r <= 0x1FFFF { // Emoji block
+			col += 2
+		} else {
+			col++
+		}
+	}
+	return col
+}
+
+// TestPrintTable_WideEmojiAlignment verifies that emoji like ❌ (U+274C), which
+// occupy 2 terminal columns but are a single rune, are measured correctly so
+// columns stay aligned across rows with and without the emoji.
+func TestPrintTable_WideEmojiAlignment(t *testing.T) {
+	p, buf := newPrinter(t, "table")
+	headers := []string{"gen", "status"}
+	rows := [][]string{
+		{"1", "ok"},
+		{"2 ❌", "ok"},
+		{"3", "ok"},
+	}
+	if err := p.PrintTable(headers, rows); err != nil {
+		t.Fatalf("PrintTable: %v", err)
+	}
+	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
+	// header + 3 data rows = 4 lines
+	if len(lines) != 4 {
+		t.Fatalf("expected 4 lines, got %d:\n%s", len(lines), buf.String())
+	}
+	// "STATUS" in the header and "ok" in every data row must start at the same
+	// terminal display column. ❌ is 2 display columns wide, so GEN col is
+	// width 4; plus colSep 2 → status starts at display column 6.
+	wantCol := displayCol(lines[0], "STATUS")
+	for i, line := range lines[1:] {
+		got := displayCol(line, "ok")
+		if got != wantCol {
+			t.Errorf("line %d: 'ok' at display col %d, want %d\nfull output:\n%s",
+				i+1, got, wantCol, buf.String())
+		}
+	}
+}
+
 func TestWarnInfoError(t *testing.T) {
 	errBuf := &bytes.Buffer{}
 	outBuf := &bytes.Buffer{}

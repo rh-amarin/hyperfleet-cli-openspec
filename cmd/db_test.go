@@ -41,6 +41,7 @@ func resetDBFlags() {
 	noColor = true
 	verbose = false
 	dbQueryFile = ""
+	dbDeleteAll = false
 }
 
 func runDBCmd(t *testing.T, dir string, mock *mockQuerier, stdin string, args ...string) (string, error) {
@@ -155,7 +156,7 @@ func TestDBDelete_UnknownTarget(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unknown target")
 	}
-	if !strings.Contains(err.Error(), "[ERROR] Unknown target 'foobar'") {
+	if !strings.Contains(err.Error(), "[ERROR] Unknown target 'foobar'") || strings.Contains(err.Error(), "ALL") {
 		t.Errorf("unexpected error: %q", err.Error())
 	}
 }

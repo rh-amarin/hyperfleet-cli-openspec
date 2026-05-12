@@ -30,8 +30,8 @@ The CLI SHALL manage port forwards to HyperFleet services running in Kubernetes.
 Predefined services:
 | name           | pod pattern    | namespace  | local port | remote port |
 |----------------|----------------|------------|------------|-------------|
-| hyperfleet-api | hyperfleet-api | hyperfleet | 8000       | 8000        |
-| postgresql     | postgresql     | hyperfleet | 5432       | 5432        |
+| hyperfleet-api | hyperfleet-api | amarin-ns1 | 8000       | 8000        |
+| postgresql     | postgresql     | amarin-ns1 | 5432       | 5432        |
 | maestro-http   | maestro        | maestro    | 8100       | 8000        |
 | maestro-grpc   | maestro        | maestro    | 8090       | 8090        |
 
@@ -40,15 +40,20 @@ Maestro namespace configurable via `cfg.Maestro.Namespace`.
 
 PID files stored at `~/.config/hf/pf-<name>.pid` — format: `<pid>\n<localPort>\n<remotePort>`.
 
+`StartPortForward` returns a `StartResult` struct with `Name`, `PID`, `LocalPort`, `RemotePort`, `Namespace`, and `PodName` fields.
+
 #### Scenario: Start port forwards
 
 - GIVEN kubeconfig is accessible
 - WHEN the user runs `hf kube port-forward start`
 - THEN the CLI MUST start background port-forward processes for all 4 predefined services
-- AND print `[INFO] Started <name>: localhost:<localPort> → <remotePort> (pid <pid>)` for each
+- AND print `[INFO] Started <name> (<namespace>/<podName>): localhost:<localPort> → <remotePort> (pid <pid>)` for each service where the pod was found
+- AND print `[INFO] Started <name>: localhost:<localPort> → <remotePort> (pid <pid>)` for services where no pod was found
+- AND display the port-forward status table after the last start line
 
 - WHEN the user runs `hf kube port-forward start <name>`
 - THEN the CLI MUST start the named predefined service only
+- AND display the enriched start line and status table for that service
 
 - WHEN the user runs `hf kube port-forward start <service> <localPort:remotePort>`
 - THEN the CLI MUST start a generic port-forward for any service/port combination

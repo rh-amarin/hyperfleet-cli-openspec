@@ -69,14 +69,14 @@ The CLI SHALL execute arbitrary SQL queries against the HyperFleet PostgreSQL da
 
 The CLI SHALL delete all records from a specified table, or from all tables, with a confirmation prompt.
 
-The `<target>` argument is required and MUST be one of: `clusters`, `nodepools`, `adapter_statuses`, or `ALL`.
+Either a `<target>` argument or the `--all` flag is required. The target MUST be one of: `clusters`, `nodepools`, `adapter_statuses`.
 The argument values MUST be offered as shell completions.
 
 #### Scenario: Unknown delete target
 
 - GIVEN the user provides an unrecognized target name
 - WHEN the user runs `hf db delete <unknown>`
-- THEN the CLI MUST display `[ERROR] Unknown target '<unknown>'. Valid targets are: clusters, nodepools, adapter_statuses, ALL.`
+- THEN the CLI MUST display `[ERROR] Unknown target '<unknown>'. Valid targets are: clusters, nodepools, adapter_statuses.`
 - AND exit with code 1
 
 #### Scenario: Delete all records from a single table
@@ -97,7 +97,7 @@ The argument values MUST be offered as shell completions.
 #### Scenario: Delete all records from all tables
 
 - GIVEN database connection is configured
-- WHEN the user runs `hf db delete ALL`
+- WHEN the user runs `hf db delete --all`
 - THEN the CLI MUST show the row count for each table
 - AND prompt the user for confirmation (requiring `yes`)
 - AND delete in dependency order: `adapter_statuses` first, then `node_pools`, then `clusters`
@@ -179,20 +179,20 @@ The CLI SHALL implement `hf db delete` to delete records with confirmation.
 
 - GIVEN the user provides an unrecognized target name
 - WHEN the user runs `hf db delete <unknown>`
-- THEN the CLI MUST display `[ERROR] Unknown target '<unknown>'. Valid targets are: clusters, nodepools, adapter_statuses, ALL.`
+- THEN the CLI MUST display `[ERROR] Unknown target '<unknown>'. Valid targets are: clusters, nodepools, adapter_statuses.`
 - AND exit with code 1
 
 #### Scenario: Delete with confirmation
 
 - GIVEN database connection is configured
-- WHEN the user runs `hf db delete clusters` (or nodepools, adapter_statuses, ALL)
+- WHEN the user runs `hf db delete clusters` (or nodepools, adapter_statuses)
 - THEN the CLI MUST show the row count and prompt for confirmation
 - AND delete only after the user types `yes`
 - AND print "Aborted" if confirmation denied
 
-#### Scenario: Delete ALL in dependency order
+#### Scenario: Delete all in dependency order
 
-- WHEN the user runs `hf db delete ALL`
+- WHEN the user runs `hf db delete --all`
 - THEN the CLI MUST delete in order: adapter_statuses, node_pools, clusters
 
 ### Requirement: CLI Database Config Display

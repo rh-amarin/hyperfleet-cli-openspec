@@ -29,6 +29,7 @@ Subcommands: query, exec, delete, config.`,
 // ---- flag vars ----
 
 var dbQueryFile string
+var dbDeleteAll bool
 
 // ---- helpers ----
 
@@ -57,7 +58,8 @@ func init() {
 	dbCmd.AddCommand(dbExecCmd)
 
 	// hf db delete
-	dbDeleteCmd.ValidArgs = []string{"clusters", "nodepools", "adapter_statuses", "ALL"}
+	dbDeleteCmd.Flags().BoolVar(&dbDeleteAll, "all", false, "delete records from all tables in dependency-safe order")
+	dbDeleteCmd.ValidArgs = []string{"clusters", "nodepools", "adapter_statuses"}
 	dbCmd.AddCommand(dbDeleteCmd)
 
 	// hf db config
@@ -154,19 +156,36 @@ var deleteOrder = []struct {
 }
 
 var dbDeleteCmd = &cobra.Command{
-	Use:   "delete <target>",
-	Short: "Delete records from a table (clusters, nodepools, adapter_statuses, ALL)",
-	Args:  helpOnNoArgs(1),
+	Use:   "delete [target]",
+	Short: "Delete records from a table (clusters, nodepools, adapter_statuses) or use --all",
+	Args: func(cmd *cobra.Command, args []string) error {
+		all, _ := cmd.Flags().GetBool("all")
+		if all {
+			if len(args) > 0 {
+				return fmt.Errorf("cannot specify a target when --all is used")
+			}
+			return nil
+		}
+		if len(args) == 0 {
+			_ = cmd.Help()
+			return fmt.Errorf("")
+		}
+		return cobra.ExactArgs(1)(cmd, args)
+	},
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"clusters", "nodepools", "adapter_statuses", "ALL"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"clusters", "nodepools", "adapter_statuses"}, cobra.ShellCompDirectiveNoFileComp
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		target := args[0]
 		validTargets := map[string]bool{
-			"clusters": true, "nodepools": true, "adapter_statuses": true, "ALL": true,
+			"clusters": true, "nodepools": true, "adapter_statuses": true,
 		}
-		if !validTargets[target] {
-			return fmt.Errorf("[ERROR] Unknown target '%s'. Valid targets are: clusters, nodepools, adapter_statuses, ALL.", target)
+
+		var target string
+		if !dbDeleteAll {
+			target = args[0]
+			if !validTargets[target] {
+				return fmt.Errorf("[ERROR] Unknown target '%s'. Valid targets are: clusters, nodepools, adapter_statuses.", target)
+			}
 		}
 
 		ctx := context.Background()
@@ -178,7 +197,7 @@ var dbDeleteCmd = &cobra.Command{
 
 		// Build list of (target, table) pairs to process.
 		var targets []struct{ target, table string }
-		if target == "ALL" {
+		if dbDeleteAll {
 			for _, d := range deleteOrder {
 				targets = append(targets, struct{ target, table string }{d.target, d.table})
 			}

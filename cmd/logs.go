@@ -39,7 +39,7 @@ Subcommands: adapter.`,
 		}
 		namespace := s.Get("kubernetes", "namespace")
 		if namespace == "" {
-			namespace = "amarin-ns1"
+			namespace = "my-namespace"
 		}
 
 		// Delegate to stern if available.
@@ -77,7 +77,7 @@ Lines are displayed as: [pod] <time>  <LEVEL>  <msg>`,
 		}
 		namespace := s.Get("kubernetes", "namespace")
 		if namespace == "" {
-			namespace = "amarin-ns1"
+			namespace = "my-namespace"
 		}
 
 		podPattern := "adapter"
@@ -125,7 +125,7 @@ summary of what the system has been doing.
 		}
 		namespace := s.Get("kubernetes", "namespace")
 		if namespace == "" {
-			namespace = "amarin-ns1"
+			namespace = "my-namespace"
 		}
 
 		cs, err := kube.NewClientset(resolvedKubeconfig(s))

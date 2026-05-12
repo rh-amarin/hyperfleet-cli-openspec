@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -55,8 +56,27 @@ var maestroListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		if outputFmt == "table" {
+			return printMaestroListTable(cmd.OutOrStdout(), list)
+		}
 		return p.Print(list)
 	},
+}
+
+// printMaestroListTable renders a ResourceBundleList as a hierarchical text table.
+// Each bundle occupies one line; its manifests are printed as indented child lines.
+func printMaestroListTable(w io.Writer, list *maestro.ResourceBundleList) error {
+	if len(list.Items) == 0 {
+		_, err := fmt.Fprintln(w, "No resource bundles.")
+		return err
+	}
+	for _, rb := range list.Items {
+		fmt.Fprintf(w, "%s  %s  v%d\n", rb.ID, rb.Name, rb.Version)
+		for _, m := range rb.Manifests {
+			fmt.Fprintf(w, "  %s/%s  %s\n", m.Kind, m.Name, m.Namespace)
+		}
+	}
+	return nil
 }
 
 // ---- maestro bundles ----

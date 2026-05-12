@@ -23,6 +23,15 @@ The CLI SHALL list maestro resources via the Maestro HTTP API.
   - `manifests`: array of `{kind, name, namespace}` summaries
   - `conditions`: array of `{type, status, reason}` (Applied, Available)
 
+#### Scenario: List resources — table output
+
+- WHEN the user runs `hf maestro list --output table`
+- THEN the CLI MUST print one line per resource bundle:
+  `<id>  <name>  v<version>`
+- AND for each manifest in the bundle, print one indented child line:
+  `  <kind>/<name>  <namespace>`
+- AND if there are no resource bundles, print `No resource bundles.`
+
 ### Requirement: List Maestro Resource Bundles
 
 The CLI SHALL list maestro resource bundles via the HTTP API.

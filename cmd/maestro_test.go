@@ -107,6 +107,56 @@ func TestMaestroList(t *testing.T) {
 	}
 }
 
+func TestMaestroListTable_WithManifests(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/api/maestro/v1/resource-bundles" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, bundleListJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	dir := setupMaestroEnv(t, "http://localhost:9999", srv.URL)
+	out, err := runMaestroCmd(t, dir, "maestro", "list", "--output", "table")
+	if err != nil {
+		t.Fatalf("maestro list --output table: %v", err)
+	}
+	if !strings.Contains(out, bundleID) {
+		t.Errorf("expected bundle ID in output, got: %q", out)
+	}
+	if !strings.Contains(out, "mw-cluster1") {
+		t.Errorf("expected bundle name in output, got: %q", out)
+	}
+	if !strings.Contains(out, "v3") {
+		t.Errorf("expected version in output, got: %q", out)
+	}
+	if !strings.Contains(out, "  Deployment/my-app") {
+		t.Errorf("expected indented manifest line in output, got: %q", out)
+	}
+	if !strings.Contains(out, "default") {
+		t.Errorf("expected namespace in output, got: %q", out)
+	}
+}
+
+func TestMaestroListTable_Empty(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"items": [], "kind": "ResourceBundleList", "total": 0}`)
+	}))
+	defer srv.Close()
+
+	dir := setupMaestroEnv(t, "http://localhost:9999", srv.URL)
+	out, err := runMaestroCmd(t, dir, "maestro", "list", "--output", "table")
+	if err != nil {
+		t.Fatalf("maestro list --output table empty: %v", err)
+	}
+	if strings.TrimSpace(out) != "No resource bundles." {
+		t.Errorf("expected 'No resource bundles.', got: %q", out)
+	}
+}
+
 // ---- maestro bundles ----
 
 func TestMaestroBundles(t *testing.T) {

@@ -10,15 +10,15 @@
 === RUN   TestClusterGet_NotFound
 --- PASS: TestClusterGet_NotFound (0.00s)
 === RUN   TestClusterCreate
-[INFO] Created default cluster template at /tmp/TestClusterCreate4144400730/001/cluster-template.json
+[INFO] Created default cluster template at /tmp/TestClusterCreate1423820093/001/cluster-template.json
 [INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
 --- PASS: TestClusterCreate (0.00s)
 === RUN   TestClusterCreate_DuplicateGuard
-[INFO] Created default cluster template at /tmp/TestClusterCreate_DuplicateGuard141637028/001/cluster-template.json
+[INFO] Created default cluster template at /tmp/TestClusterCreate_DuplicateGuard1326181238/001/cluster-template.json
 [WARN] Cluster 'test-cluster' already exists, skipping creation
 --- PASS: TestClusterCreate_DuplicateGuard (0.00s)
 === RUN   TestClusterCreate_Defaults
-[INFO] Created default cluster template at /tmp/TestClusterCreate_Defaults1073667118/001/cluster-template.json
+[INFO] Created default cluster template at /tmp/TestClusterCreate_Defaults3061657144/001/cluster-template.json
 [INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
 --- PASS: TestClusterCreate_Defaults (0.00s)
 === RUN   TestClusterUpdate
@@ -60,7 +60,7 @@
 === RUN   TestClusterPatch_NoArgs
 --- PASS: TestClusterPatch_NoArgs (0.00s)
 === RUN   TestClusterCreate_PositionalArgs
-[INFO] Created default cluster template at /tmp/TestClusterCreate_PositionalArgs2076061208/001/cluster-template.json
+[INFO] Created default cluster template at /tmp/TestClusterCreate_PositionalArgs1300699045/001/cluster-template.json
 [INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
 --- PASS: TestClusterCreate_PositionalArgs (0.00s)
 === RUN   TestClusterAdapterPostStatus
@@ -69,7 +69,7 @@
 === RUN   TestClusterAdapterPostStatus_InvalidStatus
 --- PASS: TestClusterAdapterPostStatus_InvalidStatus (0.00s)
 === RUN   TestClusterCreate_Template_NameFromPositionalArg
-[INFO] Created default cluster template at /tmp/TestClusterCreate_Template_NameFromPositionalArg3295494858/001/cluster-template.json
+[INFO] Created default cluster template at /tmp/TestClusterCreate_Template_NameFromPositionalArg1759132536/001/cluster-template.json
 [INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
 --- PASS: TestClusterCreate_Template_NameFromPositionalArg (0.00s)
 === RUN   TestClusterCreate_FileFlag
@@ -184,6 +184,10 @@ dev
 --- PASS: TestDBConfig_EmptyPassword (0.00s)
 === RUN   TestMaestroList
 --- PASS: TestMaestroList (0.00s)
+=== RUN   TestMaestroListTable_WithManifests
+--- PASS: TestMaestroListTable_WithManifests (0.00s)
+=== RUN   TestMaestroListTable_Empty
+--- PASS: TestMaestroListTable_Empty (0.00s)
 === RUN   TestMaestroBundles
 --- PASS: TestMaestroBundles (0.00s)
 === RUN   TestMaestroConsumers
@@ -218,15 +222,15 @@ dev
 === RUN   TestNodepoolGet_NotFound
 --- PASS: TestNodepoolGet_NotFound (0.00s)
 === RUN   TestNodepoolCreate
-[INFO] Created default nodepool template at /tmp/TestNodepoolCreate1482152934/001/nodepool-template.json
+[INFO] Created default nodepool template at /tmp/TestNodepoolCreate1194764580/001/nodepool-template.json
 [INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
 --- PASS: TestNodepoolCreate (0.00s)
 === RUN   TestNodepoolCreate_DuplicateGuard
-[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_DuplicateGuard765457449/001/nodepool-template.json
+[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_DuplicateGuard3761724474/001/nodepool-template.json
 [WARN] NodePool 'test-nodepool' already exists, skipping creation
 --- PASS: TestNodepoolCreate_DuplicateGuard (0.00s)
 === RUN   TestNodepoolCreate_Defaults
-[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_Defaults2609756485/001/nodepool-template.json
+[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_Defaults1508460786/001/nodepool-template.json
 [INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
 --- PASS: TestNodepoolCreate_Defaults (0.00s)
 === RUN   TestNodepoolUpdate
@@ -244,7 +248,7 @@ dev
 === RUN   TestNodepoolStatuses
 --- PASS: TestNodepoolStatuses (0.00s)
 === RUN   TestNodepoolStatuses_Table
---- PASS: TestNodepoolStatuses_Table (0.01s)
+--- PASS: TestNodepoolStatuses_Table (0.00s)
 === RUN   TestNodepoolStatuses_ExplicitID
 --- PASS: TestNodepoolStatuses_ExplicitID (0.00s)
 === RUN   TestNodepoolSearch_ByName_Found
@@ -269,7 +273,7 @@ dev
 [INFO] Posted adapter status for np-configmap on nodepool 019dc049-e76c-7be1-b201-0db50e2c8ecb
 --- PASS: TestNodePoolAdapterPostStatus (0.00s)
 === RUN   TestNodepoolCreate_Template_NameFromPositionalArg
-[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_Template_NameFromPositionalArg2300671229/001/nodepool-template.json
+[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_Template_NameFromPositionalArg2306201524/001/nodepool-template.json
 [INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
 --- PASS: TestNodepoolCreate_Template_NameFromPositionalArg (0.00s)
 === RUN   TestNodepoolCreate_FileFlag
@@ -288,7 +292,7 @@ dev
 === RUN   TestPubSubList_Filter
 --- PASS: TestPubSubList_Filter (0.00s)
 === RUN   TestPubSubPublishCluster_MissingClusterID
---- PASS: TestPubSubPublishCluster_MissingClusterID (0.01s)
+--- PASS: TestPubSubPublishCluster_MissingClusterID (0.00s)
 === RUN   TestPubSubPublishCluster_Success
 --- PASS: TestPubSubPublishCluster_Success (0.00s)
 === RUN   TestPubSubPublishNodePool_MissingClusterID
@@ -332,7 +336,7 @@ dev
 === RUN   TestTableWatchFlagRegistered
 --- PASS: TestTableWatchFlagRegistered (0.00s)
 === RUN   TestResourcesSpinnerForActiveAdapter
---- PASS: TestResourcesSpinnerForActiveAdapter (0.00s)
+--- PASS: TestResourcesSpinnerForActiveAdapter (0.01s)
 === RUN   TestExecuteHelp
 --- PASS: TestExecuteHelp (0.00s)
 === RUN   TestGlobalFlagsRegistered
@@ -368,7 +372,7 @@ dev
 === RUN   TestRunWatchFast_UsesAltScreenAndClearsOnRender
 --- PASS: TestRunWatchFast_UsesAltScreenAndClearsOnRender (0.00s)
 PASS
-ok  	github.com/rh-amarin/hyperfleet-cli/cmd	0.705s
+ok  	github.com/rh-amarin/hyperfleet-cli/cmd	0.709s
 === RUN   TestGetHappyPath
 --- PASS: TestGetHappyPath (0.00s)
 === RUN   TestPostHappyPath

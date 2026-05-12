@@ -3,10 +3,10 @@ hyperfleet:
   api-version: "v1"
   token: ""
   gcp-project: "hcm-hyperfleet"
+  namespace: "hyperfleet"
 
 kubernetes:
   context: ""
-  namespace: "hyperfleet"
 
 maestro:
   consumer: "cluster1"

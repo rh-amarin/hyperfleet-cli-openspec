@@ -270,3 +270,29 @@ func contains(s, substr string) bool {
 			return false
 		}())
 }
+
+func TestHFNamespace_EnvVar(t *testing.T) {
+	s := newTestStore(t)
+	t.Setenv("HF_NAMESPACE", "test-ns")
+	if got := s.Get("hyperfleet", "namespace"); got != "test-ns" {
+		t.Fatalf("expected test-ns, got %q", got)
+	}
+}
+
+func TestHFNamespace_Profile(t *testing.T) {
+	dir := t.TempDir()
+	writeEnv(t, dir, "myenv", "hyperfleet:\n  namespace: my-ns\n")
+	s := config.New(dir)
+	if err := s.Load(); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if err := s.SetState("active-environment", "myenv"); err != nil {
+		t.Fatalf("SetState: %v", err)
+	}
+	if err := s.Load(); err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	if got := s.Get("hyperfleet", "namespace"); got != "my-ns" {
+		t.Fatalf("expected my-ns, got %q", got)
+	}
+}

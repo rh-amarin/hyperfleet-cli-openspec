@@ -1,0 +1,6 @@
+[INFO] Kubernetes context: gke_hcm-hyperfleet_europe-southwest1-a_hyperfleet-dev-amarin-eu1
+[ERROR] hyperfleet-api: Unauthorized
+[ERROR] postgresql: Unauthorized
+[ERROR] maestro-http: Unauthorized
+[ERROR] maestro-grpc: Unauthorized
+No port-forwards tracked.

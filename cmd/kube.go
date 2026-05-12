@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/rh-amarin/hyperfleet-cli/internal/kube"
 	"github.com/spf13/cobra"
@@ -53,14 +54,16 @@ var pfStartCmd = &cobra.Command{
 				fmt.Fprintf(os.Stderr, "[ERROR] %s: %v\n", svc.name, err)
 				continue
 			}
-			loc := ""
 			if sr.PodName != "" {
-				loc = fmt.Sprintf(" (%s/%s)", sr.Namespace, sr.PodName)
+				fmt.Fprintf(cmd.OutOrStdout(), "[INFO] Started %s (%s/%s): localhost:%d → %d (pid %d)\n",
+					sr.Name, sr.Namespace, sr.PodName, sr.LocalPort, sr.RemotePort, sr.PID)
+			} else {
+				fmt.Fprintf(cmd.OutOrStdout(), "[INFO] Started %s (%s): localhost:%d → %d (pid %d)\n",
+					sr.Name, sr.Namespace, sr.LocalPort, sr.RemotePort, sr.PID)
 			}
-			fmt.Printf("[INFO] Started %s%s: localhost:%d → %d (pid %d)\n",
-				sr.Name, loc, sr.LocalPort, sr.RemotePort, sr.PID)
 		}
-		printPortForwardStatus(cmd.OutOrStdout())
+		time.Sleep(time.Second)
+		printPortForwardStatus(cmd.OutOrStdout(), s)
 		return nil
 	},
 }
@@ -109,7 +112,7 @@ var pfStatusCmd = &cobra.Command{
 		} else {
 			fmt.Fprintf(cmd.OutOrStdout(), "[INFO] Kubernetes context: %s\n", ctxName)
 		}
-		printPortForwardStatus(cmd.OutOrStdout())
+		printPortForwardStatus(cmd.OutOrStdout(), s)
 		return nil
 	},
 }
@@ -151,7 +154,7 @@ Example:
 		if err != nil {
 			return err
 		}
-		namespace := s.Get("kubernetes", "namespace")
+		namespace := s.Get("hyperfleet", "namespace")
 		kubeCtx := s.Get("kubernetes", "context")
 		return kube.RunCurlPod(context.Background(), resolvedKubeconfig(s), namespace, kubeCtx, args, os.Stdout)
 	},
@@ -167,7 +170,7 @@ var kubeDebugCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		namespace := s.Get("kubernetes", "namespace")
+		namespace := s.Get("hyperfleet", "namespace")
 		kubeconfig := resolvedKubeconfig(s)
 		kubeCtx := s.Get("kubernetes", "context")
 		cs, err := kube.NewClientset(kubeconfig, kubeCtx)
@@ -201,32 +204,58 @@ func init() {
 
 // ---- helpers ----
 
-// printPortForwardStatus renders the live port-forward bullet table to w.
-// Used by both pfStartCmd (after starting) and pfStatusCmd.
-func printPortForwardStatus(w io.Writer) {
+type configGetter interface {
+	Get(section, key string) string
+}
+
+// printPortForwardStatus renders the live port-forward status table to w using
+// protocol-aware connectivity checks per predefined service.
+func printPortForwardStatus(w io.Writer, s configGetter) {
 	pfs, _ := kube.ListPortForwards()
 	if len(pfs) == 0 {
 		fmt.Fprintln(w, "No port-forwards tracked.")
 		return
 	}
 	for _, pf := range pfs {
-		connected := kube.IsPortListening(pf.LocalPort)
-		bullet := "\033[32m●\033[0m"
+		err := checkPortForwardConnectivity(pf.Name, pf.LocalPort, s)
+		connected := err == nil
+
+		tick := "\033[32m✓\033[0m"
 		suffix := ""
 		pid := pf.PID
 		if connected {
-			// Show the PID of the process that actually owns the port,
-			// which may differ from the recorded daemon PID if the tunnel
-			// was restarted externally (e.g. by a raw kubectl port-forward).
-			if activePID, err := kube.PIDForPort(pf.LocalPort); err == nil {
+			if activePID, pidErr := kube.PIDForPort(pf.LocalPort); pidErr == nil {
 				pid = activePID
 			}
 		} else {
-			bullet = "\033[31m●\033[0m"
+			tick = "\033[31m✗\033[0m"
 			suffix = " [NOT CONNECTED]"
 		}
 		fmt.Fprintf(w, "  %s %s - localhost:%d (PID: %d)%s\n",
-			bullet, pf.Name, pf.LocalPort, pid, suffix)
+			tick, pf.Name, pf.LocalPort, pid, suffix)
+	}
+}
+
+// checkPortForwardConnectivity dispatches to the appropriate protocol checker by service name.
+func checkPortForwardConnectivity(name string, localPort int, s configGetter) error {
+	switch name {
+	case "hyperfleet-api":
+		return kube.CheckAPIConnectivity(localPort)
+	case "postgresql":
+		host := s.Get("database", "host")
+		dbname := s.Get("database", "name")
+		user := s.Get("database", "user")
+		password := s.Get("database", "password")
+		return kube.CheckPostgresConnectivity(localPort, host, dbname, user, password)
+	case "maestro-http":
+		return kube.CheckMaestroHTTPConnectivity(localPort)
+	case "maestro-grpc":
+		return kube.CheckMaestroGRPCConnectivity(localPort)
+	default:
+		if kube.IsPortListening(localPort) {
+			return nil
+		}
+		return fmt.Errorf("port %d not listening", localPort)
 	}
 }
 
@@ -247,11 +276,11 @@ type serviceSpec struct {
 // servicesForArgs resolves which services to port-forward based on CLI args.
 func servicesForArgs(s interface{ Get(string, string) string }, args []string) []serviceSpec {
 	maestroNS := s.Get("maestro", "namespace")
-	kubeNS := s.Get("kubernetes", "namespace")
+	hfNS := s.Get("hyperfleet", "namespace")
 	all := []serviceSpec{
-		{"hyperfleet-api", "hyperfleet-api", kubeNS,
+		{"hyperfleet-api", "hyperfleet-api", hfNS,
 			portVal(s, "port-forward", "api-port", 8000), 8000},
-		{"postgresql", "postgresql", kubeNS,
+		{"postgresql", "postgresql", hfNS,
 			portVal(s, "port-forward", "pg-port", 5432), 5432},
 		{"maestro-http", "maestro", maestroNS,
 			portVal(s, "port-forward", "maestro-http-port", 8100),
@@ -285,7 +314,7 @@ func servicesForArgs(s interface{ Get(string, string) string }, args []string) [
 			fmt.Fprintln(os.Stderr, err.Error())
 			return nil
 		}
-		ns := s.Get("kubernetes", "namespace")
+		ns := s.Get("hyperfleet", "namespace")
 		return []serviceSpec{{name: name, podPattern: name, namespace: ns, localPort: lp, remotePort: rp}}
 	}
 	fmt.Fprintf(os.Stderr, "[ERROR] Unknown service %q. Known: hyperfleet-api, postgresql, maestro-http, maestro-grpc\n", name)

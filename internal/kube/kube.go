@@ -19,6 +19,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,6 +29,11 @@ import (
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/client-go/transport/spdy"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	grpc_health "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"golang.org/x/term"
 )
@@ -509,6 +515,70 @@ func ExecShell(ctx context.Context, cs kubernetes.Interface, config *rest.Config
 		Tty:               true,
 		TerminalSizeQueue: tsq,
 	})
+}
+
+// CheckAPIConnectivity verifies connectivity to the HyperFleet API via HTTP GET.
+// Returns nil if the server responds (any HTTP status), non-nil on connection failure.
+func CheckAPIConnectivity(port int) error {
+	return checkHTTP(fmt.Sprintf("http://localhost:%d/api/hyperfleet/v1", port))
+}
+
+// CheckMaestroHTTPConnectivity verifies connectivity to Maestro's HTTP API via HTTP GET.
+// Returns nil if the server responds (any HTTP status), non-nil on connection failure.
+func CheckMaestroHTTPConnectivity(port int) error {
+	return checkHTTP(fmt.Sprintf("http://localhost:%d/api/maestro/v1", port))
+}
+
+// CheckPostgresConnectivity opens a pgx connection to localhost:<port> and pings it.
+// Returns nil on successful ping, non-nil on any error.
+func CheckPostgresConnectivity(port int, host, dbname, user, password string) error {
+	dsn := fmt.Sprintf("host=localhost port=%d dbname=%s user=%s password=%s connect_timeout=2 sslmode=disable",
+		port, dbname, user, password)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	return pool.Ping(ctx)
+}
+
+// CheckMaestroGRPCConnectivity dials localhost:<port> and calls the standard gRPC Health/Check.
+// Returns nil on SERVING or UNIMPLEMENTED (server reachable but health proto not registered),
+// non-nil on connection failure or other error.
+func CheckMaestroGRPCConnectivity(port int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	conn, err := grpc.NewClient(
+		fmt.Sprintf("localhost:%d", port),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	hc := grpc_health.NewHealthClient(conn)
+	_, err = hc.Check(ctx, &grpc_health.HealthCheckRequest{Service: ""})
+	if err != nil {
+		if s, ok := status.FromError(err); ok && s.Code() == codes.Unimplemented {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+// checkHTTP performs a GET to url with a 2-second timeout.
+// Returns nil if any HTTP response is received, non-nil on connection failure.
+func checkHTTP(url string) error {
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Get(url) //nolint:noctx
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	return nil
 }
 
 // ---- private helpers ----

@@ -1,0 +1,21 @@
+=== hf kube port-forward start ===
+[INFO] Stopped hyperfleet-api
+[INFO] Stopped maestro-grpc
+[INFO] Stopped maestro-http
+[INFO] Stopped postgresql
+[INFO] Kubernetes context: gke_hcm-hyperfleet_europe-southwest1-a_hyperfleet-dev-amarin-eu1
+[INFO] Started hyperfleet-api (hyperfleet-e2e-amarin/api-hyperfleet-api-dc948665f-kk296): localhost:8000 → 8000 (pid 21095)
+[INFO] Started postgresql (hyperfleet-e2e-amarin/api-hyperfleet-api-postgresql-78487b6d54-hw5r7): localhost:5432 → 5432 (pid 21101)
+[INFO] Started maestro-http (maestro/maestro-64b5f757f9-gbsps): localhost:8100 → 8000 (pid 21107)
+[INFO] Started maestro-grpc (maestro/maestro-64b5f757f9-gbsps): localhost:8090 → 8090 (pid 21113)
+  [32m✓[0m hyperfleet-api - localhost:8000 (PID: 21095)
+  [32m✓[0m maestro-grpc - localhost:8090 (PID: 21113)
+  [32m✓[0m maestro-http - localhost:8100 (PID: 21107)
+  [32m✓[0m postgresql - localhost:5432 (PID: 21101)
+
+=== hf kube port-forward status ===
+[INFO] Kubernetes context: gke_hcm-hyperfleet_europe-southwest1-a_hyperfleet-dev-amarin-eu1
+  [32m✓[0m hyperfleet-api - localhost:8000 (PID: 21095)
+  [32m✓[0m maestro-grpc - localhost:8090 (PID: 21113)
+  [32m✓[0m maestro-http - localhost:8100 (PID: 21107)
+  [32m✓[0m postgresql - localhost:5432 (PID: 21101)

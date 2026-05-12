@@ -387,9 +387,9 @@ func resolvedSection(s *config.Store, section string) map[string]string {
 func knownKeysForSection(section string) []string {
 	switch section {
 	case "hyperfleet":
-		return []string{"api-url", "api-version", "token", "gcp-project"}
+		return []string{"api-url", "api-version", "token", "gcp-project", "namespace"}
 	case "kubernetes":
-		return []string{"context", "namespace"}
+		return []string{"context"}
 	case "maestro":
 		return []string{"consumer", "http-endpoint", "grpc-endpoint", "namespace"}
 	case "port-forward":

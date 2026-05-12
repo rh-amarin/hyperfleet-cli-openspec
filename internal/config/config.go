@@ -34,7 +34,7 @@ var envVarMap = map[string][2]string{
 	"HF_API_VERSION": {"hyperfleet", "api-version"},
 	"HF_TOKEN":       {"hyperfleet", "token"},
 	"HF_CONTEXT":     {"kubernetes", "context"},
-	"HF_NAMESPACE":   {"kubernetes", "namespace"},
+	"HF_NAMESPACE":   {"hyperfleet", "namespace"},
 }
 
 // Store manages the HyperFleet CLI configuration.

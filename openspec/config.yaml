@@ -8,7 +8,7 @@ context: |
   Config: YAML-based config.yaml + state.yaml via internal/config; config.ClusterID() resolves explicit arg > state > error.
   Output: internal/output.Printer always writes to os.Stdout; Warn/Info write to stderr.
   Testing stack: Go standard library only — testing + net/http/httptest. No third-party test frameworks.
-  Real API: LoadBalancer at 34.175.27.173:8000; GKE cluster in amarin-ns1 namespace.
+  Real API: LoadBalancer at 34.175.27.173:8000; GKE cluster in my-namespace namespace.
 
   Definition of Done — every change MUST satisfy all of the following before it can be archived:
   1. All new packages and functions have unit tests using httptest.NewServer where HTTP is involved.

@@ -153,7 +153,7 @@ Example:
 		}
 		namespace := s.Get("kubernetes", "namespace")
 		if namespace == "" {
-			namespace = "amarin-ns1"
+			namespace = "my-namespace"
 		}
 		return kube.RunCurlPod(context.Background(), resolvedKubeconfig(s), namespace, args, os.Stdout)
 	},
@@ -171,7 +171,7 @@ var kubeDebugCmd = &cobra.Command{
 		}
 		namespace := s.Get("kubernetes", "namespace")
 		if namespace == "" {
-			namespace = "amarin-ns1"
+			namespace = "my-namespace"
 		}
 		kubeconfig := resolvedKubeconfig(s)
 		cs, err := kube.NewClientset(kubeconfig)
@@ -226,9 +226,9 @@ func servicesForArgs(s interface{ Get(string, string) string }, args []string) [
 		maestroNS = "maestro"
 	}
 	all := []serviceSpec{
-		{"hyperfleet-api", "hyperfleet-api", "amarin-ns1",
+		{"hyperfleet-api", "hyperfleet-api", "my-namespace",
 			portVal(s, "port-forward", "api-port", 8000), 8000},
-		{"postgresql", "postgresql", "amarin-ns1",
+		{"postgresql", "postgresql", "my-namespace",
 			portVal(s, "port-forward", "pg-port", 5432), 5432},
 		{"maestro-http", "maestro", maestroNS,
 			portVal(s, "port-forward", "maestro-http-port", 8100),
@@ -264,7 +264,7 @@ func servicesForArgs(s interface{ Get(string, string) string }, args []string) [
 		}
 		ns := s.Get("kubernetes", "namespace")
 		if ns == "" {
-			ns = "amarin-ns1"
+			ns = "my-namespace"
 		}
 		return []serviceSpec{{name: name, podPattern: name, namespace: ns, localPort: lp, remotePort: rp}}
 	}

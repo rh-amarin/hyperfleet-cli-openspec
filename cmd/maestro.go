@@ -147,6 +147,8 @@ var maestroGetCmd = &cobra.Command{
 
 // ---- maestro delete ----
 
+var deleteAllBundles bool
+
 var maestroDeleteCmd = &cobra.Command{
 	Use:   "delete [name]",
 	Short: "Delete a Maestro resource-bundle by name",
@@ -157,6 +159,39 @@ var maestroDeleteCmd = &cobra.Command{
 			return err
 		}
 		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+
+		if deleteAllBundles {
+			if len(args) > 0 {
+				return fmt.Errorf("[ERROR] --all and a bundle name are mutually exclusive")
+			}
+			list, err := c.ListResourceBundles(context.Background())
+			if err != nil {
+				return err
+			}
+			if len(list.Items) == 0 {
+				p.Warn("No resource bundles to delete")
+				return nil
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "%d resource bundle(s) will be deleted:\n", len(list.Items))
+			for _, rb := range list.Items {
+				fmt.Fprintf(cmd.OutOrStdout(), "  - %s (%s)\n", rb.Name, rb.ID)
+			}
+			fmt.Fprint(cmd.OutOrStdout(), "Type 'yes' to confirm deletion: ")
+			scanner := bufio.NewScanner(cmd.InOrStdin())
+			scanner.Scan()
+			if strings.TrimSpace(scanner.Text()) != "yes" {
+				fmt.Fprintln(cmd.OutOrStdout(), "Aborted")
+				return nil
+			}
+			for _, rb := range list.Items {
+				if err := c.DeleteResourceBundle(context.Background(), rb.ID); err != nil {
+					fmt.Fprintf(cmd.ErrOrStderr(), "[ERROR] Failed to delete '%s': %v\n", rb.Name, err)
+					continue
+				}
+				p.Info(fmt.Sprintf("Deleted resource bundle '%s' (%s)", rb.Name, rb.ID))
+			}
+			return nil
+		}
 
 		name := ""
 		if len(args) > 0 {
@@ -228,4 +263,6 @@ func init() {
 	maestroCmd.AddCommand(maestroConsumersCmd)
 	maestroCmd.AddCommand(maestroGetCmd)
 	maestroCmd.AddCommand(maestroDeleteCmd)
+
+	maestroDeleteCmd.Flags().BoolVar(&deleteAllBundles, "all", false, "Delete all resource bundles (prompts for confirmation)")
 }

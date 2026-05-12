@@ -40,6 +40,16 @@ type PortForward struct {
 	RemotePort int
 }
 
+// StartResult is returned by StartPortForward with the resolved pod details.
+type StartResult struct {
+	Name       string
+	PID        int
+	LocalPort  int
+	RemotePort int
+	Namespace  string
+	PodName    string
+}
+
 // PodNotReadyError is returned when a pod is found but not in Running phase.
 type PodNotReadyError struct {
 	Name  string
@@ -178,10 +188,10 @@ func FindRunningPod(ctx context.Context, cs kubernetes.Interface, namespace, pat
 // StartPortForward finds the pod matching podPattern, spawns a detached daemon subprocess,
 // writes a PID file, and returns immediately.
 // contextName selects a specific Kubernetes context; empty string uses the kubeconfig's current-context.
-func StartPortForward(kubeconfigPath, namespace, name, podPattern string, localPort, remotePort int, contextName string) (*PortForward, error) {
+func StartPortForward(kubeconfigPath, namespace, name, podPattern string, localPort, remotePort int, contextName string) (StartResult, error) {
 	cs, err := NewClientset(kubeconfigPath, contextName)
 	if err != nil {
-		return nil, err
+		return StartResult{}, err
 	}
 	podName, err := FindRunningPod(context.Background(), cs, namespace, podPattern)
 	if err != nil {
@@ -190,13 +200,13 @@ func StartPortForward(kubeconfigPath, namespace, name, podPattern string, localP
 			fmt.Fprintf(os.Stderr, "[WARN] %s: pod not ready (phase: %s). Port-forward may not succeed.\n",
 				name, notReady.Phase)
 		} else {
-			return nil, err
+			return StartResult{}, err
 		}
 	}
 
 	exe, err := os.Executable()
 	if err != nil {
-		return nil, fmt.Errorf("cannot find executable: %w", err)
+		return StartResult{}, fmt.Errorf("cannot find executable: %w", err)
 	}
 	resolved := resolveKubeconfig(kubeconfigPath)
 	cmd := exec.Command(exe, "kube", "port-forward", "_daemon",
@@ -207,15 +217,15 @@ func StartPortForward(kubeconfigPath, namespace, name, podPattern string, localP
 	cmd.Stderr = nil
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("starting port-forward daemon: %w", err)
+		return StartResult{}, fmt.Errorf("starting port-forward daemon: %w", err)
 	}
 	pid := cmd.Process.Pid
 	_ = cmd.Process.Release()
 
 	if err := writePIDFile(name, pid, localPort, remotePort); err != nil {
-		return nil, fmt.Errorf("writing PID file: %w", err)
+		return StartResult{}, fmt.Errorf("writing PID file: %w", err)
 	}
-	return &PortForward{Name: name, PID: pid, LocalPort: localPort, RemotePort: remotePort}, nil
+	return StartResult{Name: name, PID: pid, LocalPort: localPort, RemotePort: remotePort, Namespace: namespace, PodName: podName}, nil
 }
 
 // StopPortForward terminates the named port-forward and removes its tracking file.

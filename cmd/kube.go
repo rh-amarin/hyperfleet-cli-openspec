@@ -4,6 +4,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -47,14 +48,19 @@ var pfStartCmd = &cobra.Command{
 		}
 		services := servicesForArgs(s, args)
 		for _, svc := range services {
-			pf, err := kube.StartPortForward(kubeconfig, svc.namespace, svc.name, svc.podPattern, svc.localPort, svc.remotePort, kubeCtx)
+			sr, err := kube.StartPortForward(kubeconfig, svc.namespace, svc.name, svc.podPattern, svc.localPort, svc.remotePort, kubeCtx)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "[ERROR] %s: %v\n", svc.name, err)
 				continue
 			}
-			fmt.Printf("[INFO] Started %s: localhost:%d → %d (pid %d)\n",
-				pf.Name, pf.LocalPort, pf.RemotePort, pf.PID)
+			loc := ""
+			if sr.PodName != "" {
+				loc = fmt.Sprintf(" (%s/%s)", sr.Namespace, sr.PodName)
+			}
+			fmt.Printf("[INFO] Started %s%s: localhost:%d → %d (pid %d)\n",
+				sr.Name, loc, sr.LocalPort, sr.RemotePort, sr.PID)
 		}
+		printPortForwardStatus(cmd.OutOrStdout())
 		return nil
 	},
 }
@@ -103,30 +109,7 @@ var pfStatusCmd = &cobra.Command{
 		} else {
 			fmt.Fprintf(cmd.OutOrStdout(), "[INFO] Kubernetes context: %s\n", ctxName)
 		}
-		pfs, _ := kube.ListPortForwards()
-		if len(pfs) == 0 {
-			fmt.Println("No port-forwards tracked.")
-			return nil
-		}
-		for _, pf := range pfs {
-			connected := kube.IsPortListening(pf.LocalPort)
-			bullet := "\033[32m●\033[0m"
-			suffix := ""
-			pid := pf.PID
-			if connected {
-				// Show the PID of the process that actually owns the port,
-				// which may differ from the recorded daemon PID if the tunnel
-				// was restarted externally (e.g. by a raw kubectl port-forward).
-				if activePID, err := kube.PIDForPort(pf.LocalPort); err == nil {
-					pid = activePID
-				}
-			} else {
-				bullet = "\033[31m●\033[0m"
-				suffix = " [NOT CONNECTED]"
-			}
-			fmt.Printf("  %s %s - localhost:%d (PID: %d)%s\n",
-				bullet, pf.Name, pf.LocalPort, pid, suffix)
-		}
+		printPortForwardStatus(cmd.OutOrStdout())
 		return nil
 	},
 }
@@ -217,6 +200,35 @@ func init() {
 }
 
 // ---- helpers ----
+
+// printPortForwardStatus renders the live port-forward bullet table to w.
+// Used by both pfStartCmd (after starting) and pfStatusCmd.
+func printPortForwardStatus(w io.Writer) {
+	pfs, _ := kube.ListPortForwards()
+	if len(pfs) == 0 {
+		fmt.Fprintln(w, "No port-forwards tracked.")
+		return
+	}
+	for _, pf := range pfs {
+		connected := kube.IsPortListening(pf.LocalPort)
+		bullet := "\033[32m●\033[0m"
+		suffix := ""
+		pid := pf.PID
+		if connected {
+			// Show the PID of the process that actually owns the port,
+			// which may differ from the recorded daemon PID if the tunnel
+			// was restarted externally (e.g. by a raw kubectl port-forward).
+			if activePID, err := kube.PIDForPort(pf.LocalPort); err == nil {
+				pid = activePID
+			}
+		} else {
+			bullet = "\033[31m●\033[0m"
+			suffix = " [NOT CONNECTED]"
+		}
+		fmt.Fprintf(w, "  %s %s - localhost:%d (PID: %d)%s\n",
+			bullet, pf.Name, pf.LocalPort, pid, suffix)
+	}
+}
 
 // resolvedKubeconfig returns the kubeconfig path from the persistent flag or empty string
 // (kube.BuildConfig resolves KUBECONFIG env / ~/.kube/config when empty).

@@ -68,9 +68,6 @@ type Client struct {
 // NewFromConfig creates a Client from the active config store.
 func NewFromConfig(s *config.Store) *Client {
 	endpoint := s.Get("maestro", "http-endpoint")
-	if endpoint == "" {
-		endpoint = "http://localhost:8100"
-	}
 	return &Client{
 		httpEndpoint: strings.TrimRight(endpoint, "/"),
 		http:         &http.Client{Timeout: 30 * time.Second},

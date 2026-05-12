@@ -152,9 +152,6 @@ Example:
 			return err
 		}
 		namespace := s.Get("kubernetes", "namespace")
-		if namespace == "" {
-			namespace = "my-namespace"
-		}
 		return kube.RunCurlPod(context.Background(), resolvedKubeconfig(s), namespace, args, os.Stdout)
 	},
 }
@@ -170,9 +167,6 @@ var kubeDebugCmd = &cobra.Command{
 			return err
 		}
 		namespace := s.Get("kubernetes", "namespace")
-		if namespace == "" {
-			namespace = "my-namespace"
-		}
 		kubeconfig := resolvedKubeconfig(s)
 		cs, err := kube.NewClientset(kubeconfig)
 		if err != nil {
@@ -222,13 +216,11 @@ type serviceSpec struct {
 // servicesForArgs resolves which services to port-forward based on CLI args.
 func servicesForArgs(s interface{ Get(string, string) string }, args []string) []serviceSpec {
 	maestroNS := s.Get("maestro", "namespace")
-	if maestroNS == "" {
-		maestroNS = "maestro"
-	}
+	kubeNS := s.Get("kubernetes", "namespace")
 	all := []serviceSpec{
-		{"hyperfleet-api", "hyperfleet-api", "my-namespace",
+		{"hyperfleet-api", "hyperfleet-api", kubeNS,
 			portVal(s, "port-forward", "api-port", 8000), 8000},
-		{"postgresql", "postgresql", "my-namespace",
+		{"postgresql", "postgresql", kubeNS,
 			portVal(s, "port-forward", "pg-port", 5432), 5432},
 		{"maestro-http", "maestro", maestroNS,
 			portVal(s, "port-forward", "maestro-http-port", 8100),
@@ -263,9 +255,6 @@ func servicesForArgs(s interface{ Get(string, string) string }, args []string) [
 			return nil
 		}
 		ns := s.Get("kubernetes", "namespace")
-		if ns == "" {
-			ns = "my-namespace"
-		}
 		return []serviceSpec{{name: name, podPattern: name, namespace: ns, localPort: lp, remotePort: rp}}
 	}
 	fmt.Fprintf(os.Stderr, "[ERROR] Unknown service %q. Known: hyperfleet-api, postgresql, maestro-http, maestro-grpc\n", name)

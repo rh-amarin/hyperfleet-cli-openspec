@@ -11,11 +11,18 @@ var completionCmd = &cobra.Command{
 	Short: "Generate shell completion scripts",
 	Long: `Generate shell completion scripts for hf.
 
-Example (bash):
-  source <(hf completion bash)
+To load completions in the current session:
 
-Example (zsh):
-  hf completion zsh > "${fpath[1]}/_hf"`,
+  Bash:        source <(hf completion bash)
+  Zsh:         source <(hf completion zsh)
+  Fish:        hf completion fish | source
+  PowerShell:  hf completion powershell | Out-String | Invoke-Expression
+
+To install completions permanently:
+
+  Bash:   hf completion bash > /etc/bash_completion.d/hf
+  Zsh:    hf completion zsh > "${fpath[1]}/_hf"
+  Fish:   hf completion fish > ~/.config/fish/completions/hf.fish`,
 	ValidArgs: []string{"bash", "zsh", "fish", "powershell"},
 	Args:      cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
 	RunE: func(cmd *cobra.Command, args []string) error {

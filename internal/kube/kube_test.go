@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -78,6 +79,65 @@ func TestBuildConfig_HFKubeTokenOverride(t *testing.T) {
 	}
 	if config.BearerToken != "override-token" {
 		t.Errorf("expected bearer token override, got: %q", config.BearerToken)
+	}
+}
+
+func TestIsPortListening_NotListening(t *testing.T) {
+	// Bind then immediately close a port; after Close it must not be detected as listening.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("could not bind test port: %v", err)
+	}
+	port := ln.Addr().(*net.TCPAddr).Port
+	ln.Close()
+
+	if IsPortListening(port) {
+		t.Errorf("port %d should not be listening after Close", port)
+	}
+}
+
+func TestIsPortListening_Listening(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("could not bind test port: %v", err)
+	}
+	defer ln.Close()
+	port := ln.Addr().(*net.TCPAddr).Port
+
+	if !IsPortListening(port) {
+		t.Errorf("expected port %d to be listening", port)
+	}
+}
+
+func TestPIDForPort_Listening(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("could not bind test port: %v", err)
+	}
+	defer ln.Close()
+	port := ln.Addr().(*net.TCPAddr).Port
+
+	pid, err := PIDForPort(port)
+	if err != nil {
+		t.Skipf("lsof unavailable or failed (port %d): %v", port, err)
+	}
+	if pid != os.Getpid() {
+		t.Errorf("PIDForPort(%d) = %d, want current PID %d", port, pid, os.Getpid())
+	}
+}
+
+func TestPIDForPort_NotListening(t *testing.T) {
+	// Grab a free port number then release it so nothing is listening.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("could not bind: %v", err)
+	}
+	port := ln.Addr().(*net.TCPAddr).Port
+	ln.Close()
+
+	_, err = PIDForPort(port)
+	if err == nil {
+		t.Errorf("expected error for non-listening port %d", port)
 	}
 }
 

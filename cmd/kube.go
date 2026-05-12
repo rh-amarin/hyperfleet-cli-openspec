@@ -92,14 +92,23 @@ var pfStatusCmd = &cobra.Command{
 			return nil
 		}
 		for _, pf := range pfs {
+			connected := kube.IsPortListening(pf.LocalPort)
 			bullet := "\033[32m●\033[0m"
 			suffix := ""
-			if !kube.IsProcessAlive(pf.PID) {
+			pid := pf.PID
+			if connected {
+				// Show the PID of the process that actually owns the port,
+				// which may differ from the recorded daemon PID if the tunnel
+				// was restarted externally (e.g. by a raw kubectl port-forward).
+				if activePID, err := kube.PIDForPort(pf.LocalPort); err == nil {
+					pid = activePID
+				}
+			} else {
 				bullet = "\033[31m●\033[0m"
-				suffix = " [DEAD]"
+				suffix = " [NOT CONNECTED]"
 			}
 			fmt.Printf("  %s %s - localhost:%d (PID: %d)%s\n",
-				bullet, pf.Name, pf.LocalPort, pf.PID, suffix)
+				bullet, pf.Name, pf.LocalPort, pid, suffix)
 		}
 		return nil
 	},

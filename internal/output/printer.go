@@ -10,7 +10,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"unicode/utf8"
 
 	"golang.org/x/term"
 	"gopkg.in/yaml.v3"
@@ -163,9 +162,60 @@ func stripANSI(s string) string {
 	return b.String()
 }
 
-// displayWidth returns the visible character count of s (ANSI codes excluded).
+// runeWidth returns the number of terminal columns a rune occupies.
+// Most runes are 1 column wide; CJK ideographs, full-width forms, and many
+// emoji are 2 columns wide. This avoids a third-party dependency by covering
+// the Unicode ranges that are actually wide (East Asian Width = Wide or
+// Fullwidth) plus the common Emoji block used in this CLI (e.g. U+274C ❌).
+func runeWidth(r rune) int {
+	switch {
+	case r >= 0x1100 && r <= 0x115F: // Hangul Jamo
+		return 2
+	case r >= 0x2E80 && r <= 0x303E: // CJK Radicals, Kangxi, etc.
+		return 2
+	case r >= 0x3041 && r <= 0x33BF: // Hiragana … CJK Compatibility
+		return 2
+	case r >= 0x33FF && r <= 0xA4CF: // CJK Unified Ideographs Extension A, etc.
+		return 2
+	case r >= 0xA960 && r <= 0xA97F: // Hangul Jamo Extended-A
+		return 2
+	case r >= 0xAC00 && r <= 0xD7FF: // Hangul Syllables
+		return 2
+	case r >= 0xF900 && r <= 0xFAFF: // CJK Compatibility Ideographs
+		return 2
+	case r >= 0xFE10 && r <= 0xFE19: // Vertical forms
+		return 2
+	case r >= 0xFE30 && r <= 0xFE6F: // CJK Compatibility Forms, Small Forms
+		return 2
+	case r >= 0xFF01 && r <= 0xFF60: // Fullwidth Latin, Katakana, etc.
+		return 2
+	case r >= 0xFFE0 && r <= 0xFFE6: // Fullwidth signs
+		return 2
+	case r >= 0x1B000 && r <= 0x1B0FF: // Kana Supplement
+		return 2
+	case r >= 0x1F004 && r <= 0x1F0CF: // Playing cards, Mahjong
+		return 2
+	case r >= 0x1F200 && r <= 0x1FFFF: // Enclosed Ideographic, Misc symbols, Emoji
+		return 2
+	case r >= 0x20000 && r <= 0x2FFFD: // CJK Unified Ideographs Extension B–F
+		return 2
+	case r >= 0x30000 && r <= 0x3FFFD: // CJK Unified Ideographs Extension G+
+		return 2
+	case r >= 0x2600 && r <= 0x27BF: // Misc Symbols, Dingbats (includes ❌ U+274C)
+		return 2
+	default:
+		return 1
+	}
+}
+
+// displayWidth returns the number of terminal columns s occupies (ANSI codes excluded).
+// It accounts for wide Unicode characters (emoji, CJK) that occupy 2 columns each.
 func displayWidth(s string) int {
-	return utf8.RuneCountInString(stripANSI(s))
+	w := 0
+	for _, r := range stripANSI(s) {
+		w += runeWidth(r)
+	}
+	return w
 }
 
 // WrapHeader splits a header string into lines of at most maxWidth characters.

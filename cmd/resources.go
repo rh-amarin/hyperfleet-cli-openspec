@@ -3,6 +3,7 @@ package cmd
 
 import (
 	"context"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -50,33 +51,43 @@ func runResources(cmd *cobra.Command, _ []string) error {
 	if resourcesWatchMode && effectiveFmt == "table" {
 		ctx, cancel := watchContext(context.Background())
 		defer cancel()
-		return runWatch(ctx, cmd.OutOrStdout(), resourcesWatchSecs, func(tick int) error {
-			return fetchAndRenderResources(cmd, effectiveFmt, tick, resourcesWatchSecs)
+
+		var (
+			cachedEntries  []clusterEntry
+			cachedCondCols []string
+			cachedAdCols   []string
+		)
+		return runWatchFast(ctx, cmd.OutOrStdout(), resourcesWatchSecs, func(tick int, refresh bool) error {
+			if refresh || cachedEntries == nil {
+				entries, condCols, adCols, err := fetchResourceEntries(cmd)
+				if err != nil {
+					p := output.NewPrinter("table", noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+					return handleAPIError(p, err)
+				}
+				cachedEntries, cachedCondCols, cachedAdCols = entries, condCols, adCols
+			}
+			return renderResourcesTable(cmd, cachedEntries, cachedCondCols, cachedAdCols, tick, resourcesWatchSecs)
 		})
 	}
 
 	return fetchAndRenderResources(cmd, effectiveFmt, 0, 0)
 }
 
-func fetchAndRenderResources(cmd *cobra.Command, effectiveFmt string, tick, frequencySecs int) error {
+// fetchResourceEntries fetches all clusters with their adapter statuses and nodepools
+// for table rendering. Returns raw errors without printing them.
+func fetchResourceEntries(cmd *cobra.Command) (entries []clusterEntry, condCols, adCols []string, err error) {
 	s, err := loadConfig()
 	if err != nil {
-		return err
+		return
 	}
 	client := newAPIClient(s)
-	p := output.NewPrinter(effectiveFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
 	clusterList, err := api.Get[resource.ListResponse[resource.Cluster]](context.Background(), client, "clusters")
 	if err != nil {
-		return handleAPIError(p, err)
+		return
 	}
 
-	if effectiveFmt != "table" {
-		return p.Print(clusterList)
-	}
-
-	// Fetch adapter statuses and nodepools for each cluster.
-	entries := make([]clusterEntry, 0, len(clusterList.Items))
+	entries = make([]clusterEntry, 0, len(clusterList.Items))
 	for _, cl := range clusterList.Items {
 		var adStatuses resource.ListResponse[resource.AdapterStatus]
 		adStatuses, _ = api.Get[resource.ListResponse[resource.AdapterStatus]](
@@ -106,8 +117,14 @@ func fetchAndRenderResources(cmd *cobra.Command, effectiveFmt string, tick, freq
 		})
 	}
 
-	condCols := collectConditionCols(entries)
-	adapterCols := collectAdapterCols(entries)
+	condCols = collectConditionCols(entries)
+	adCols = collectAdapterCols(entries)
+	return
+}
+
+// renderResourcesTable renders the cluster+nodepool table from pre-fetched data.
+func renderResourcesTable(cmd *cobra.Command, entries []clusterEntry, condCols, adapterCols []string, tick, frequencySecs int) error {
+	p := output.NewPrinter("table", noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
 	headers := make([]string, 0, 3+len(condCols)+len(adapterCols))
 	headers = append(headers, "ID", "NAME", "GEN")
@@ -123,6 +140,29 @@ func fetchAndRenderResources(cmd *cobra.Command, effectiveFmt string, tick, freq
 	}
 
 	return p.PrintTable(headers, rows)
+}
+
+func fetchAndRenderResources(cmd *cobra.Command, effectiveFmt string, tick, frequencySecs int) error {
+	if effectiveFmt != "table" {
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		client := newAPIClient(s)
+		p := output.NewPrinter(effectiveFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+		clusterList, err := api.Get[resource.ListResponse[resource.Cluster]](context.Background(), client, "clusters")
+		if err != nil {
+			return handleAPIError(p, err)
+		}
+		return p.Print(clusterList)
+	}
+
+	entries, condCols, adCols, err := fetchResourceEntries(cmd)
+	if err != nil {
+		p := output.NewPrinter(effectiveFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+		return handleAPIError(p, err)
+	}
+	return renderResourcesTable(cmd, entries, condCols, adCols, tick, frequencySecs)
 }
 
 // collectConditionCols returns unique condition types (excluding *Successful) in insertion order.
@@ -148,39 +188,61 @@ func collectConditionCols(entries []clusterEntry) []string {
 	return cols
 }
 
-// collectAdapterCols returns unique adapter names across all adapter statuses in insertion order.
+// collectAdapterCols returns unique adapter names sorted by the earliest
+// created_time seen for each adapter across all entries. RFC 3339 strings
+// compare lexicographically in chronological order, so no parsing is needed.
+// Adapters with the same (or absent) timestamp are sorted alphabetically.
 func collectAdapterCols(entries []clusterEntry) []string {
-	seen := map[string]bool{}
-	var cols []string
-	add := func(name string) {
-		if !seen[name] {
-			seen[name] = true
-			cols = append(cols, name)
+	earliest := map[string]string{} // adapter name → earliest created_time
+
+	consider := func(as resource.AdapterStatus) {
+		t := as.CreatedTime
+		prev, seen := earliest[as.Adapter]
+		if !seen || (t != "" && (prev == "" || t < prev)) {
+			earliest[as.Adapter] = t
 		}
 	}
+
 	for _, e := range entries {
 		for _, as := range e.adapterStatuses {
-			add(as.Adapter)
+			consider(as)
 		}
 		for _, statuses := range e.npStatuses {
 			for _, as := range statuses {
-				add(as.Adapter)
+				consider(as)
 			}
 		}
 	}
-	return cols
+
+	names := make([]string, 0, len(earliest))
+	for name := range earliest {
+		names = append(names, name)
+	}
+	sort.Slice(names, func(i, j int) bool {
+		ti, tj := earliest[names[i]], earliest[names[j]]
+		if ti != tj {
+			return ti < tj
+		}
+		return names[i] < names[j]
+	})
+	return names
 }
 
 // adapterDot returns the status cell for a named adapter column.
-// When the adapter has a recent last_report_time (within 2×frequencySecs), a spinner frame is prepended.
+// In watch mode (frequencySecs > 0) a 2-char spinner slot is always reserved so
+// column widths stay stable: active adapters show the animated frame, inactive
+// ones show two spaces, and the table never re-flows between renders.
 func adapterDot(statuses []resource.AdapterStatus, adName, condKey string, tick, frequencySecs int) string {
 	for _, as := range statuses {
 		if as.Adapter == adName {
 			for _, c := range as.Conditions {
 				if c.Type == condKey {
 					cell := output.StatusDot(c.Status, noColor) + " " + strconv.Itoa(int(as.ObservedGeneration))
-					if output.IsActive(as.LastReportTime, frequencySecs) {
+					switch {
+					case output.IsActive(as.LastReportTime, frequencySecs):
 						cell = output.SpinnerFrame(tick) + " " + cell
+					case frequencySecs > 0:
+						cell = "  " + cell // reserve space so columns don't shift
 					}
 					return cell
 				}

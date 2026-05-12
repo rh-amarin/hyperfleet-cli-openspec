@@ -30,8 +30,8 @@ The CLI SHALL manage port forwards to HyperFleet services running in Kubernetes.
 Predefined services:
 | name           | pod pattern    | namespace  | local port | remote port |
 |----------------|----------------|------------|------------|-------------|
-| hyperfleet-api | hyperfleet-api | my-namespace | 8000       | 8000        |
-| postgresql     | postgresql     | my-namespace | 5432       | 5432        |
+| hyperfleet-api | hyperfleet-api | hyperfleet | 8000       | 8000        |
+| postgresql     | postgresql     | hyperfleet | 5432       | 5432        |
 | maestro-http   | maestro        | maestro    | 8100       | 8000        |
 | maestro-grpc   | maestro        | maestro    | 8090       | 8090        |
 

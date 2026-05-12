@@ -103,7 +103,7 @@ hf logs insights [-s <duration>]
 
 - Flag: `--since` / `-s` `string`, default `"1m"`.
 - Parse duration with `time.ParseDuration`; convert to `int64` seconds.
-- Determine namespace from config (default `"my-namespace"`).
+- Determine namespace from config (default `"hyperfleet"`).
 - Build `kube.NewClientset` from resolved kubeconfig.
 - Collect logs in parallel for three pod groups: `"api"`, `"sentinel"`, `"adapter"`.
 - Call the three parsers.

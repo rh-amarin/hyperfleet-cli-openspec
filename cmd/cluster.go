@@ -45,12 +45,6 @@ var (
 func newAPIClient(s *config.Store) *api.Client {
 	apiURLVal := s.Get("hyperfleet", "api-url")
 	apiVersion := s.Get("hyperfleet", "api-version")
-	if apiURLVal == "" {
-		apiURLVal = "http://localhost:8000"
-	}
-	if apiVersion == "" {
-		apiVersion = "v1"
-	}
 	baseURL := strings.TrimRight(apiURLVal, "/") + "/api/hyperfleet/" + apiVersion + "/"
 	token := s.Get("hyperfleet", "token")
 	return api.NewClient(baseURL, token, verbose)

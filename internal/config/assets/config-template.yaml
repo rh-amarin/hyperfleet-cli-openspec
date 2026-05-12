@@ -6,7 +6,7 @@ hyperfleet:
 
 kubernetes:
   context: ""
-  namespace: ""
+  namespace: "hyperfleet"
 
 maestro:
   consumer: "cluster1"

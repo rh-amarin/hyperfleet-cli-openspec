@@ -35,7 +35,7 @@ The CLI SHALL ship a default environment template embedded in the binary. The te
 
   kubernetes:
     context: ""
-    namespace: ""
+    namespace: "hyperfleet"
 
   maestro:
     consumer: "cluster1"

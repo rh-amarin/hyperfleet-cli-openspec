@@ -159,10 +159,10 @@ func TestIsProcessAlive_InvalidPID(t *testing.T) {
 
 func TestFindRunningPod_Found(t *testing.T) {
 	cs := fake.NewSimpleClientset(&corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{Name: "hyperfleet-api-xyz", Namespace: "my-namespace"},
+		ObjectMeta: metav1.ObjectMeta{Name: "hyperfleet-api-xyz", Namespace: "hyperfleet"},
 		Status:     corev1.PodStatus{Phase: corev1.PodRunning},
 	})
-	name, err := FindRunningPod(context.Background(), cs, "my-namespace", "hyperfleet-api")
+	name, err := FindRunningPod(context.Background(), cs, "hyperfleet", "hyperfleet-api")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -173,10 +173,10 @@ func TestFindRunningPod_Found(t *testing.T) {
 
 func TestFindRunningPod_NotRunning(t *testing.T) {
 	cs := fake.NewSimpleClientset(&corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{Name: "hyperfleet-api-abc", Namespace: "my-namespace"},
+		ObjectMeta: metav1.ObjectMeta{Name: "hyperfleet-api-abc", Namespace: "hyperfleet"},
 		Status:     corev1.PodStatus{Phase: corev1.PodPending},
 	})
-	name, err := FindRunningPod(context.Background(), cs, "my-namespace", "hyperfleet-api")
+	name, err := FindRunningPod(context.Background(), cs, "hyperfleet", "hyperfleet-api")
 	if err == nil {
 		t.Fatal("expected PodNotReadyError")
 	}
@@ -194,7 +194,7 @@ func TestFindRunningPod_NotRunning(t *testing.T) {
 
 func TestFindRunningPod_NotFound(t *testing.T) {
 	cs := fake.NewSimpleClientset()
-	_, err := FindRunningPod(context.Background(), cs, "my-namespace", "missing-pod")
+	_, err := FindRunningPod(context.Background(), cs, "hyperfleet", "missing-pod")
 	if err == nil {
 		t.Fatal("expected error for missing pod")
 	}

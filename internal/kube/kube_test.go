@@ -44,7 +44,7 @@ func TestBuildConfig_ValidFile(t *testing.T) {
 	if err := os.WriteFile(path, []byte(minimalKubeconfig), 0600); err != nil {
 		t.Fatal(err)
 	}
-	config, err := BuildConfig(path)
+	config, err := BuildConfig(path, "")
 	if err != nil {
 		t.Fatalf("BuildConfig returned error: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestBuildConfig_ValidFile(t *testing.T) {
 }
 
 func TestBuildConfig_MissingFile(t *testing.T) {
-	_, err := BuildConfig("/nonexistent/path/kubeconfig")
+	_, err := BuildConfig("/nonexistent/path/kubeconfig", "")
 	if err == nil {
 		t.Fatal("expected error for missing kubeconfig")
 	}
@@ -73,12 +73,57 @@ func TestBuildConfig_HFKubeTokenOverride(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("HF_KUBE_TOKEN", "override-token")
-	config, err := BuildConfig(path)
+	config, err := BuildConfig(path, "")
 	if err != nil {
 		t.Fatalf("BuildConfig returned error: %v", err)
 	}
 	if config.BearerToken != "override-token" {
 		t.Errorf("expected bearer token override, got: %q", config.BearerToken)
+	}
+}
+
+func TestResolvedContext_CurrentContext(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "kubeconfig")
+	if err := os.WriteFile(path, []byte(minimalKubeconfig), 0600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := ResolvedContext(path, "")
+	if err != nil {
+		t.Fatalf("ResolvedContext returned error: %v", err)
+	}
+	if ctx != "test-context" {
+		t.Errorf("expected test-context, got %q", ctx)
+	}
+}
+
+func TestResolvedContext_Override(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "kubeconfig")
+	if err := os.WriteFile(path, []byte(minimalKubeconfig), 0600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := ResolvedContext(path, "test-context")
+	if err != nil {
+		t.Fatalf("ResolvedContext returned error: %v", err)
+	}
+	if ctx != "test-context" {
+		t.Errorf("expected test-context, got %q", ctx)
+	}
+}
+
+func TestResolvedContext_NonexistentContext(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "kubeconfig")
+	if err := os.WriteFile(path, []byte(minimalKubeconfig), 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := ResolvedContext(path, "nonexistent-context")
+	if err == nil {
+		t.Fatal("expected error for nonexistent context")
+	}
+	if !strings.Contains(err.Error(), "nonexistent-context") {
+		t.Errorf("expected error to mention context name, got: %v", err)
 	}
 }
 

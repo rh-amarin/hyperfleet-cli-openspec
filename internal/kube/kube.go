@@ -50,14 +50,44 @@ func (e *PodNotReadyError) Error() string {
 	return fmt.Sprintf("pod %s not ready (phase: %s)", e.Name, e.Phase)
 }
 
+// ResolvedContext returns the Kubernetes context name that will be used for API calls.
+// If contextName is non-empty it is returned after verifying the context exists in the kubeconfig.
+// If contextName is empty the kubeconfig's current-context name is returned.
+func ResolvedContext(kubeconfigPath, contextName string) (string, error) {
+	resolved := resolveKubeconfig(kubeconfigPath)
+	loadingRules := &clientcmd.ClientConfigLoadingRules{ExplicitPath: resolved}
+	rawCfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		loadingRules, &clientcmd.ConfigOverrides{},
+	).RawConfig()
+	if err != nil {
+		return "", err
+	}
+	if contextName != "" {
+		if _, ok := rawCfg.Contexts[contextName]; !ok {
+			return "", fmt.Errorf("context %q not found in kubeconfig", contextName)
+		}
+		return contextName, nil
+	}
+	if rawCfg.CurrentContext == "" {
+		return "", fmt.Errorf("no current context in kubeconfig")
+	}
+	return rawCfg.CurrentContext, nil
+}
+
 // BuildConfig builds a REST config from kubeconfig.
 // Resolution order: kubeconfigPath arg → KUBECONFIG env → ~/.kube/config.
-func BuildConfig(kubeconfigPath string) (*rest.Config, error) {
+// contextName selects a specific context; empty string uses the kubeconfig's current-context.
+func BuildConfig(kubeconfigPath, contextName string) (*rest.Config, error) {
 	resolved := resolveKubeconfig(kubeconfigPath)
 	if _, err := os.Stat(resolved); os.IsNotExist(err) {
 		return nil, fmt.Errorf("[ERROR] kubeconfig not found at %s. Set KUBECONFIG or use --kubeconfig.", resolved)
 	}
-	config, err := clientcmd.BuildConfigFromFlags("", resolved)
+	loadingRules := &clientcmd.ClientConfigLoadingRules{ExplicitPath: resolved}
+	overrides := &clientcmd.ConfigOverrides{}
+	if contextName != "" {
+		overrides.CurrentContext = contextName
+	}
+	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, overrides).ClientConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -69,8 +99,9 @@ func BuildConfig(kubeconfigPath string) (*rest.Config, error) {
 }
 
 // NewClientset creates a Kubernetes clientset from kubeconfig.
-func NewClientset(kubeconfigPath string) (kubernetes.Interface, error) {
-	config, err := BuildConfig(kubeconfigPath)
+// contextName selects a specific context; empty string uses the kubeconfig's current-context.
+func NewClientset(kubeconfigPath, contextName string) (kubernetes.Interface, error) {
+	config, err := BuildConfig(kubeconfigPath, contextName)
 	if err != nil {
 		return nil, err
 	}
@@ -146,8 +177,9 @@ func FindRunningPod(ctx context.Context, cs kubernetes.Interface, namespace, pat
 
 // StartPortForward finds the pod matching podPattern, spawns a detached daemon subprocess,
 // writes a PID file, and returns immediately.
-func StartPortForward(kubeconfigPath, namespace, name, podPattern string, localPort, remotePort int) (*PortForward, error) {
-	cs, err := NewClientset(kubeconfigPath)
+// contextName selects a specific Kubernetes context; empty string uses the kubeconfig's current-context.
+func StartPortForward(kubeconfigPath, namespace, name, podPattern string, localPort, remotePort int, contextName string) (*PortForward, error) {
+	cs, err := NewClientset(kubeconfigPath, contextName)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +201,7 @@ func StartPortForward(kubeconfigPath, namespace, name, podPattern string, localP
 	resolved := resolveKubeconfig(kubeconfigPath)
 	cmd := exec.Command(exe, "kube", "port-forward", "_daemon",
 		resolved, namespace, podName,
-		strconv.Itoa(localPort), strconv.Itoa(remotePort))
+		strconv.Itoa(localPort), strconv.Itoa(remotePort), contextName)
 	cmd.Stdin = nil
 	cmd.Stdout = nil
 	cmd.Stderr = nil
@@ -233,12 +265,13 @@ func ListPortForwards() ([]PortForward, error) {
 
 // RunPortForwardDaemon runs a blocking client-go port-forward for podName.
 // Called by the hidden _daemon subcommand in a detached subprocess.
-func RunPortForwardDaemon(kubeconfigPath, namespace, podName string, localPort, remotePort int) error {
-	config, err := BuildConfig(kubeconfigPath)
+// contextName selects a specific Kubernetes context; empty string uses the kubeconfig's current-context.
+func RunPortForwardDaemon(kubeconfigPath, namespace, podName string, localPort, remotePort int, contextName string) error {
+	config, err := BuildConfig(kubeconfigPath, contextName)
 	if err != nil {
 		return err
 	}
-	cs, err := NewClientset(kubeconfigPath)
+	cs, err := NewClientset(kubeconfigPath, contextName)
 	if err != nil {
 		return err
 	}
@@ -360,12 +393,13 @@ func CollectLogs(ctx context.Context, cs kubernetes.Interface, namespace, podPat
 }
 
 // RunCurlPod creates or reuses an hf-curl pod and runs curl inside it via SPDY exec.
-func RunCurlPod(ctx context.Context, kubeconfigPath, namespace string, curlArgs []string, w io.Writer) error {
-	cs, err := NewClientset(kubeconfigPath)
+// contextName selects a specific Kubernetes context; empty string uses the kubeconfig's current-context.
+func RunCurlPod(ctx context.Context, kubeconfigPath, namespace, contextName string, curlArgs []string, w io.Writer) error {
+	cs, err := NewClientset(kubeconfigPath, contextName)
 	if err != nil {
 		return err
 	}
-	config, err := BuildConfig(kubeconfigPath)
+	config, err := BuildConfig(kubeconfigPath, contextName)
 	if err != nil {
 		return err
 	}

@@ -39,9 +39,15 @@ var pfStartCmd = &cobra.Command{
 			return err
 		}
 		kubeconfig := resolvedKubeconfig(s)
+		kubeCtx := s.Get("kubernetes", "context")
+		if ctxName, err := kube.ResolvedContext(kubeconfig, kubeCtx); err != nil {
+			fmt.Fprintf(cmd.OutOrStdout(), "[WARN] Could not resolve kubernetes context: %v\n", err)
+		} else {
+			fmt.Fprintf(cmd.OutOrStdout(), "[INFO] Kubernetes context: %s\n", ctxName)
+		}
 		services := servicesForArgs(s, args)
 		for _, svc := range services {
-			pf, err := kube.StartPortForward(kubeconfig, svc.namespace, svc.name, svc.podPattern, svc.localPort, svc.remotePort)
+			pf, err := kube.StartPortForward(kubeconfig, svc.namespace, svc.name, svc.podPattern, svc.localPort, svc.remotePort, kubeCtx)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "[ERROR] %s: %v\n", svc.name, err)
 				continue
@@ -86,6 +92,17 @@ var pfStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show port-forward status",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		kubeconfig := resolvedKubeconfig(s)
+		kubeCtx := s.Get("kubernetes", "context")
+		if ctxName, err := kube.ResolvedContext(kubeconfig, kubeCtx); err != nil {
+			fmt.Fprintf(cmd.OutOrStdout(), "[WARN] Could not resolve kubernetes context: %v\n", err)
+		} else {
+			fmt.Fprintf(cmd.OutOrStdout(), "[INFO] Kubernetes context: %s\n", ctxName)
+		}
 		pfs, _ := kube.ListPortForwards()
 		if len(pfs) == 0 {
 			fmt.Println("No port-forwards tracked.")
@@ -116,9 +133,9 @@ var pfStatusCmd = &cobra.Command{
 
 // pfDaemonCmd is the hidden daemon invoked by StartPortForward as a detached subprocess.
 var pfDaemonCmd = &cobra.Command{
-	Use:    "_daemon <kubeconfig> <namespace> <podName> <localPort> <remotePort>",
+	Use:    "_daemon <kubeconfig> <namespace> <podName> <localPort> <remotePort> <context>",
 	Hidden: true,
-	Args:   cobra.ExactArgs(5),
+	Args:   cobra.ExactArgs(6),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		localPort, err := strconv.Atoi(args[3])
 		if err != nil {
@@ -128,7 +145,7 @@ var pfDaemonCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("invalid remotePort: %v", err)
 		}
-		return kube.RunPortForwardDaemon(args[0], args[1], args[2], localPort, remotePort)
+		return kube.RunPortForwardDaemon(args[0], args[1], args[2], localPort, remotePort, args[5])
 	},
 }
 
@@ -152,7 +169,8 @@ Example:
 			return err
 		}
 		namespace := s.Get("kubernetes", "namespace")
-		return kube.RunCurlPod(context.Background(), resolvedKubeconfig(s), namespace, args, os.Stdout)
+		kubeCtx := s.Get("kubernetes", "context")
+		return kube.RunCurlPod(context.Background(), resolvedKubeconfig(s), namespace, kubeCtx, args, os.Stdout)
 	},
 }
 
@@ -168,11 +186,12 @@ var kubeDebugCmd = &cobra.Command{
 		}
 		namespace := s.Get("kubernetes", "namespace")
 		kubeconfig := resolvedKubeconfig(s)
-		cs, err := kube.NewClientset(kubeconfig)
+		kubeCtx := s.Get("kubernetes", "context")
+		cs, err := kube.NewClientset(kubeconfig, kubeCtx)
 		if err != nil {
 			return fmt.Errorf("[ERROR] %v", err)
 		}
-		config, err := kube.BuildConfig(kubeconfig)
+		config, err := kube.BuildConfig(kubeconfig, kubeCtx)
 		if err != nil {
 			return fmt.Errorf("[ERROR] %v", err)
 		}

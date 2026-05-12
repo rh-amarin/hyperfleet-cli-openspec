@@ -50,7 +50,7 @@ Subcommands: adapter.`,
 		}
 
 		// Fallback: goroutine fan-out via client-go.
-		cs, err := kube.NewClientset(resolvedKubeconfig(s))
+		cs, err := kube.NewClientset(resolvedKubeconfig(s), "")
 		if err != nil {
 			return fmt.Errorf("[ERROR] %v", err)
 		}
@@ -84,7 +84,7 @@ Lines are displayed as: [pod] <time>  <LEVEL>  <msg>`,
 			clusterID = s.GetState("cluster-id")
 		}
 
-		cs, err := kube.NewClientset(resolvedKubeconfig(s))
+		cs, err := kube.NewClientset(resolvedKubeconfig(s), "")
 		if err != nil {
 			return fmt.Errorf("[ERROR] %v", err)
 		}
@@ -119,7 +119,7 @@ summary of what the system has been doing.
 		}
 		namespace := s.Get("kubernetes", "namespace")
 
-		cs, err := kube.NewClientset(resolvedKubeconfig(s))
+		cs, err := kube.NewClientset(resolvedKubeconfig(s), "")
 		if err != nil {
 			return fmt.Errorf("[ERROR] %v", err)
 		}

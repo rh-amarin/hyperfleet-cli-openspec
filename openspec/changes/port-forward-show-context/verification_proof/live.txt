@@ -1,0 +1,10 @@
+=== hf kube port-forward status ===
+[INFO] Kubernetes context: gke_hcm-hyperfleet_europe-southwest1-a_hyperfleet-dev-amarin-eu1
+  [32m●[0m api-hyperfleet-api - localhost:8000 (PID: 19125)
+  [31m●[0m maestro-grpc - localhost:8090 (PID: 19104) [NOT CONNECTED]
+  [31m●[0m maestro-http - localhost:8100 (PID: 19098) [NOT CONNECTED]
+
+=== hf kube port-forward start (no active port-forwards; expected pod not found errors) ===
+[INFO] Kubernetes context: gke_hcm-hyperfleet_europe-southwest1-a_hyperfleet-dev-amarin-eu1
+[WARN] hyperfleet-api: pod not ready (phase: Pending). Port-forward may not succeed.
+[INFO] Started hyperfleet-api: localhost:8000 → 8000 (pid 20195)

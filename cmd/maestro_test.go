@@ -63,11 +63,20 @@ func resetMaestroFlags() {
 	outputFmt = "json"
 	noColor = false
 	verbose = false
+	deleteAllBundles = false
 }
 
 func runMaestroCmd(t *testing.T, dir string, args ...string) (string, error) {
 	t.Helper()
 	resetMaestroFlags()
+	return runCmd(t, dir, args...)
+}
+
+func runMaestroCmdWithStdin(t *testing.T, dir, stdin string, args ...string) (string, error) {
+	t.Helper()
+	resetMaestroFlags()
+	rootCmd.SetIn(strings.NewReader(stdin))
+	t.Cleanup(func() { rootCmd.SetIn(nil) })
 	return runCmd(t, dir, args...)
 }
 
@@ -230,5 +239,85 @@ func TestMaestroDelete_NotFound(t *testing.T) {
 	// Not found → exit 0 with WARN message.
 	if err != nil {
 		t.Fatalf("maestro delete not-found should exit 0, got: %v", err)
+	}
+}
+
+func TestMaestroDelete_All_Confirmed(t *testing.T) {
+	var deletedIDs []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/maestro/v1/resource-bundles":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"items":[
+				{"id":"id-1","name":"bundle-a","kind":"ResourceBundle"},
+				{"id":"id-2","name":"bundle-b","kind":"ResourceBundle"}
+			],"kind":"ResourceBundleList","total":2}`)
+		case r.Method == http.MethodDelete:
+			deletedIDs = append(deletedIDs, r.URL.Path)
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	dir := setupMaestroEnv(t, "http://localhost:9999", srv.URL)
+	out, err := runMaestroCmdWithStdin(t, dir, "yes\n", "maestro", "delete", "--all")
+	if err != nil {
+		t.Fatalf("maestro delete --all: %v", err)
+	}
+	if len(deletedIDs) != 2 {
+		t.Errorf("expected 2 DELETE requests, got %d: %v", len(deletedIDs), deletedIDs)
+	}
+	if !strings.Contains(out, "2 resource bundle(s) will be deleted") {
+		t.Errorf("expected count in output, got: %q", out)
+	}
+	if !strings.Contains(out, "bundle-a") || !strings.Contains(out, "bundle-b") {
+		t.Errorf("expected bundle names in output, got: %q", out)
+	}
+}
+
+func TestMaestroDelete_All_Aborted(t *testing.T) {
+	var deleteCount int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet:
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, bundleListJSON)
+		case r.Method == http.MethodDelete:
+			deleteCount++
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	dir := setupMaestroEnv(t, "http://localhost:9999", srv.URL)
+	out, err := runMaestroCmdWithStdin(t, dir, "no\n", "maestro", "delete", "--all")
+	if err != nil {
+		t.Fatalf("unexpected error on abort: %v", err)
+	}
+	if deleteCount != 0 {
+		t.Errorf("expected no DELETE requests after abort, got %d", deleteCount)
+	}
+	if !strings.Contains(out, "Aborted") {
+		t.Errorf("expected 'Aborted' in output, got: %q", out)
+	}
+}
+
+func TestMaestroDelete_All_MutuallyExclusiveWithName(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	dir := setupMaestroEnv(t, "http://localhost:9999", srv.URL)
+	_, err := runMaestroCmd(t, dir, "maestro", "delete", "--all", "some-name")
+	if err == nil {
+		t.Fatal("expected error when --all and name are both provided")
+	}
+	if !strings.Contains(err.Error(), "mutually exclusive") {
+		t.Errorf("expected 'mutually exclusive' error, got: %v", err)
 	}
 }

@@ -946,3 +946,37 @@ func TestClusterListSecondsFlagRegistered(t *testing.T) {
 		t.Errorf("-s default = %q, want %q", f.DefValue, "5")
 	}
 }
+
+// ---- cluster id ----
+
+func TestClusterID(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("unexpected API call: %s %s", r.Method, r.URL.Path)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	clusterID := "019dc049-e79e-72a9-94f8-0056a11193cd"
+
+	t.Run("prints ID when set", func(t *testing.T) {
+		setClusterIDInState(t, dir, "test", clusterID)
+		out, err := runClusterCmd(t, dir, "cluster", "id")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if strings.TrimSpace(out) != clusterID {
+			t.Errorf("got %q, want %q", strings.TrimSpace(out), clusterID)
+		}
+	})
+
+	t.Run("errors when not set", func(t *testing.T) {
+		setClusterIDInState(t, dir, "test", "")
+		_, err := runClusterCmd(t, dir, "cluster", "id")
+		if err == nil {
+			t.Fatal("expected error when cluster-id is not set")
+		}
+		if !strings.Contains(err.Error(), "No cluster-id set in state") {
+			t.Errorf("unexpected error message: %v", err)
+		}
+	})
+}

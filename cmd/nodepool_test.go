@@ -65,22 +65,30 @@ var npAdapterStatusesJSON = `{
 
 // ---- helpers ----
 
-// setNodepoolIDInState writes state.yaml with the active env and nodepool-id.
-func setNodepoolIDInState(t *testing.T, dir, envName, id string) {
+// setBothIDsInState writes state.yaml with active-environment, cluster-id, and nodepool-id.
+func setBothIDsInState(t *testing.T, dir, envName, cid, npid string) {
 	t.Helper()
 	statePath := filepath.Join(dir, "state.yaml")
-	content := fmt.Sprintf("active-environment: %s\nnodepool-id: %s\n", envName, id)
+	content := fmt.Sprintf("active-environment: %s\ncluster-id: %s\nnodepool-id: %s\n", envName, cid, npid)
 	if err := os.WriteFile(statePath, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
 }
 
-// setupNodepoolEnv creates a temp dir with an env pointing to ts.URL and activates it.
+// setNodepoolIDInState writes state.yaml with the active env, cluster-id, and nodepool-id.
+func setNodepoolIDInState(t *testing.T, dir, envName, id string) {
+	t.Helper()
+	setBothIDsInState(t, dir, envName, clusterID, id)
+}
+
+// setupNodepoolEnv creates a temp dir with an env pointing to ts.URL, activates it,
+// and writes cluster-id to state (required for cluster-scoped API paths).
 func setupNodepoolEnv(t *testing.T, ts *httptest.Server) string {
 	t.Helper()
 	dir := t.TempDir()
 	makeEnv(t, dir, "test", ts.URL)
 	setActiveEnv(t, dir, "test")
+	setBothIDsInState(t, dir, "test", clusterID, "")
 	return dir
 }
 
@@ -110,7 +118,7 @@ func runNodepoolCmd(t *testing.T, dir string, args ...string) (string, error) {
 
 func TestNodepoolList(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/nodepools" {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools" {
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, nodepoolListJSON)
 			return
@@ -159,7 +167,7 @@ func TestNodepoolList_Table(t *testing.T) {
 
 func TestNodepoolGet(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/nodepools/"+nodepoolID {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID {
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, nodepoolJSON)
 			return
@@ -183,7 +191,7 @@ func TestNodepoolGet(t *testing.T) {
 
 func TestNodepoolGet_FromState(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/nodepools/"+nodepoolID {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID {
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, nodepoolJSON)
 			return
@@ -193,7 +201,7 @@ func TestNodepoolGet_FromState(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	setNodepoolIDInState(t, dir, "test", nodepoolID)
+	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
 
 	out, err := runNodepoolCmd(t, dir, "nodepool", "get")
 	if err != nil {
@@ -230,10 +238,10 @@ func TestNodepoolCreate(t *testing.T) {
 	resetNodepoolFlags()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/nodepools":
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools":
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, emptyNPListJSON)
-		case r.Method == http.MethodPost && r.URL.Path == apiPrefix+"/nodepools":
+		case r.Method == http.MethodPost && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools":
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
 			fmt.Fprint(w, nodepoolJSON)
@@ -264,7 +272,7 @@ func TestNodepoolCreate_DuplicateGuard(t *testing.T) {
 	postCalled := false
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/nodepools":
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools":
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, nodepoolListJSON)
 		case r.Method == http.MethodPost:
@@ -323,7 +331,7 @@ func TestNodepoolCreate_Defaults(t *testing.T) {
 func TestNodepoolUpdate(t *testing.T) {
 	resetNodepoolFlags()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPatch && r.URL.Path == apiPrefix+"/nodepools/"+nodepoolID {
+		if r.Method == http.MethodPatch && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID {
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, nodepoolJSON)
 			return
@@ -346,7 +354,7 @@ func TestNodepoolUpdate(t *testing.T) {
 
 func TestNodepoolDelete(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodDelete && r.URL.Path == apiPrefix+"/nodepools/"+nodepoolID {
+		if r.Method == http.MethodDelete && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID {
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, nodepoolJSON)
 			return
@@ -389,7 +397,7 @@ func TestNodepoolDelete_NotFound(t *testing.T) {
 
 func TestNodepoolConditions(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/nodepools/"+nodepoolID {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID {
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, nodepoolJSON)
 			return
@@ -416,7 +424,7 @@ func TestNodepoolConditions(t *testing.T) {
 
 func TestNodepoolConditions_FromState(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/nodepools/"+nodepoolID {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID {
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, nodepoolJSON)
 			return
@@ -426,7 +434,7 @@ func TestNodepoolConditions_FromState(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	setNodepoolIDInState(t, dir, "test", nodepoolID)
+	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
 
 	_, err := runNodepoolCmd(t, dir, "nodepool", "conditions")
 	if err != nil {
@@ -436,7 +444,7 @@ func TestNodepoolConditions_FromState(t *testing.T) {
 
 func TestNodepoolConditions_Table(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/nodepools/"+nodepoolID {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID {
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, nodepoolJSON)
 			return
@@ -462,7 +470,7 @@ func TestNodepoolConditions_Table(t *testing.T) {
 
 func TestNodepoolStatuses(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/nodepools/"+nodepoolID+"/statuses" {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID+"/statuses" {
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, npAdapterStatusesJSON)
 			return
@@ -472,7 +480,7 @@ func TestNodepoolStatuses(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	setNodepoolIDInState(t, dir, "test", nodepoolID)
+	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
 
 	out, err := runNodepoolCmd(t, dir, "nodepool", "statuses")
 	if err != nil {
@@ -488,7 +496,7 @@ func TestNodepoolStatuses(t *testing.T) {
 
 func TestNodepoolStatuses_Table(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/nodepools/"+nodepoolID+"/statuses" {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID+"/statuses" {
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, npAdapterStatusesJSON)
 			return
@@ -498,7 +506,7 @@ func TestNodepoolStatuses_Table(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	setNodepoolIDInState(t, dir, "test", nodepoolID)
+	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
 
 	out, err := runNodepoolCmd(t, dir, "nodepool", "statuses", "--output", "table")
 	if err != nil {
@@ -514,7 +522,7 @@ func TestNodepoolStatuses_Table(t *testing.T) {
 
 func TestNodepoolStatuses_ExplicitID(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/nodepools/"+nodepoolID+"/statuses" {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID+"/statuses" {
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, npAdapterStatusesJSON)
 			return
@@ -537,7 +545,7 @@ func TestNodepoolStatuses_ExplicitID(t *testing.T) {
 
 func TestNodepoolSearch_ByName_Found(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/nodepools" {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools" {
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, nodepoolListJSON)
 			return
@@ -580,7 +588,7 @@ func TestNodepoolSearch_ByName_NotFound(t *testing.T) {
 
 func TestNodepoolSearch_NoArgs_WithState(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/nodepools/"+nodepoolID {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID {
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, nodepoolJSON)
 			return
@@ -590,7 +598,7 @@ func TestNodepoolSearch_NoArgs_WithState(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	setNodepoolIDInState(t, dir, "test", nodepoolID)
+	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
 
 	out, err := runNodepoolCmd(t, dir, "nodepool", "search")
 	if err != nil {
@@ -623,10 +631,10 @@ func TestNodepoolPatch_Spec(t *testing.T) {
 	var capturedBody map[string]any
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/nodepools/"+nodepoolID:
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID:
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, nodepoolJSON)
-		case r.Method == http.MethodPatch && r.URL.Path == apiPrefix+"/nodepools/"+nodepoolID:
+		case r.Method == http.MethodPatch && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID:
 			json.NewDecoder(r.Body).Decode(&capturedBody)
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, nodepoolJSON)
@@ -637,7 +645,7 @@ func TestNodepoolPatch_Spec(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	setNodepoolIDInState(t, dir, "test", nodepoolID)
+	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
 
 	_, err := runNodepoolCmd(t, dir, "nodepool", "patch", "spec")
 	if err != nil {
@@ -659,10 +667,10 @@ func TestNodepoolPatch_Labels(t *testing.T) {
 	var capturedBody map[string]any
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/nodepools/"+nodepoolID:
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID:
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, nodepoolJSON)
-		case r.Method == http.MethodPatch && r.URL.Path == apiPrefix+"/nodepools/"+nodepoolID:
+		case r.Method == http.MethodPatch && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID:
 			json.NewDecoder(r.Body).Decode(&capturedBody)
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, nodepoolJSON)
@@ -673,7 +681,7 @@ func TestNodepoolPatch_Labels(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	setNodepoolIDInState(t, dir, "test", nodepoolID)
+	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
 
 	_, err := runNodepoolCmd(t, dir, "nodepool", "patch", "labels")
 	if err != nil {
@@ -708,16 +716,6 @@ func TestNodepoolPatch_NoArgs(t *testing.T) {
 }
 
 // ---- nodepool adapter post-status ----
-
-// setBothIDsInState writes state.yaml with active env, cluster-id, and nodepool-id.
-func setBothIDsInState(t *testing.T, dir, envName, cid, npid string) {
-	t.Helper()
-	statePath := filepath.Join(dir, "state.yaml")
-	content := fmt.Sprintf("active-environment: %s\ncluster-id: %s\nnodepool-id: %s\n", envName, cid, npid)
-	if err := os.WriteFile(statePath, []byte(content), 0600); err != nil {
-		t.Fatal(err)
-	}
-}
 
 func TestNodePoolAdapterPostStatus(t *testing.T) {
 	var capturedBody []byte
@@ -891,4 +889,37 @@ func TestNodepoolListSecondsFlagRegistered(t *testing.T) {
 	if f.DefValue != "5" {
 		t.Errorf("-s default = %q, want %q", f.DefValue, "5")
 	}
+}
+
+// ---- nodepool id ----
+
+func TestNodepoolID(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("unexpected API call: %s %s", r.Method, r.URL.Path)
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+
+	t.Run("prints ID when set", func(t *testing.T) {
+		setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
+		out, err := runNodepoolCmd(t, dir, "nodepool", "id")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if strings.TrimSpace(out) != nodepoolID {
+			t.Errorf("got %q, want %q", strings.TrimSpace(out), nodepoolID)
+		}
+	})
+
+	t.Run("errors when not set", func(t *testing.T) {
+		setBothIDsInState(t, dir, "test", clusterID, "")
+		_, err := runNodepoolCmd(t, dir, "nodepool", "id")
+		if err == nil {
+			t.Fatal("expected error when nodepool-id is not set")
+		}
+		if !strings.Contains(err.Error(), "No nodepool-id set in state") {
+			t.Errorf("unexpected error message: %v", err)
+		}
+	})
 }

@@ -626,6 +626,26 @@ var clusterAdapterPostStatusCmd = &cobra.Command{
 	},
 }
 
+// ---- cluster id ----
+
+var clusterIDCmd = &cobra.Command{
+	Use:   "id",
+	Short: "Print the active cluster ID",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		id := s.GetState("cluster-id")
+		if id == "" {
+			return fmt.Errorf("[ERROR] No cluster-id set in state. Run 'hf cluster create' or 'hf cluster search <name>' first.")
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), id)
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(clusterCmd)
 
@@ -639,6 +659,7 @@ func init() {
 	clusterCmd.AddCommand(clusterConditionsCmd)
 	clusterCmd.AddCommand(clusterStatusesCmd)
 	clusterCmd.AddCommand(clusterAdapterCmd)
+	clusterCmd.AddCommand(clusterIDCmd)
 	clusterAdapterCmd.AddCommand(clusterAdapterPostStatusCmd)
 
 	clusterCreateCmd.Flags().StringVar(&clusterCreateName, "name", "", "cluster name (overrides template)")

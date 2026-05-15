@@ -86,6 +86,20 @@ func nodepoolOverallStatus(np resource.NodePool, nc bool) string {
 	return output.StatusDot("False", nc)
 }
 
+// npBase returns the cluster-scoped nodepool collection path.
+func npBase(clusterID string) string {
+	return "clusters/" + clusterID + "/nodepools"
+}
+
+// requireClusterID reads cluster-id from state and returns the spec-mandated error if absent.
+func requireClusterID(s interface{ GetState(string) string }) (string, error) {
+	id := s.GetState("cluster-id")
+	if id == "" {
+		return "", fmt.Errorf("[ERROR] No cluster-id set in state. Run 'hf cluster create' or 'hf cluster search <name>' first.")
+	}
+	return id, nil
+}
+
 // nodepoolConditionsView is the JSON shape emitted by `hf nodepool conditions`.
 type nodepoolConditionsView struct {
 	Generation int32                        `json:"generation"`
@@ -118,10 +132,14 @@ func fetchAndRenderNodepoolList(cmd *cobra.Command, tick, frequencySecs int) err
 	if err != nil {
 		return err
 	}
+	clusterID, err := requireClusterID(s)
+	if err != nil {
+		return err
+	}
 	client := newAPIClient(s)
 	p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
-	list, err := api.Get[resource.ListResponse[resource.NodePool]](context.Background(), client, "nodepools")
+	list, err := api.Get[resource.ListResponse[resource.NodePool]](context.Background(), client, npBase(clusterID))
 	if err != nil {
 		return handleAPIError(p, err)
 	}
@@ -163,11 +181,15 @@ var nodepoolGetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		clusterID, err := requireClusterID(s)
+		if err != nil {
+			return err
+		}
 
 		client := newAPIClient(s)
 		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
-		np, err := api.Get[resource.NodePool](context.Background(), client, "nodepools/"+id)
+		np, err := api.Get[resource.NodePool](context.Background(), client, npBase(clusterID)+"/"+id)
 		if err != nil {
 			return handleAPIError(p, err)
 		}
@@ -201,6 +223,11 @@ var nodepoolSearchCmd = &cobra.Command{
 		}
 		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
+		clusterID, err := requireClusterID(s)
+		if err != nil {
+			return err
+		}
+
 		// No name arg: behave like `hf nodepool get` using the state nodepool-id.
 		if len(args) == 0 {
 			id := s.GetState("nodepool-id")
@@ -208,7 +235,7 @@ var nodepoolSearchCmd = &cobra.Command{
 				return fmt.Errorf("[ERROR] No nodepool-id set in state. Run 'hf nodepool create' or 'hf nodepool search <name>' first.")
 			}
 			client := newAPIClient(s)
-			np, err := api.Get[resource.NodePool](context.Background(), client, "nodepools/"+id)
+			np, err := api.Get[resource.NodePool](context.Background(), client, npBase(clusterID)+"/"+id)
 			if err != nil {
 				return handleAPIError(p, err)
 			}
@@ -220,7 +247,7 @@ var nodepoolSearchCmd = &cobra.Command{
 
 		list, err := api.Get[resource.ListResponse[resource.NodePool]](
 			context.Background(), client,
-			"nodepools?search=name='"+name+"'",
+			npBase(clusterID)+"?search=name='"+name+"'",
 		)
 		if err != nil {
 			return handleAPIError(p, err)
@@ -291,20 +318,25 @@ var nodepoolCreateCmd = &cobra.Command{
 
 		name, _ := body["name"].(string)
 
+		clusterID, err := requireClusterID(s)
+		if err != nil {
+			return err
+		}
+
 		client := newAPIClient(s)
 		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
 		// Duplicate check.
 		existing, err := api.Get[resource.ListResponse[resource.NodePool]](
 			context.Background(), client,
-			"nodepools?search=name='"+name+"'",
+			npBase(clusterID)+"?search=name='"+name+"'",
 		)
 		if err == nil && len(existing.Items) > 0 {
 			p.Warn(fmt.Sprintf("NodePool '%s' already exists, skipping creation", name))
 			return nil
 		}
 
-		np, err := api.Post[resource.NodePool](context.Background(), client, "nodepools", body)
+		np, err := api.Post[resource.NodePool](context.Background(), client, npBase(clusterID), body)
 		if err != nil {
 			return handleAPIError(p, err)
 		}
@@ -331,6 +363,10 @@ var nodepoolUpdateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		clusterID, err := requireClusterID(s)
+		if err != nil {
+			return err
+		}
 		client := newAPIClient(s)
 		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
@@ -345,7 +381,7 @@ var nodepoolUpdateCmd = &cobra.Command{
 			body["spec"].(map[string]any)["replicas"] = nodepoolUpdateReplicas
 		}
 
-		np, err := api.Patch[resource.NodePool](context.Background(), client, "nodepools/"+id, body)
+		np, err := api.Patch[resource.NodePool](context.Background(), client, npBase(clusterID)+"/"+id, body)
 		if err != nil {
 			return handleAPIError(p, err)
 		}
@@ -383,11 +419,15 @@ var nodepoolPatchCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		clusterID, err := requireClusterID(s)
+		if err != nil {
+			return err
+		}
 
 		client := newAPIClient(s)
 		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
-		np, err := api.Get[resource.NodePool](context.Background(), client, "nodepools/"+id)
+		np, err := api.Get[resource.NodePool](context.Background(), client, npBase(clusterID)+"/"+id)
 		if err != nil {
 			return handleAPIError(p, err)
 		}
@@ -417,7 +457,7 @@ var nodepoolPatchCmd = &cobra.Command{
 			}
 		}
 
-		_, err = api.Patch[resource.NodePool](context.Background(), client, "nodepools/"+id, body)
+		_, err = api.Patch[resource.NodePool](context.Background(), client, npBase(clusterID)+"/"+id, body)
 		if err != nil {
 			return handleAPIError(p, err)
 		}
@@ -437,10 +477,14 @@ var nodepoolDeleteCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		clusterID, err := requireClusterID(s)
+		if err != nil {
+			return err
+		}
 		client := newAPIClient(s)
 		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
-		_, err = api.Delete[resource.NodePool](context.Background(), client, "nodepools/"+id)
+		_, err = api.Delete[resource.NodePool](context.Background(), client, npBase(clusterID)+"/"+id)
 		if err != nil {
 			var apiErr *api.APIError
 			if errors.As(err, &apiErr) && apiErr.Status == 404 {
@@ -471,11 +515,15 @@ var nodepoolConditionsCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		clusterID, err := requireClusterID(s)
+		if err != nil {
+			return err
+		}
 
 		client := newAPIClient(s)
 		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
-		np, err := api.Get[resource.NodePool](context.Background(), client, "nodepools/"+id)
+		np, err := api.Get[resource.NodePool](context.Background(), client, npBase(clusterID)+"/"+id)
 		if err != nil {
 			return handleAPIError(p, err)
 		}
@@ -522,12 +570,16 @@ var nodepoolStatusesCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		clusterID, err := requireClusterID(s)
+		if err != nil {
+			return err
+		}
 
 		client := newAPIClient(s)
 		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
 		list, err := api.Get[resource.ListResponse[resource.AdapterStatus]](
-			context.Background(), client, "nodepools/"+id+"/statuses",
+			context.Background(), client, npBase(clusterID)+"/"+id+"/statuses",
 		)
 		if err != nil {
 			return handleAPIError(p, err)
@@ -626,6 +678,26 @@ var nodepoolAdapterPostStatusCmd = &cobra.Command{
 	},
 }
 
+// ---- nodepool id ----
+
+var nodepoolIDCmd = &cobra.Command{
+	Use:   "id",
+	Short: "Print the active nodepool ID",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		id := s.GetState("nodepool-id")
+		if id == "" {
+			return fmt.Errorf("[ERROR] No nodepool-id set in state. Run 'hf nodepool create' or 'hf nodepool search <name>' first.")
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), id)
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(nodepoolCmd)
 
@@ -639,6 +711,7 @@ func init() {
 	nodepoolCmd.AddCommand(nodepoolConditionsCmd)
 	nodepoolCmd.AddCommand(nodepoolStatusesCmd)
 	nodepoolCmd.AddCommand(nodepoolAdapterCmd)
+	nodepoolCmd.AddCommand(nodepoolIDCmd)
 	nodepoolAdapterCmd.AddCommand(nodepoolAdapterPostStatusCmd)
 
 	nodepoolCreateCmd.Flags().StringVar(&nodepoolCreateName, "name", "", "nodepool name (overrides template)")

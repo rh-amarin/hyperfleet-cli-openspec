@@ -166,6 +166,34 @@ func TestNodepoolList_Table(t *testing.T) {
 	}
 }
 
+// ---- nodepool table ----
+
+func TestNodepoolTable(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, nodepoolListJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	out, err := runNodepoolCmd(t, dir, "nodepool", "table")
+	if err != nil {
+		t.Fatalf("nodepool table: %v", err)
+	}
+	for _, header := range []string{"ID", "NAME", "TYPE", "GEN", "REPLICAS", "STATUS"} {
+		if !strings.Contains(out, header) {
+			t.Errorf("expected table header %q in output, got: %q", header, out)
+		}
+	}
+	if !strings.Contains(out, "test-nodepool") {
+		t.Errorf("expected nodepool name in table output, got: %q", out)
+	}
+}
+
 // ---- nodepool get ----
 
 func TestNodepoolGet(t *testing.T) {

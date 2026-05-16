@@ -1,0 +1,25 @@
+# Live verification — cluster-nodepool-table-alias
+# API: http://34.175.55.239:8000
+# Date: 2026-05-16
+
+=== hf cluster table ===
+ID                                    NAME                 GEN  STATUS
+019e30db-ce3f-7d63-b8ba-c81c728222f1  my-cluster           1    ●
+019e2c46-0ded-7ef3-820c-d01396e7685e  hp-cluster-51bbf023  1    ●
+019e2c42-476e-7cec-995f-ea1063164357  hp-cluster-5b2e5bd8  1    ●
+
+=== hf nodepool table (cluster has no nodepools) ===
+ID  NAME  TYPE  GEN  REPLICAS  STATUS
+
+=== hf cluster list --output table (same result — alias verified) ===
+ID                                    NAME                 GEN  STATUS
+019e30db-ce3f-7d63-b8ba-c81c728222f1  my-cluster           1    ●
+019e2c46-0ded-7ef3-820c-d01396e7685e  hp-cluster-51bbf023  1    ●
+019e2c42-476e-7cec-995f-ea1063164357  hp-cluster-5b2e5bd8  1    ●
+
+=== Summary ===
+✓ hf cluster table outputs identical table to hf cluster list --output table
+✓ hf nodepool table renders table headers (ID NAME TYPE GEN REPLICAS STATUS)
+✓ API connectivity confirmed — 3 live clusters returned
+✓ Unit tests pass: TestClusterTable and TestNodepoolTable
+✓ go build, go vet, go test ./... all pass with zero failures

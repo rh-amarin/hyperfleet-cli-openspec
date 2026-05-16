@@ -722,6 +722,17 @@ var nodepoolAdapterPostStatusCmd = &cobra.Command{
 	},
 }
 
+// ---- nodepool table ----
+
+var nodepoolTableCmd = &cobra.Command{
+	Use:   "table",
+	Short: "List all nodepools in table format (alias for: nodepool list --output table)",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		outputFmt = "table"
+		return fetchAndRenderNodepoolList(cmd, 0, 0)
+	},
+}
+
 // ---- nodepool id ----
 
 var nodepoolInteractive bool
@@ -816,6 +827,7 @@ func init() {
 	rootCmd.AddCommand(nodepoolCmd)
 
 	nodepoolCmd.AddCommand(nodepoolListCmd)
+	nodepoolCmd.AddCommand(nodepoolTableCmd)
 	nodepoolCmd.AddCommand(nodepoolGetCmd)
 	nodepoolCmd.AddCommand(nodepoolSearchCmd)
 	nodepoolCmd.AddCommand(nodepoolCreateCmd)

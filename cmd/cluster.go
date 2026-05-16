@@ -665,6 +665,17 @@ var clusterAdapterPostStatusCmd = &cobra.Command{
 	},
 }
 
+// ---- cluster table ----
+
+var clusterTableCmd = &cobra.Command{
+	Use:   "table",
+	Short: "List all clusters in table format (alias for: cluster list --output table)",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		outputFmt = "table"
+		return fetchAndRenderClusterList(cmd, 0, 0)
+	},
+}
+
 // ---- cluster id ----
 
 var clusterInteractive bool
@@ -755,6 +766,7 @@ func init() {
 	rootCmd.AddCommand(clusterCmd)
 
 	clusterCmd.AddCommand(clusterListCmd)
+	clusterCmd.AddCommand(clusterTableCmd)
 	clusterCmd.AddCommand(clusterGetCmd)
 	clusterCmd.AddCommand(clusterSearchCmd)
 	clusterCmd.AddCommand(clusterCreateCmd)

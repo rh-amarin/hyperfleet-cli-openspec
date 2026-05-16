@@ -171,6 +171,34 @@ func TestClusterList_Table(t *testing.T) {
 	}
 }
 
+// ---- cluster table ----
+
+func TestClusterTable(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterListJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	out, err := runClusterCmd(t, dir, "cluster", "table")
+	if err != nil {
+		t.Fatalf("cluster table: %v", err)
+	}
+	for _, header := range []string{"ID", "NAME", "GEN", "STATUS"} {
+		if !strings.Contains(out, header) {
+			t.Errorf("expected table header %q in output, got: %q", header, out)
+		}
+	}
+	if !strings.Contains(out, "test-cluster") {
+		t.Errorf("expected cluster name in table output, got: %q", out)
+	}
+}
+
 // ---- cluster get ----
 
 func TestClusterGet(t *testing.T) {

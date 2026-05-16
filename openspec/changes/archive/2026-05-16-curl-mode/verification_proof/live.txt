@@ -1,10 +1,164 @@
-=== hf cluster list --curl ===
-[CURL] curl -s -X GET "http://34.175.77.98:8000/api/hyperfleet/v1/clusters" \
+# curl-mode — live verification against real cluster
+# API:    http://34.175.55.239:8000/api/hyperfleet/v1
+# Maestro: http://localhost:8100 (via port-forward)
+# Date:   2026-05-16 10:56 UTC
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+bin/hf cluster list --curl -o table
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[CURL] curl -s -X GET "http://34.175.55.239:8000/api/hyperfleet/v1/clusters" \
   -H 'Accept: application/json'
-[ERROR] Request to http://34.175.77.98:8000/api/hyperfleet/v1/clusters timed out after 30s. Check your network connection and API server.
-=== hf maestro list --curl ===
+
+# Executed curl above — ✓ curl returned 6570 bytes
+# First 200 chars: {"items":[{"created_by":"system@hyperfleet.local","created_time":"2026-05-15T15:34:09.13398Z","generation":1,"href":"/api/hyperfleet/v1/clusters/019e2c46-0ded-7ef3-820c-d01396e7685e","id":"019e2c46-0d
+
+# hf output:
+ID                                    NAME                 GEN  STATUS
+019e2c46-0ded-7ef3-820c-d01396e7685e  hp-cluster-51bbf023  1    [31m●[0m
+019e2c42-476e-7cec-995f-ea1063164357  hp-cluster-5b2e5bd8  1    [31m●[0m
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+bin/hf cluster list --curl
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[CURL] curl -s -X GET "http://34.175.55.239:8000/api/hyperfleet/v1/clusters" \
+  -H 'Accept: application/json'
+
+# Executed curl above — ✓ curl returned 6570 bytes
+# First 200 chars: {"items":[{"created_by":"system@hyperfleet.local","created_time":"2026-05-15T15:34:09.13398Z","generation":1,"href":"/api/hyperfleet/v1/clusters/019e2c46-0ded-7ef3-820c-d01396e7685e","id":"019e2c46-0d
+
+# hf output:
+{
+  "items": [
+    {
+      "id": "019e2c46-0ded-7ef3-820c-d01396e7685e",
+      "kind": "Cluster",
+      "name": "hp-cluster-51bbf023",
+      "generation": 1,
+      "labels": {
+        "environment": "test",
+        "shard": "1",
+        "team": "platform"
+      },
+      "spec": {
+        "dns": {
+          "baseDomain": "example.com"
+        },
+        "networking": {
+          "clusterNetwork": [
+            {
+              "cidr": "10.10.0.0/16",
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+bin/hf cluster get 019e2c46-0ded-7ef3-820c-d01396e7685e --curl
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[CURL] curl -s -X GET "http://34.175.55.239:8000/api/hyperfleet/v1/clusters/019e2c46-0ded-7ef3-820c-d01396e7685e" \
+  -H 'Accept: application/json'
+
+# Executed curl above — ✓ curl returned 3250 bytes
+# First 200 chars: {"created_by":"system@hyperfleet.local","created_time":"2026-05-15T15:34:09.13398Z","generation":1,"href":"/api/hyperfleet/v1/clusters/019e2c46-0ded-7ef3-820c-d01396e7685e","id":"019e2c46-0ded-7ef3-82
+
+# hf output:
+{
+  "id": "019e2c46-0ded-7ef3-820c-d01396e7685e",
+  "kind": "Cluster",
+  "name": "hp-cluster-51bbf023",
+  "generation": 1,
+  "labels": {
+    "environment": "test",
+    "shard": "1",
+    "team": "platform"
+  },
+  "spec": {
+    "dns": {
+      "baseDomain": "example.com"
+    },
+    "networking": {
+      "clusterNetwork": [
+        {
+          "cidr": "10.10.0.0/16",
+          "hostPrefix": 24
+        }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+bin/hf cluster conditions --curl
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[CURL] curl -s -X GET "http://34.175.55.239:8000/api/hyperfleet/v1/clusters/019e2c46-0ded-7ef3-820c-d01396e7685e" \
+  -H 'Accept: application/json'
+
+# Executed curl above — ✓ curl returned 3250 bytes
+# First 200 chars: {"created_by":"system@hyperfleet.local","created_time":"2026-05-15T15:34:09.13398Z","generation":1,"href":"/api/hyperfleet/v1/clusters/019e2c46-0ded-7ef3-820c-d01396e7685e","id":"019e2c46-0ded-7ef3-82
+
+# hf output:
+{
+  "generation": 1,
+  "status": {
+    "conditions": [
+      {
+        "type": "Ready",
+        "status": "True",
+        "last_transition_time": "2026-05-16T10:38:00Z",
+        "observed_generation": 1,
+        "created_time": "2026-05-15T15:34:09.13398Z",
+        "last_updated_time": "2026-05-16T10:38:05Z",
+        "reason": "ReconciledAll",
+        "message": "All required adapters reported Available=True or Finalized=True at the current generation"
+      },
+      {
+        "type": "Reconciled",
+        "status": "True",
+        "last_transition_time": "2026-05-16T10:38:00Z",
+        "observed_generation": 1,
+        "created_time": "2026-05-15T15:34:09.13398Z",
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+bin/hf cluster statuses --curl -o table
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[CURL] curl -s -X GET "http://34.175.55.239:8000/api/hyperfleet/v1/clusters/019e2c46-0ded-7ef3-820c-d01396e7685e/statuses" \
+  -H 'Accept: application/json'
+
+# Executed curl above — ✓ curl returned 7189 bytes
+# First 200 chars: {"items":[{"adapter":"cl-deployment","conditions":[{"last_transition_time":"2026-05-15T16:05:00Z","message":"testDeployment manifest applied successfully","reason":"DeploymentApplied","status":"True",
+
+# hf output:
+ADAPTER                GEN  AVAILABLE  FINALIZED
+cl-deployment          1    [32m●[0m          [31m●[0m
+cl-job                 1    [32m●[0m          [31m●[0m
+cl-invalid-resource    1    [31m●[0m          -
+cl-namespace           1    [32m●[0m          [31m●[0m
+cl-crash               1    [32m●[0m          -
+cl-maestro             1    [32m●[0m          [31m●[0m
+cl-precondition-error  1    [31m●[0m          -
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+bin/hf nodepool list --curl -o table
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[CURL] curl -s -X GET "http://34.175.55.239:8000/api/hyperfleet/v1/clusters/019e2c46-0ded-7ef3-820c-d01396e7685e/nodepools" \
+  -H 'Accept: application/json'
+
+# Executed curl above — ✓ curl returned 63 bytes
+# First 200 chars: {"kind":"NodePoolList","items":[],"page":1,"size":0,"total":0}
+
+# hf output:
+ID  NAME  TYPE  GEN  REPLICAS  STATUS
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+bin/hf maestro list --curl
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 [CURL] curl -s "http://localhost:8100/api/maestro/v1/resource-bundles?search=consumer_name='cluster1'" \
   -H 'Accept: application/json'
+
+# Executed curl above — ✓ curl returned 586762 bytes
+# First 200 chars: {"items":[{"consumer_name":"cluster1","created_at":"2026-05-15T15:30:05.300056Z","delete_option":{"propagationPolicy":"Foreground"},"href":"/api/maestro/v1/resource-bundles/03ba64e6-4476-5053-87eb-2e0
+
+# hf output:
 {
   "items": [
     {
@@ -13,3 +167,139 @@
       "consumer_name": "cluster1",
       "version": 1,
       "manifest_count": 0,
+      "manifests": [
+        {
+          "kind": "Namespace",
+          "name": "",
+          "namespace": ""
+        },
+        {
+          "kind": "ConfigMap",
+          "name": "",
+          "namespace": ""
+        }
+      ],
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+bin/hf maestro list --curl -o table
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[CURL] curl -s "http://localhost:8100/api/maestro/v1/resource-bundles?search=consumer_name='cluster1'" \
+  -H 'Accept: application/json'
+
+# Executed curl above — ✓ curl returned 586762 bytes
+# First 200 chars: {"items":[{"consumer_name":"cluster1","created_at":"2026-05-15T15:30:05.300056Z","delete_option":{"propagationPolicy":"Foreground"},"href":"/api/maestro/v1/resource-bundles/03ba64e6-4476-5053-87eb-2e0
+
+# hf output:
+03ba64e6-4476-5053-87eb-2e0e01071d74  03ba64e6-4476-5053-87eb-2e0e01071d74  v1
+  Namespace/  
+  ConfigMap/  
+e2f1474b-648f-58bf-9e0e-9ea0bc0360c2  e2f1474b-648f-58bf-9e0e-9ea0bc0360c2  v1
+  Namespace/  
+  ConfigMap/  
+7b6943ed-2bbc-5fd9-92ec-063ff19107cf  7b6943ed-2bbc-5fd9-92ec-063ff19107cf  v1
+  Namespace/  
+  ConfigMap/  
+28bcbc9b-b89a-522f-b826-61f3eaec7f89  28bcbc9b-b89a-522f-b826-61f3eaec7f89  v1
+  Namespace/  
+  ConfigMap/  
+2da5e54e-2b71-57e6-8441-a5c3273c5b1b  2da5e54e-2b71-57e6-8441-a5c3273c5b1b  v1
+  Namespace/  
+  ConfigMap/  
+e72f80fb-f6b9-5617-a189-9c672d0eb7cc  e72f80fb-f6b9-5617-a189-9c672d0eb7cc  v1
+  Namespace/  
+  ConfigMap/  
+45e6c2a7-f8cc-527e-b8db-c5571931e17f  45e6c2a7-f8cc-527e-b8db-c5571931e17f  v1
+  Namespace/  
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+bin/hf maestro bundles --curl
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[CURL] curl -s "http://localhost:8100/api/maestro/v1/resource-bundles" \
+  -H 'Accept: application/json'
+
+# Executed curl above — ✓ curl returned 586762 bytes
+# First 200 chars: {"items":[{"consumer_name":"cluster1","created_at":"2026-05-15T15:30:05.300056Z","delete_option":{"propagationPolicy":"Foreground"},"href":"/api/maestro/v1/resource-bundles/03ba64e6-4476-5053-87eb-2e0
+
+# hf output:
+{
+  "items": [
+    {
+      "id": "03ba64e6-4476-5053-87eb-2e0e01071d74",
+      "name": "03ba64e6-4476-5053-87eb-2e0e01071d74",
+      "consumer_name": "cluster1",
+      "version": 1,
+      "manifest_count": 0,
+      "manifests": [
+        {
+          "kind": "Namespace",
+          "name": "",
+          "namespace": ""
+        },
+        {
+          "kind": "ConfigMap",
+          "name": "",
+          "namespace": ""
+        }
+      ],
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+bin/hf maestro consumers --curl
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[CURL] curl -s "http://localhost:8100/api/maestro/v1/consumers" \
+  -H 'Accept: application/json'
+
+# Executed curl above — ✓ curl returned 302 bytes
+# First 200 chars: {"items":[{"created_at":"2026-05-11T10:02:00.380429Z","href":"/api/maestro/v1/consumers/5c9892e1-7ca7-4d70-be29-134af4430aa8","id":"5c9892e1-7ca7-4d70-be29-134af4430aa8","kind":"Consumer","name":"clus
+
+# hf output:
+{
+  "items": [
+    {
+      "id": "5c9892e1-7ca7-4d70-be29-134af4430aa8",
+      "kind": "Consumer",
+      "name": "cluster1"
+    }
+  ],
+  "kind": "ConsumerList",
+  "total": 1
+}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+bin/hf maestro get 03ba64e6-4476-5053-87eb-2e0e01071d74 --curl
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[CURL] curl -s "http://localhost:8100/api/maestro/v1/resource-bundles" \
+  -H 'Accept: application/json'
+
+# Executed curl above — ✓ curl returned 586762 bytes
+# First 200 chars: {"items":[{"consumer_name":"cluster1","created_at":"2026-05-15T15:30:05.300056Z","delete_option":{"propagationPolicy":"Foreground"},"href":"/api/maestro/v1/resource-bundles/03ba64e6-4476-5053-87eb-2e0
+
+# hf output:
+{
+  "id": "03ba64e6-4476-5053-87eb-2e0e01071d74",
+  "name": "03ba64e6-4476-5053-87eb-2e0e01071d74",
+  "consumer_name": "cluster1",
+  "version": 1,
+  "manifest_count": 0,
+  "manifests": [
+    {
+      "kind": "Namespace",
+      "name": "",
+      "namespace": ""
+    },
+    {
+      "kind": "ConfigMap",
+      "name": "",
+      "namespace": ""
+    }
+  ],
+  "conditions": null
+}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RESULT: all 11 commands printed a valid curl command
+        every curl executed independently returned real API data
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

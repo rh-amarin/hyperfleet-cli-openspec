@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -37,6 +38,7 @@ var (
 	clusterUpdateReplicas int
 	clusterListWatch      bool
 	clusterListWatchSecs  int
+	clusterListSearch     string
 )
 
 // ---- helpers ----
@@ -124,7 +126,11 @@ func fetchAndRenderClusterList(cmd *cobra.Command, tick, frequencySecs int) erro
 	client := newAPIClient(s)
 	p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
-	list, err := api.Get[resource.ListResponse[resource.Cluster]](context.Background(), client, "clusters")
+	path := "clusters"
+	if clusterListSearch != "" {
+		path = "clusters?search=" + url.QueryEscape(clusterListSearch)
+	}
+	list, err := api.Get[resource.ListResponse[resource.Cluster]](context.Background(), client, path)
 	if err != nil {
 		return handleAPIError(p, err)
 	}
@@ -789,6 +795,7 @@ func init() {
 
 	clusterListCmd.Flags().BoolVar(&clusterListWatch, "watch", false, "continuously refresh the table (requires --output table)")
 	clusterListCmd.Flags().IntVarP(&clusterListWatchSecs, "seconds", "s", 5, "refresh interval in seconds (used with --watch)")
+	clusterListCmd.Flags().StringVar(&clusterListSearch, "search", "", "TSL filter expression (e.g. \"labels.environment='prod'\")")
 
 	clusterIDCmd.Flags().BoolVarP(&clusterIDInteractive, "interactive", "i", false, "interactively select and set the active cluster")
 

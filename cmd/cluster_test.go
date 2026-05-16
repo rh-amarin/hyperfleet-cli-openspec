@@ -102,6 +102,7 @@ func resetClusterFlags() {
 	clusterListWatch = false
 	clusterListWatchSecs = 5
 	clusterInteractive = false
+	clusterListSearch = ""
 	clusterIDInteractive = false
 }
 
@@ -196,6 +197,89 @@ func TestClusterTable(t *testing.T) {
 	}
 	if !strings.Contains(out, "test-cluster") {
 		t.Errorf("expected cluster name in table output, got: %q", out)
+	}
+}
+
+// ---- cluster list --search ----
+
+func TestClusterList_Search_NoFlag(t *testing.T) {
+	var receivedQuery string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedQuery = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, clusterListJSON)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	_, err := runClusterCmd(t, dir, "cluster", "list")
+	if err != nil {
+		t.Fatalf("cluster list (no flag): %v", err)
+	}
+	if receivedQuery != "" {
+		t.Errorf("expected no query string, got: %q", receivedQuery)
+	}
+}
+
+func TestClusterList_Search_LabelFilter(t *testing.T) {
+	var receivedQuery string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedQuery = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, clusterListJSON)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	_, err := runClusterCmd(t, dir, "cluster", "list", "--search", "labels.environment='prod'")
+	if err != nil {
+		t.Fatalf("cluster list --search: %v", err)
+	}
+	want := "search=labels.environment%3D%27prod%27"
+	if receivedQuery != want {
+		t.Errorf("query string: got %q, want %q", receivedQuery, want)
+	}
+}
+
+func TestClusterList_Search_CompoundExpr(t *testing.T) {
+	var receivedQuery string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedQuery = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, clusterListJSON)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	expr := "labels.team='core' and generation>1"
+	_, err := runClusterCmd(t, dir, "cluster", "list", "--search", expr)
+	if err != nil {
+		t.Fatalf("cluster list --search compound: %v", err)
+	}
+	if receivedQuery == "" || receivedQuery == "search="+expr {
+		t.Errorf("expected URL-encoded query, got: %q", receivedQuery)
+	}
+	if !strings.HasPrefix(receivedQuery, "search=") {
+		t.Errorf("expected query to start with 'search=', got: %q", receivedQuery)
+	}
+}
+
+func TestClusterList_Search_APIError400(t *testing.T) {
+	errBody := `{"type":"about:blank","title":"Validation Error","status":400,"detail":"invalid search expression","code":"HYPERFLEET-VAL-001"}`
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, errBody)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	out, err := runClusterCmd(t, dir, "cluster", "list", "--search", "not status.conditions.Ready='True'")
+	if err != nil {
+		t.Fatalf("cluster list --search API 400 should exit 0, got error: %v", err)
+	}
+	if !strings.Contains(out, "400") && !strings.Contains(out, "Validation Error") {
+		t.Errorf("expected error JSON in output, got: %q", out)
 	}
 }
 

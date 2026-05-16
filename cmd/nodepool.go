@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -36,6 +37,7 @@ var (
 	nodepoolUpdateReplicas int
 	nodepoolListWatch      bool
 	nodepoolListWatchSecs  int
+	nodepoolListSearch     string
 )
 
 // ---- helpers ----
@@ -141,7 +143,11 @@ func fetchAndRenderNodepoolList(cmd *cobra.Command, tick, frequencySecs int) err
 	client := newAPIClient(s)
 	p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
-	list, err := api.Get[resource.ListResponse[resource.NodePool]](context.Background(), client, npBase(clusterID))
+	npPath := npBase(clusterID)
+	if nodepoolListSearch != "" {
+		npPath = npBase(clusterID) + "?search=" + url.QueryEscape(nodepoolListSearch)
+	}
+	list, err := api.Get[resource.ListResponse[resource.NodePool]](context.Background(), client, npPath)
 	if err != nil {
 		return handleAPIError(p, err)
 	}
@@ -850,6 +856,7 @@ func init() {
 
 	nodepoolListCmd.Flags().BoolVar(&nodepoolListWatch, "watch", false, "continuously refresh the table (requires --output table)")
 	nodepoolListCmd.Flags().IntVarP(&nodepoolListWatchSecs, "seconds", "s", 5, "refresh interval in seconds (used with --watch)")
+	nodepoolListCmd.Flags().StringVar(&nodepoolListSearch, "search", "", "TSL filter expression (e.g. \"labels.role='worker'\")")
 
 	nodepoolIDCmd.Flags().BoolVarP(&nodepoolIDInteractive, "interactive", "i", false, "interactively select and set the active nodepool")
 

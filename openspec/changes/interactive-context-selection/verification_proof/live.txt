@@ -1,0 +1,79 @@
+# Live verification — interactive-context-selection
+# API: http://34.175.55.239:8000
+# Date: 2026-05-16
+
+=== hf cluster get --help ===
+Get a cluster by ID
+
+Usage:
+  hf cluster get [id] [flags]
+
+Flags:
+  -h, --help          help for get
+  -i, --interactive   interactively select the active cluster before running this command
+
+=== hf cluster delete --help ===
+Delete a cluster
+
+Usage:
+  hf cluster delete [id] [flags]
+
+Flags:
+  -h, --help          help for delete
+  -i, --interactive   interactively select the active cluster before running this command
+
+=== hf cluster conditions --help ===
+Flags:
+  -i, --interactive   interactively select the active cluster before running this command
+
+=== hf cluster statuses --help ===
+Flags:
+  -i, --interactive   interactively select the active cluster before running this command
+
+=== hf cluster patch --help ===
+Flags:
+  -i, --interactive   interactively select the active cluster before running this command
+
+=== hf cluster adapter post-status --help ===
+Flags:
+  -i, --interactive   interactively select the active cluster before running this command
+
+=== hf nodepool get --help ===
+Flags:
+  -i, --interactive   interactively select the active nodepool before running this command
+
+=== hf nodepool delete --help ===
+Delete a nodepool
+
+Usage:
+  hf nodepool delete [id] [flags]
+
+Flags:
+  -i, --interactive   interactively select the active nodepool before running this command
+
+(nodepoolDeleteCmd Args changed from helpOnNoArgs(1) to MaximumNArgs(1) — [id] is now optional)
+
+=== hf cluster get -i (no TTY — expected graceful error) ===
+failed to initialize the fuzzy finder: failed to initialize screen: open /dev/tty: no such device or address
+exit: 1
+
+=== hf nodepool delete (no id, no -i) ===
+[ERROR] nodepool ID required. Pass an explicit ID or use -i to select interactively.
+exit: 1
+
+=== hf cluster list --output table (live API) ===
+ID                                    NAME                 GEN  STATUS
+019e30db-ce3f-7d63-b8ba-c81c728222f1  my-cluster           1    ●
+019e2c46-0ded-7ef3-820c-d01396e7685e  hp-cluster-51bbf023  1    ●
+019e2c42-476e-7cec-995f-ea1063164357  hp-cluster-5b2e5bd8  1    ●
+
+(API at 34.175.55.239:8000 is reachable; 3 clusters returned)
+
+=== Summary ===
+✓ -i / --interactive flag registered on all 6 cluster commands (get, patch, delete, conditions, statuses, adapter post-status)
+✓ -i / --interactive flag registered on all 6 nodepool commands (get, patch, delete, conditions, statuses, adapter post-status)
+✓ nodepoolDeleteCmd Args changed to MaximumNArgs(1); no-id/no-i guard fires correct error message
+✓ pickClusterInteractive uses clusterIDSel — injectable for tests; go-fuzzyfinder TTY error surfaces cleanly
+✓ pickNodepoolInteractive uses nodepoolIDSel — injectable for tests
+✓ API connectivity confirmed — 3 live clusters returned
+✓ All 8 new tests pass (4 cluster, 4 nodepool); full suite passes with zero failures

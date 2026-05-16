@@ -106,6 +106,7 @@ func resetNodepoolFlags() {
 	nodepoolUpdateReplicas = 0
 	nodepoolListWatch = false
 	nodepoolListWatchSecs = 5
+	nodepoolInteractive = false
 	nodepoolIDInteractive = false
 }
 
@@ -949,6 +950,130 @@ var nodepoolListTwoJSON = `{
   "size": 2,
   "total": 2
 }`
+
+// ---- nodepool get/delete --interactive ----
+
+func TestPickNodepoolInteractive_Select(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, nodepoolListTwoJSON)
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+secondNodepoolID:
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `{"id":%q,"kind":"NodePool","name":"second-nodepool","generation":1,"labels":{},"spec":{},"status":{"conditions":[]},"owner_references":{"id":%q,"kind":"Cluster","href":""},"created_by":"u","created_time":"2026-05-10T00:00:00Z","href":""}`, secondNodepoolID, clusterID)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	orig := nodepoolIDSel
+	nodepoolIDSel = mockSel{idx: 1} // pick second nodepool
+	t.Cleanup(func() { nodepoolIDSel = orig })
+
+	_, err := runNodepoolCmd(t, dir, "nodepool", "get", "-i")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	state, _ := os.ReadFile(filepath.Join(dir, "state.yaml"))
+	if !strings.Contains(string(state), secondNodepoolID) {
+		t.Errorf("nodepool-id %q not found in state.yaml:\n%s", secondNodepoolID, state)
+	}
+}
+
+func TestPickNodepoolInteractive_Abort(t *testing.T) {
+	listCalled := false
+	getCalled := false
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools" {
+			listCalled = true
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, nodepoolListJSON)
+			return
+		}
+		getCalled = true
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	orig := nodepoolIDSel
+	nodepoolIDSel = mockSel{idx: -1} // abort
+	t.Cleanup(func() { nodepoolIDSel = orig })
+
+	_, err := runNodepoolCmd(t, dir, "nodepool", "get", "-i")
+	if err != nil {
+		t.Fatalf("unexpected error on abort: %v", err)
+	}
+	if !listCalled {
+		t.Error("expected nodepool list API to be called")
+	}
+	if getCalled {
+		t.Error("expected no nodepool GET after abort")
+	}
+}
+
+func TestNodepoolGetInteractive(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, nodepoolListJSON)
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID:
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, nodepoolJSON)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	orig := nodepoolIDSel
+	nodepoolIDSel = mockSel{idx: 0}
+	t.Cleanup(func() { nodepoolIDSel = orig })
+
+	out, err := runNodepoolCmd(t, dir, "nodepool", "get", "-i")
+	if err != nil {
+		t.Fatalf("nodepool get -i: %v", err)
+	}
+	if !strings.Contains(out, nodepoolID) {
+		t.Errorf("expected nodepool ID in output, got: %q", out)
+	}
+}
+
+func TestNodepoolDeleteInteractive(t *testing.T) {
+	deleteCalled := false
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, nodepoolListJSON)
+		case r.Method == http.MethodDelete && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID:
+			deleteCalled = true
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, nodepoolJSON)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	orig := nodepoolIDSel
+	nodepoolIDSel = mockSel{idx: 0}
+	t.Cleanup(func() { nodepoolIDSel = orig })
+
+	_, err := runNodepoolCmd(t, dir, "nodepool", "delete", "-i")
+	if err != nil {
+		t.Fatalf("nodepool delete -i: %v", err)
+	}
+	if !deleteCalled {
+		t.Error("expected DELETE to be called with picked nodepool ID")
+	}
+}
 
 func TestNodepoolIDInteractive_Select(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

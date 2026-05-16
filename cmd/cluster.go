@@ -160,6 +160,12 @@ var clusterGetCmd = &cobra.Command{
 		if len(args) > 0 {
 			explicit = args[0]
 		}
+		if clusterInteractive && explicit == "" {
+			explicit, err = pickClusterInteractive(cmd, s)
+			if err != nil || explicit == "" {
+				return err
+			}
+		}
 		id, err := s.ClusterID(explicit)
 		if err != nil {
 			return err
@@ -381,6 +387,12 @@ var clusterPatchCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		if clusterInteractive && explicit == "" {
+			explicit, err = pickClusterInteractive(cmd, s)
+			if err != nil || explicit == "" {
+				return err
+			}
+		}
 		id, err := s.ClusterID(explicit)
 		if err != nil {
 			return err
@@ -442,6 +454,12 @@ var clusterDeleteCmd = &cobra.Command{
 		if len(args) > 0 {
 			explicit = args[0]
 		}
+		if clusterInteractive && explicit == "" {
+			explicit, err = pickClusterInteractive(cmd, s)
+			if err != nil || explicit == "" {
+				return err
+			}
+		}
 		id, err := s.ClusterID(explicit)
 		if err != nil {
 			return err
@@ -476,6 +494,12 @@ var clusterConditionsCmd = &cobra.Command{
 		explicit := ""
 		if len(args) > 0 {
 			explicit = args[0]
+		}
+		if clusterInteractive && explicit == "" {
+			explicit, err = pickClusterInteractive(cmd, s)
+			if err != nil || explicit == "" {
+				return err
+			}
 		}
 		id, err := s.ClusterID(explicit)
 		if err != nil {
@@ -527,6 +551,12 @@ var clusterStatusesCmd = &cobra.Command{
 		explicit := ""
 		if len(args) > 0 {
 			explicit = args[0]
+		}
+		if clusterInteractive && explicit == "" {
+			explicit, err = pickClusterInteractive(cmd, s)
+			if err != nil || explicit == "" {
+				return err
+			}
 		}
 		id, err := s.ClusterID(explicit)
 		if err != nil {
@@ -597,9 +627,17 @@ var clusterAdapterPostStatusCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		clusterID, err := s.ClusterID("")
-		if err != nil {
-			return err
+		var clusterID string
+		if clusterInteractive {
+			clusterID, err = pickClusterInteractive(cmd, s)
+			if err != nil || clusterID == "" {
+				return err
+			}
+		} else {
+			clusterID, err = s.ClusterID("")
+			if err != nil {
+				return err
+			}
 		}
 
 		client := newAPIClient(s)
@@ -629,10 +667,40 @@ var clusterAdapterPostStatusCmd = &cobra.Command{
 
 // ---- cluster id ----
 
+var clusterInteractive bool
 var clusterIDInteractive bool
 
-// clusterIDSel is the selector used by hf cluster id -i; swapped in tests.
+// clusterIDSel is the selector used by hf cluster id -i and pickClusterInteractive; swapped in tests.
 var clusterIDSel selector.Selector = selector.FuzzySelector{}
+
+func pickClusterInteractive(cmd *cobra.Command, s *config.Store) (string, error) {
+	client := newAPIClient(s)
+	list, err := api.Get[resource.ListResponse[resource.Cluster]](context.Background(), client, "clusters")
+	if err != nil {
+		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+		return "", handleAPIError(p, err)
+	}
+	if len(list.Items) == 0 {
+		return "", fmt.Errorf("[ERROR] no clusters available")
+	}
+	items := make([]selector.Item, len(list.Items))
+	for i, c := range list.Items {
+		items[i] = selector.Item{ID: c.ID, Name: c.Name}
+	}
+	idx, err := clusterIDSel.Select(items)
+	if err != nil {
+		return "", err
+	}
+	if idx < 0 {
+		return "", nil
+	}
+	if err := s.SetState("cluster-id", items[idx].ID); err != nil {
+		return "", err
+	}
+	p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+	p.Info(fmt.Sprintf("cluster context set to: %s (%s)", items[idx].Name, items[idx].ID))
+	return items[idx].ID, nil
+}
 
 var clusterIDCmd = &cobra.Command{
 	Use:   "id",
@@ -711,4 +779,12 @@ func init() {
 	clusterListCmd.Flags().IntVarP(&clusterListWatchSecs, "seconds", "s", 5, "refresh interval in seconds (used with --watch)")
 
 	clusterIDCmd.Flags().BoolVarP(&clusterIDInteractive, "interactive", "i", false, "interactively select and set the active cluster")
+
+	for _, c := range []*cobra.Command{
+		clusterGetCmd, clusterPatchCmd, clusterDeleteCmd,
+		clusterConditionsCmd, clusterStatusesCmd, clusterAdapterPostStatusCmd,
+	} {
+		c.Flags().BoolVarP(&clusterInteractive, "interactive", "i", false,
+			"interactively select the active cluster before running this command")
+	}
 }

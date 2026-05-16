@@ -101,6 +101,7 @@ func resetClusterFlags() {
 	clusterUpdateReplicas = 0
 	clusterListWatch = false
 	clusterListWatchSecs = 5
+	clusterInteractive = false
 	clusterIDInteractive = false
 }
 
@@ -1084,6 +1085,131 @@ func TestClusterIDInteractive_Abort(t *testing.T) {
 	state, _ := os.ReadFile(filepath.Join(dir, "state.yaml"))
 	if !strings.Contains(string(state), clusterID) {
 		t.Errorf("original cluster-id should be preserved in state.yaml:\n%s", state)
+	}
+}
+
+// ---- cluster get/delete --interactive ----
+
+func TestPickClusterInteractive_Select(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterListTwoJSON)
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+secondClusterID:
+			w.Header().Set("Content-Type", "application/json")
+			// Return a minimal cluster for the get call that follows picker selection
+			fmt.Fprintf(w, `{"id":%q,"kind":"Cluster","name":"second-cluster","generation":1,"labels":{},"spec":{},"status":{"conditions":[]},"created_by":"u","created_time":"2026-05-10T00:00:00Z","href":""}`, secondClusterID)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	orig := clusterIDSel
+	clusterIDSel = mockSel{idx: 1} // pick second cluster
+	t.Cleanup(func() { clusterIDSel = orig })
+
+	_, err := runClusterCmd(t, dir, "cluster", "get", "-i")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	state, _ := os.ReadFile(filepath.Join(dir, "state.yaml"))
+	if !strings.Contains(string(state), secondClusterID) {
+		t.Errorf("cluster-id %q not found in state.yaml:\n%s", secondClusterID, state)
+	}
+}
+
+func TestPickClusterInteractive_Abort(t *testing.T) {
+	listCalled := false
+	getCalled := false
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters" {
+			listCalled = true
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterListJSON)
+			return
+		}
+		getCalled = true
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	orig := clusterIDSel
+	clusterIDSel = mockSel{idx: -1} // abort
+	t.Cleanup(func() { clusterIDSel = orig })
+
+	_, err := runClusterCmd(t, dir, "cluster", "get", "-i")
+	if err != nil {
+		t.Fatalf("unexpected error on abort: %v", err)
+	}
+	if !listCalled {
+		t.Error("expected list API to be called")
+	}
+	if getCalled {
+		t.Error("expected no cluster GET after abort")
+	}
+}
+
+func TestClusterGetInteractive(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterListJSON)
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID:
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterJSON)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	orig := clusterIDSel
+	clusterIDSel = mockSel{idx: 0}
+	t.Cleanup(func() { clusterIDSel = orig })
+
+	out, err := runClusterCmd(t, dir, "cluster", "get", "-i")
+	if err != nil {
+		t.Fatalf("cluster get -i: %v", err)
+	}
+	if !strings.Contains(out, clusterID) {
+		t.Errorf("expected cluster ID in output, got: %q", out)
+	}
+}
+
+func TestClusterDeleteInteractive(t *testing.T) {
+	deleteCalled := false
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterListJSON)
+		case r.Method == http.MethodDelete && r.URL.Path == apiPrefix+"/clusters/"+clusterID:
+			deleteCalled = true
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterJSON)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	orig := clusterIDSel
+	clusterIDSel = mockSel{idx: 0}
+	t.Cleanup(func() { clusterIDSel = orig })
+
+	_, err := runClusterCmd(t, dir, "cluster", "delete", "-i")
+	if err != nil {
+		t.Fatalf("cluster delete -i: %v", err)
+	}
+	if !deleteCalled {
+		t.Error("expected DELETE to be called with picked cluster ID")
 	}
 }
 

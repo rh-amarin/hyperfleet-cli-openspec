@@ -179,11 +179,17 @@ var nodepoolGetCmd = &cobra.Command{
 		if len(args) > 0 {
 			explicit = args[0]
 		}
-		id, err := s.NodePoolID(explicit)
+		clusterID, err := requireClusterID(s)
 		if err != nil {
 			return err
 		}
-		clusterID, err := requireClusterID(s)
+		if nodepoolInteractive && explicit == "" {
+			explicit, err = pickNodepoolInteractive(cmd, s, clusterID)
+			if err != nil || explicit == "" {
+				return err
+			}
+		}
+		id, err := s.NodePoolID(explicit)
 		if err != nil {
 			return err
 		}
@@ -417,11 +423,17 @@ var nodepoolPatchCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		id, err := s.NodePoolID(explicit)
+		clusterID, err := requireClusterID(s)
 		if err != nil {
 			return err
 		}
-		clusterID, err := requireClusterID(s)
+		if nodepoolInteractive && explicit == "" {
+			explicit, err = pickNodepoolInteractive(cmd, s, clusterID)
+			if err != nil || explicit == "" {
+				return err
+			}
+		}
+		id, err := s.NodePoolID(explicit)
 		if err != nil {
 			return err
 		}
@@ -470,11 +482,17 @@ var nodepoolPatchCmd = &cobra.Command{
 // ---- nodepool delete ----
 
 var nodepoolDeleteCmd = &cobra.Command{
-	Use:   "delete <id>",
+	Use:   "delete [id]",
 	Short: "Delete a nodepool",
-	Args:  helpOnNoArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		id := args[0]
+		id := ""
+		if len(args) > 0 {
+			id = args[0]
+		}
+		if id == "" && !nodepoolInteractive {
+			return fmt.Errorf("[ERROR] nodepool ID required. Pass an explicit ID or use -i to select interactively.")
+		}
 		s, err := loadConfig()
 		if err != nil {
 			return err
@@ -482,6 +500,12 @@ var nodepoolDeleteCmd = &cobra.Command{
 		clusterID, err := requireClusterID(s)
 		if err != nil {
 			return err
+		}
+		if nodepoolInteractive && id == "" {
+			id, err = pickNodepoolInteractive(cmd, s, clusterID)
+			if err != nil || id == "" {
+				return err
+			}
 		}
 		client := newAPIClient(s)
 		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
@@ -513,11 +537,17 @@ var nodepoolConditionsCmd = &cobra.Command{
 		if len(args) > 0 {
 			explicit = args[0]
 		}
-		id, err := s.NodePoolID(explicit)
+		clusterID, err := requireClusterID(s)
 		if err != nil {
 			return err
 		}
-		clusterID, err := requireClusterID(s)
+		if nodepoolInteractive && explicit == "" {
+			explicit, err = pickNodepoolInteractive(cmd, s, clusterID)
+			if err != nil || explicit == "" {
+				return err
+			}
+		}
+		id, err := s.NodePoolID(explicit)
 		if err != nil {
 			return err
 		}
@@ -568,11 +598,17 @@ var nodepoolStatusesCmd = &cobra.Command{
 		if len(args) > 0 {
 			explicit = args[0]
 		}
-		id, err := s.NodePoolID(explicit)
+		clusterID, err := requireClusterID(s)
 		if err != nil {
 			return err
 		}
-		clusterID, err := requireClusterID(s)
+		if nodepoolInteractive && explicit == "" {
+			explicit, err = pickNodepoolInteractive(cmd, s, clusterID)
+			if err != nil || explicit == "" {
+				return err
+			}
+		}
+		id, err := s.NodePoolID(explicit)
 		if err != nil {
 			return err
 		}
@@ -650,6 +686,12 @@ var nodepoolAdapterPostStatusCmd = &cobra.Command{
 		if len(args) == 4 {
 			explicit = args[3]
 		}
+		if nodepoolInteractive && explicit == "" {
+			explicit, err = pickNodepoolInteractive(cmd, s, clusterID)
+			if err != nil || explicit == "" {
+				return err
+			}
+		}
 		nodepoolID, err := s.NodePoolID(explicit)
 		if err != nil {
 			return err
@@ -682,10 +724,40 @@ var nodepoolAdapterPostStatusCmd = &cobra.Command{
 
 // ---- nodepool id ----
 
+var nodepoolInteractive bool
 var nodepoolIDInteractive bool
 
-// nodepoolIDSel is the selector used by hf nodepool id -i; swapped in tests.
+// nodepoolIDSel is the selector used by hf nodepool id -i and pickNodepoolInteractive; swapped in tests.
 var nodepoolIDSel selector.Selector = selector.FuzzySelector{}
+
+func pickNodepoolInteractive(cmd *cobra.Command, s *config.Store, clusterID string) (string, error) {
+	client := newAPIClient(s)
+	list, err := api.Get[resource.ListResponse[resource.NodePool]](context.Background(), client, npBase(clusterID))
+	if err != nil {
+		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+		return "", handleAPIError(p, err)
+	}
+	if len(list.Items) == 0 {
+		return "", fmt.Errorf("[ERROR] no nodepools available for cluster %s", clusterID)
+	}
+	items := make([]selector.Item, len(list.Items))
+	for i, np := range list.Items {
+		items[i] = selector.Item{ID: np.ID, Name: np.Name}
+	}
+	idx, err := nodepoolIDSel.Select(items)
+	if err != nil {
+		return "", err
+	}
+	if idx < 0 {
+		return "", nil
+	}
+	if err := s.SetState("nodepool-id", items[idx].ID); err != nil {
+		return "", err
+	}
+	p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+	p.Info(fmt.Sprintf("nodepool context set to: %s (%s)", items[idx].Name, items[idx].ID))
+	return items[idx].ID, nil
+}
 
 var nodepoolIDCmd = &cobra.Command{
 	Use:   "id",
@@ -768,4 +840,12 @@ func init() {
 	nodepoolListCmd.Flags().IntVarP(&nodepoolListWatchSecs, "seconds", "s", 5, "refresh interval in seconds (used with --watch)")
 
 	nodepoolIDCmd.Flags().BoolVarP(&nodepoolIDInteractive, "interactive", "i", false, "interactively select and set the active nodepool")
+
+	for _, c := range []*cobra.Command{
+		nodepoolGetCmd, nodepoolPatchCmd, nodepoolDeleteCmd,
+		nodepoolConditionsCmd, nodepoolStatusesCmd, nodepoolAdapterPostStatusCmd,
+	} {
+		c.Flags().BoolVarP(&nodepoolInteractive, "interactive", "i", false,
+			"interactively select the active nodepool before running this command")
+	}
 }

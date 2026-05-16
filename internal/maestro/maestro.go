@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -62,14 +63,16 @@ type ConsumerList struct {
 // Client is an HTTP client for the Maestro REST API.
 type Client struct {
 	httpEndpoint string
+	curlMode     bool
 	http         *http.Client
 }
 
 // NewFromConfig creates a Client from the active config store.
-func NewFromConfig(s *config.Store) *Client {
+func NewFromConfig(s *config.Store, curlMode bool) *Client {
 	endpoint := s.Get("maestro", "http-endpoint")
 	return &Client{
 		httpEndpoint: strings.TrimRight(endpoint, "/"),
+		curlMode:     curlMode,
 		http:         &http.Client{Timeout: 30 * time.Second},
 	}
 }
@@ -83,6 +86,10 @@ func (c *Client) get(ctx context.Context, path string, v any) error {
 		return err
 	}
 	req.Header.Set("Accept", "application/json")
+
+	if c.curlMode {
+		fmt.Fprintf(os.Stderr, "[CURL] curl -s \"%s\" \\\n  -H 'Accept: application/json'\n", url)
+	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -103,6 +110,10 @@ func (c *Client) delete(ctx context.Context, path string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
 	if err != nil {
 		return err
+	}
+
+	if c.curlMode {
+		fmt.Fprintf(os.Stderr, "[CURL] curl -s -X DELETE \"%s\"\n", url)
 	}
 
 	resp, err := c.http.Do(req)

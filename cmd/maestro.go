@@ -29,7 +29,7 @@ func newMaestroClient() (*maestro.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return maestro.NewFromConfig(s), nil
+	return maestro.NewFromConfig(s, curlMode), nil
 }
 
 // ---- maestro list ----
@@ -44,7 +44,7 @@ var maestroListCmd = &cobra.Command{
 		}
 		consumer := s.Get("maestro", "consumer")
 
-		c := maestro.NewFromConfig(s)
+		c := maestro.NewFromConfig(s, curlMode)
 		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
 		var list *maestro.ResourceBundleList

@@ -17,6 +17,7 @@ var (
 	outputFmt string
 	noColor   bool
 	verbose   bool
+	curlMode  bool
 	apiURL    string
 	apiToken  string
 )
@@ -91,6 +92,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&outputFmt, "output", "o", "json", "output format: json, table, yaml")
 	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "disable colored output")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose/debug logging")
+	rootCmd.PersistentFlags().BoolVar(&curlMode, "curl", false, "print equivalent curl command for each API request")
 	rootCmd.PersistentFlags().StringVar(&apiURL, "api-url", "", "override HyperFleet API URL for this invocation")
 	rootCmd.PersistentFlags().StringVar(&apiToken, "api-token", "", "override API bearer token for this invocation")
 

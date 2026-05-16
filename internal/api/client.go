@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -17,25 +18,27 @@ import (
 
 // Client is an HTTP client configured for the HyperFleet API.
 type Client struct {
-	baseURL string
-	token   string
-	verbose bool
-	http    *http.Client
+	baseURL  string
+	token    string
+	verbose  bool
+	curlMode bool
+	http     *http.Client
 }
 
 // NewClient creates a Client.
 // baseURL should be the full base URL including scheme (e.g., "http://localhost:8000").
 // The client appends "/api/hyperfleet/{apiVersion}/" automatically via ResourceHref.
 // Pass the full base URL as: "{api-url}/api/hyperfleet/{api-version}/".
-func NewClient(baseURL, token string, verbose bool) *Client {
+func NewClient(baseURL, token string, verbose, curlMode bool) *Client {
 	if !strings.HasSuffix(baseURL, "/") {
 		baseURL += "/"
 	}
 	return &Client{
-		baseURL: baseURL,
-		token:   token,
-		verbose: verbose,
-		http:    &http.Client{Timeout: 30 * time.Second},
+		baseURL:  baseURL,
+		token:    token,
+		verbose:  verbose,
+		curlMode: curlMode,
+		http:     &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
@@ -49,12 +52,14 @@ func (c *Client) ResourceHref(resourcePath string) string {
 func (c *Client) do(ctx context.Context, method, path string, body any) (*http.Response, error) {
 	url := c.ResourceHref(path)
 
+	var bodyBytes []byte
 	var bodyReader *bytes.Reader
 	if body != nil {
 		b, err := json.Marshal(body)
 		if err != nil {
 			return nil, fmt.Errorf("marshal request body: %w", err)
 		}
+		bodyBytes = b
 		bodyReader = bytes.NewReader(b)
 	}
 
@@ -73,6 +78,10 @@ func (c *Client) do(ctx context.Context, method, path string, body any) (*http.R
 	req.Header.Set("Accept", "application/json")
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+
+	if c.curlMode {
+		printCurlCommand(os.Stderr, method, url, c.token, bodyBytes)
 	}
 
 	start := time.Now()
@@ -145,4 +154,21 @@ func Delete[T any](ctx context.Context, c *Client, path string) (T, error) {
 		return zero, err
 	}
 	return decode[T](resp)
+}
+
+// printCurlCommand writes a copy-pasteable curl invocation to w.
+// URLs are double-quoted to avoid conflicts with single quotes in query parameters.
+func printCurlCommand(w io.Writer, method, url, token string, body []byte) {
+	fmt.Fprintf(w, "[CURL] curl -s -X %s \"%s\"", method, url)
+	fmt.Fprintf(w, " \\\n  -H 'Accept: application/json'")
+	if len(body) > 0 {
+		fmt.Fprintf(w, " \\\n  -H 'Content-Type: application/json'")
+	}
+	if token != "" {
+		fmt.Fprintf(w, " \\\n  -H 'Authorization: Bearer %s'", token)
+	}
+	if len(body) > 0 {
+		fmt.Fprintf(w, " \\\n  -d '%s'", string(body))
+	}
+	fmt.Fprintln(w)
 }

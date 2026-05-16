@@ -47,7 +47,7 @@ func newAPIClient(s *config.Store) *api.Client {
 	apiVersion := s.Get("hyperfleet", "api-version")
 	baseURL := strings.TrimRight(apiURLVal, "/") + "/api/hyperfleet/" + apiVersion + "/"
 	token := s.Get("hyperfleet", "token")
-	return api.NewClient(baseURL, token, verbose)
+	return api.NewClient(baseURL, token, verbose, curlMode)
 }
 
 // loadConfig loads config and returns a store ready for use.

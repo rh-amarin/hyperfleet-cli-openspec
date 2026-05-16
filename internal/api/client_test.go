@@ -19,7 +19,7 @@ type testResource struct {
 
 func newClient(t *testing.T, baseURL string) *api.Client {
 	t.Helper()
-	return api.NewClient(baseURL, "test-token", false)
+	return api.NewClient(baseURL, "test-token", false, false)
 }
 
 func TestGetHappyPath(t *testing.T) {
@@ -233,7 +233,7 @@ func TestBearerTokenHeader(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "secret-token", false)
+	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "secret-token", false, false)
 	api.Get[testResource](context.Background(), c, "resources/1")
 
 	if capturedAuth != "Bearer secret-token" {
@@ -250,7 +250,7 @@ func TestNoTokenNoAuthHeader(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "", false)
+	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "", false, false)
 	api.Get[testResource](context.Background(), c, "resources/1")
 
 	if capturedAuth != "" {
@@ -266,7 +266,7 @@ func TestVerboseLogging(t *testing.T) {
 	defer srv.Close()
 
 	// verbose=true should not panic or error
-	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "", true)
+	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "", true, false)
 	_, err := api.Get[testResource](context.Background(), c, "resources/1")
 	if err != nil {
 		t.Fatalf("Get with verbose: %v", err)
@@ -274,7 +274,7 @@ func TestVerboseLogging(t *testing.T) {
 }
 
 func TestResourceHref(t *testing.T) {
-	c := api.NewClient("http://localhost:8000/api/hyperfleet/v1/", "", false)
+	c := api.NewClient("http://localhost:8000/api/hyperfleet/v1/", "", false, false)
 
 	href := c.ResourceHref("clusters/abc-123")
 	want := "http://localhost:8000/api/hyperfleet/v1/clusters/abc-123"
@@ -290,7 +290,7 @@ func TestTimeoutErrorFormat(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "", false)
+	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "", false, false)
 
 	// A context with a very short deadline causes the HTTP client to return a
 	// timeout error (url.Error wrapping context.DeadlineExceeded, Timeout()==true).

@@ -32,7 +32,7 @@ func newTestClient(t *testing.T, serverURL string) *maestro.Client {
 	if err := s.Load(); err != nil {
 		t.Fatal(err)
 	}
-	return maestro.NewFromConfig(s)
+	return maestro.NewFromConfig(s, false)
 }
 
 func TestListResourceBundles(t *testing.T) {

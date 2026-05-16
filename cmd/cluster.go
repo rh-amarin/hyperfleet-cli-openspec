@@ -13,6 +13,7 @@ import (
 	"github.com/rh-amarin/hyperfleet-cli/internal/config"
 	"github.com/rh-amarin/hyperfleet-cli/internal/output"
 	"github.com/rh-amarin/hyperfleet-cli/internal/resource"
+	"github.com/rh-amarin/hyperfleet-cli/internal/selector"
 	"github.com/spf13/cobra"
 )
 
@@ -628,6 +629,11 @@ var clusterAdapterPostStatusCmd = &cobra.Command{
 
 // ---- cluster id ----
 
+var clusterIDInteractive bool
+
+// clusterIDSel is the selector used by hf cluster id -i; swapped in tests.
+var clusterIDSel selector.Selector = selector.FuzzySelector{}
+
 var clusterIDCmd = &cobra.Command{
 	Use:   "id",
 	Short: "Print the active cluster ID",
@@ -637,6 +643,9 @@ var clusterIDCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		if clusterIDInteractive {
+			return runClusterIDInteractive(cmd, s, clusterIDSel)
+		}
 		id := s.GetState("cluster-id")
 		if id == "" {
 			return fmt.Errorf("[ERROR] No cluster-id set in state. Run 'hf cluster create' or 'hf cluster search <name>' first.")
@@ -644,6 +653,34 @@ var clusterIDCmd = &cobra.Command{
 		fmt.Fprintln(cmd.OutOrStdout(), id)
 		return nil
 	},
+}
+
+func runClusterIDInteractive(cmd *cobra.Command, s *config.Store, sel selector.Selector) error {
+	client := newAPIClient(s)
+	list, err := api.Get[resource.ListResponse[resource.Cluster]](context.Background(), client, "clusters")
+	if err != nil {
+		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+		return handleAPIError(p, err)
+	}
+	if len(list.Items) == 0 {
+		return fmt.Errorf("[ERROR] no clusters available")
+	}
+	items := make([]selector.Item, len(list.Items))
+	for i, c := range list.Items {
+		items[i] = selector.Item{ID: c.ID, Name: c.Name}
+	}
+	idx, err := sel.Select(items)
+	if err != nil {
+		return err
+	}
+	if idx < 0 {
+		return nil
+	}
+	if err := s.SetState("cluster-id", items[idx].ID); err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Active cluster set to: %s (%s)\n", items[idx].Name, items[idx].ID)
+	return nil
 }
 
 func init() {
@@ -672,4 +709,6 @@ func init() {
 
 	clusterListCmd.Flags().BoolVar(&clusterListWatch, "watch", false, "continuously refresh the table (requires --output table)")
 	clusterListCmd.Flags().IntVarP(&clusterListWatchSecs, "seconds", "s", 5, "refresh interval in seconds (used with --watch)")
+
+	clusterIDCmd.Flags().BoolVarP(&clusterIDInteractive, "interactive", "i", false, "interactively select and set the active cluster")
 }

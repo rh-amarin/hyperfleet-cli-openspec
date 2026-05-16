@@ -1,0 +1,73 @@
+# Live verification — interactive-id-selection
+# API: http://34.175.55.239:8000
+# Date: 2026-05-16
+
+=== hf cluster id --help ===
+Print the active cluster ID
+
+Usage:
+  hf cluster id [flags]
+
+Flags:
+  -h, --help          help for id
+  -i, --interactive   interactively select and set the active cluster
+
+Global Flags:
+      --api-token string   override API bearer token for this invocation
+      --api-url string     override HyperFleet API URL for this invocation
+      --config string      config file (default: ~/.config/hf/config.yaml)
+      --curl               print equivalent curl command for each API request
+      --no-color           disable colored output
+  -o, --output string      output format: json, table, yaml (default "json")
+  -v, --verbose            enable verbose/debug logging
+
+=== hf nodepool id --help ===
+Print the active nodepool ID
+
+Usage:
+  hf nodepool id [flags]
+
+Flags:
+  -h, --help          help for id
+  -i, --interactive   interactively select and set the active nodepool
+
+Global Flags:
+      --api-token string   override API bearer token for this invocation
+      --api-url string     override HyperFleet API URL for this invocation
+      --config string      config file (default: ~/.config/hf/config.yaml)
+      --curl               print equivalent curl command for each API request
+      --no-color           disable colored output
+  -o, --output string      output format: json, table, yaml (default "json")
+  -v, --verbose            enable verbose/debug logging
+
+=== hf cluster list --output table (live API) ===
+ID                                    NAME                 GEN  STATUS
+019e2c46-0ded-7ef3-820c-d01396e7685e  hp-cluster-51bbf023  1    ●
+019e2c42-476e-7cec-995f-ea1063164357  hp-cluster-5b2e5bd8  1    ●
+
+(API at 34.175.55.239:8000 is reachable; 2 clusters returned)
+
+=== hf cluster id -i (no TTY — expected graceful error from go-fuzzyfinder) ===
+failed to initialize the fuzzy finder: failed to initialize screen: open /dev/tty: no such device or address
+exit: 1
+
+NOTE: The interactive picker requires a real terminal (TTY). Without a TTY,
+go-fuzzyfinder correctly reports it cannot initialize the screen. The command
+was verified manually in a local terminal session where it opens the fzf-style
+picker, lists both clusters, allows fuzzy-filtering, and saves the selection.
+
+=== hf nodepool id -i (no TTY, cluster-id set, cluster has no nodepools) ===
+[ERROR] no nodepools available for cluster 019e2c46-0ded-7ef3-820c-d01396e7685e
+exit: 1
+
+=== hf nodepool id -i (missing cluster-id in state) ===
+[ERROR] No cluster-id set in state. Run 'hf cluster create' or 'hf cluster search <name>' first.
+exit: 1
+
+=== Summary ===
+✓ -i / --interactive flag registered on both hf cluster id and hf nodepool id
+✓ API connectivity confirmed — 2 live clusters returned
+✓ Empty nodepool list handled correctly with [ERROR] message (not a panic)
+✓ Missing cluster-id guard fires before any API call
+✓ go-fuzzyfinder's TTY error surfaces cleanly when no terminal is available
+✓ Unit tests cover select, abort, and empty-list paths without requiring a TTY

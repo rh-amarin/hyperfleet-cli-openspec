@@ -9,8 +9,10 @@ import (
 	"time"
 
 	"github.com/rh-amarin/hyperfleet-cli/internal/api"
+	"github.com/rh-amarin/hyperfleet-cli/internal/config"
 	"github.com/rh-amarin/hyperfleet-cli/internal/output"
 	"github.com/rh-amarin/hyperfleet-cli/internal/resource"
+	"github.com/rh-amarin/hyperfleet-cli/internal/selector"
 	"github.com/spf13/cobra"
 )
 
@@ -680,6 +682,11 @@ var nodepoolAdapterPostStatusCmd = &cobra.Command{
 
 // ---- nodepool id ----
 
+var nodepoolIDInteractive bool
+
+// nodepoolIDSel is the selector used by hf nodepool id -i; swapped in tests.
+var nodepoolIDSel selector.Selector = selector.FuzzySelector{}
+
 var nodepoolIDCmd = &cobra.Command{
 	Use:   "id",
 	Short: "Print the active nodepool ID",
@@ -689,6 +696,9 @@ var nodepoolIDCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		if nodepoolIDInteractive {
+			return runNodepoolIDInteractive(cmd, s, nodepoolIDSel)
+		}
 		id := s.GetState("nodepool-id")
 		if id == "" {
 			return fmt.Errorf("[ERROR] No nodepool-id set in state. Run 'hf nodepool create' or 'hf nodepool search <name>' first.")
@@ -696,6 +706,38 @@ var nodepoolIDCmd = &cobra.Command{
 		fmt.Fprintln(cmd.OutOrStdout(), id)
 		return nil
 	},
+}
+
+func runNodepoolIDInteractive(cmd *cobra.Command, s *config.Store, sel selector.Selector) error {
+	clusterID, err := requireClusterID(s)
+	if err != nil {
+		return err
+	}
+	client := newAPIClient(s)
+	list, err := api.Get[resource.ListResponse[resource.NodePool]](context.Background(), client, npBase(clusterID))
+	if err != nil {
+		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+		return handleAPIError(p, err)
+	}
+	if len(list.Items) == 0 {
+		return fmt.Errorf("[ERROR] no nodepools available for cluster %s", clusterID)
+	}
+	items := make([]selector.Item, len(list.Items))
+	for i, np := range list.Items {
+		items[i] = selector.Item{ID: np.ID, Name: np.Name}
+	}
+	idx, err := sel.Select(items)
+	if err != nil {
+		return err
+	}
+	if idx < 0 {
+		return nil
+	}
+	if err := s.SetState("nodepool-id", items[idx].ID); err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Active nodepool set to: %s (%s)\n", items[idx].Name, items[idx].ID)
+	return nil
 }
 
 func init() {
@@ -724,4 +766,6 @@ func init() {
 
 	nodepoolListCmd.Flags().BoolVar(&nodepoolListWatch, "watch", false, "continuously refresh the table (requires --output table)")
 	nodepoolListCmd.Flags().IntVarP(&nodepoolListWatchSecs, "seconds", "s", 5, "refresh interval in seconds (used with --watch)")
+
+	nodepoolIDCmd.Flags().BoolVarP(&nodepoolIDInteractive, "interactive", "i", false, "interactively select and set the active nodepool")
 }

@@ -12,6 +12,7 @@ import (
 	"testing"
 )
 
+
 // ---- test fixtures ----
 
 const nodepoolID = "019dc049-e76c-7be1-b201-0db50e2c8ecb"
@@ -105,6 +106,7 @@ func resetNodepoolFlags() {
 	nodepoolUpdateReplicas = 0
 	nodepoolListWatch = false
 	nodepoolListWatchSecs = 5
+	nodepoolIDInteractive = false
 }
 
 // runNodepoolCmd wraps runCmd and resets all nodepool flag state before each invocation.
@@ -922,4 +924,129 @@ func TestNodepoolID(t *testing.T) {
 			t.Errorf("unexpected error message: %v", err)
 		}
 	})
+}
+
+// ---- nodepool id --interactive ----
+
+const secondNodepoolID = "bbbbbbbb-cccc-dddd-eeee-ffffffffffff"
+
+var nodepoolListTwoJSON = `{
+  "items": [` + nodepoolJSON + `, {
+    "id": "` + secondNodepoolID + `",
+    "kind": "NodePool",
+    "name": "second-nodepool",
+    "generation": 1,
+    "labels": {},
+    "spec": {},
+    "status": {"conditions": []},
+    "owner_references": {"id": "` + clusterID + `", "kind": "Cluster", "href": ""},
+    "created_by": "user@example.com",
+    "created_time": "2026-05-10T00:00:00Z",
+    "href": "/api/hyperfleet/v1/clusters/` + clusterID + `/nodepools/` + secondNodepoolID + `"
+  }],
+  "kind": "NodePoolList",
+  "page": 1,
+  "size": 2,
+  "total": 2
+}`
+
+func TestNodepoolIDInteractive_Select(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, nodepoolListTwoJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	orig := nodepoolIDSel
+	nodepoolIDSel = mockSel{idx: 1} // pick second nodepool
+	t.Cleanup(func() { nodepoolIDSel = orig })
+
+	out, err := runNodepoolCmd(t, dir, "nodepool", "id", "--interactive")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "Active nodepool set to:") {
+		t.Errorf("expected confirmation message, got: %q", out)
+	}
+	if !strings.Contains(out, secondNodepoolID) {
+		t.Errorf("expected selected nodepool ID in output, got: %q", out)
+	}
+	state, err := os.ReadFile(filepath.Join(dir, "state.yaml"))
+	if err != nil {
+		t.Fatalf("reading state.yaml: %v", err)
+	}
+	if !strings.Contains(string(state), secondNodepoolID) {
+		t.Errorf("nodepool-id %q not found in state.yaml:\n%s", secondNodepoolID, state)
+	}
+}
+
+func TestNodepoolIDInteractive_Abort(t *testing.T) {
+	apiCalled := false
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools" {
+			apiCalled = true
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, nodepoolListJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	setBothIDsInState(t, dir, "test", clusterID, nodepoolID) // seed an existing ID
+
+	orig := nodepoolIDSel
+	nodepoolIDSel = mockSel{idx: -1} // abort
+	t.Cleanup(func() { nodepoolIDSel = orig })
+
+	out, err := runNodepoolCmd(t, dir, "nodepool", "id", "--interactive")
+	if err != nil {
+		t.Fatalf("unexpected error on abort: %v", err)
+	}
+	if out != "" {
+		t.Errorf("expected no output on abort, got: %q", out)
+	}
+	if !apiCalled {
+		t.Error("expected API to be called even on abort")
+	}
+	// Original nodepool-id must be preserved.
+	state, _ := os.ReadFile(filepath.Join(dir, "state.yaml"))
+	if !strings.Contains(string(state), nodepoolID) {
+		t.Errorf("original nodepool-id should be preserved in state.yaml:\n%s", state)
+	}
+}
+
+func TestNodepoolIDInteractive_NoCluster(t *testing.T) {
+	apiCalled := false
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		apiCalled = true
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	// Setup env without cluster-id in state.
+	dir := t.TempDir()
+	makeEnv(t, dir, "test", ts.URL)
+	setActiveEnv(t, dir, "test")
+
+	orig := nodepoolIDSel
+	nodepoolIDSel = mockSel{idx: 0}
+	t.Cleanup(func() { nodepoolIDSel = orig })
+
+	_, err := runNodepoolCmd(t, dir, "nodepool", "id", "--interactive")
+	if err == nil {
+		t.Fatal("expected error when cluster-id is not set")
+	}
+	if !strings.Contains(err.Error(), "No cluster-id set in state") {
+		t.Errorf("unexpected error message: %v", err)
+	}
+	if apiCalled {
+		t.Error("API should not be called when cluster-id is missing")
+	}
 }

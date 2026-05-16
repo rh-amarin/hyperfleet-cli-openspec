@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rh-amarin/hyperfleet-cli/internal/selector"
 )
 
 // ---- test fixtures ----
@@ -99,7 +101,16 @@ func resetClusterFlags() {
 	clusterUpdateReplicas = 0
 	clusterListWatch = false
 	clusterListWatchSecs = 5
+	clusterIDInteractive = false
 }
+
+// mockSel is a test double for selector.Selector shared across cluster and nodepool tests.
+type mockSel struct {
+	idx int
+	err error
+}
+
+func (m mockSel) Select(_ []selector.Item) (int, error) { return m.idx, m.err }
 
 // runClusterCmd wraps runCmd and resets all flag state before each invocation
 // so tests are independent regardless of execution order.
@@ -979,4 +990,124 @@ func TestClusterID(t *testing.T) {
 			t.Errorf("unexpected error message: %v", err)
 		}
 	})
+}
+
+// ---- cluster id --interactive ----
+
+const secondClusterID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+
+var clusterListTwoJSON = `{
+  "items": [` + clusterJSON + `, {
+    "id": "` + secondClusterID + `",
+    "kind": "Cluster",
+    "name": "second-cluster",
+    "generation": 1,
+    "labels": {},
+    "spec": {},
+    "status": {"conditions": []},
+    "created_by": "user@example.com",
+    "created_time": "2026-05-10T00:00:00Z",
+    "href": "/api/hyperfleet/v1/clusters/` + secondClusterID + `"
+  }],
+  "kind": "ClusterList",
+  "page": 1,
+  "size": 2,
+  "total": 2
+}`
+
+func TestClusterIDInteractive_Select(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterListTwoJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	orig := clusterIDSel
+	clusterIDSel = mockSel{idx: 1} // pick second cluster
+	t.Cleanup(func() { clusterIDSel = orig })
+
+	out, err := runClusterCmd(t, dir, "cluster", "id", "--interactive")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "Active cluster set to:") {
+		t.Errorf("expected confirmation message, got: %q", out)
+	}
+	if !strings.Contains(out, secondClusterID) {
+		t.Errorf("expected selected cluster ID in output, got: %q", out)
+	}
+	state, err := os.ReadFile(filepath.Join(dir, "state.yaml"))
+	if err != nil {
+		t.Fatalf("reading state.yaml: %v", err)
+	}
+	if !strings.Contains(string(state), secondClusterID) {
+		t.Errorf("cluster-id %q not found in state.yaml:\n%s", secondClusterID, state)
+	}
+}
+
+func TestClusterIDInteractive_Abort(t *testing.T) {
+	apiCalled := false
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters" {
+			apiCalled = true
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterListJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	setClusterIDInState(t, dir, "test", clusterID) // seed an existing ID
+
+	orig := clusterIDSel
+	clusterIDSel = mockSel{idx: -1} // abort
+	t.Cleanup(func() { clusterIDSel = orig })
+
+	out, err := runClusterCmd(t, dir, "cluster", "id", "--interactive")
+	if err != nil {
+		t.Fatalf("unexpected error on abort: %v", err)
+	}
+	if out != "" {
+		t.Errorf("expected no output on abort, got: %q", out)
+	}
+	if !apiCalled {
+		t.Error("expected API to be called even on abort")
+	}
+	// Original cluster-id must be preserved.
+	state, _ := os.ReadFile(filepath.Join(dir, "state.yaml"))
+	if !strings.Contains(string(state), clusterID) {
+		t.Errorf("original cluster-id should be preserved in state.yaml:\n%s", state)
+	}
+}
+
+func TestClusterIDInteractive_Empty(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == apiPrefix+"/clusters" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, emptyListJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	orig := clusterIDSel
+	clusterIDSel = mockSel{idx: 0}
+	t.Cleanup(func() { clusterIDSel = orig })
+
+	_, err := runClusterCmd(t, dir, "cluster", "id", "--interactive")
+	if err == nil {
+		t.Fatal("expected error when no clusters available")
+	}
+	if !strings.Contains(err.Error(), "no clusters available") {
+		t.Errorf("unexpected error message: %v", err)
+	}
 }

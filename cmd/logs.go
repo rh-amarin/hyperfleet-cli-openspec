@@ -37,7 +37,7 @@ Subcommands: adapter.`,
 		if err != nil {
 			return err
 		}
-		namespace := s.Get("kubernetes", "namespace")
+		namespace := s.Get("hyperfleet", "namespace")
 
 		// Delegate to stern if available.
 		if sternPath, err := exec.LookPath("stern"); err == nil {
@@ -72,7 +72,7 @@ Lines are displayed as: [pod] <time>  <LEVEL>  <msg>`,
 		if err != nil {
 			return err
 		}
-		namespace := s.Get("kubernetes", "namespace")
+		namespace := s.Get("hyperfleet", "namespace")
 
 		podPattern := "adapter"
 		if len(args) > 0 && args[0] != "" {
@@ -117,7 +117,7 @@ summary of what the system has been doing.
 		if err != nil {
 			return err
 		}
-		namespace := s.Get("kubernetes", "namespace")
+		namespace := s.Get("hyperfleet", "namespace")
 
 		cs, err := kube.NewClientset(resolvedKubeconfig(s), "")
 		if err != nil {

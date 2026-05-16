@@ -1,7 +1,9 @@
-BINARY    := bin/hf
-MODULE    := github.com/rh-amarin/hyperfleet-cli
-VERSION   := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-LDFLAGS   := -ldflags "-X $(MODULE)/internal/version.Version=$(VERSION)"
+BINARY     := bin/hf
+MODULE     := github.com/rh-amarin/hyperfleet-cli
+VERSION    := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+BUILD_TIME := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+LDFLAGS    := -ldflags "-X $(MODULE)/internal/version.Version=$(VERSION) \
+                         -X $(MODULE)/internal/version.BuildTime=$(BUILD_TIME)"
 
 .PHONY: build test vet clean lint completions
 

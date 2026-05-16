@@ -8,7 +8,11 @@ package version
 // It defaults to "dev" and is replaced by the CI/CD build pipeline.
 var Version = "dev"
 
-// String returns the version string.
+// BuildTime is the RFC3339 timestamp of when the binary was compiled.
+// It defaults to "unknown" and is injected at link time via -ldflags.
+var BuildTime = "unknown"
+
+// String returns the version string including build time.
 func String() string {
-	return Version
+	return Version + " (built " + BuildTime + ")"
 }

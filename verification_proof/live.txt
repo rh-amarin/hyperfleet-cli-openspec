@@ -1,0 +1,2 @@
+go build -ldflags "-X github.com/rh-amarin/hyperfleet-cli/internal/version.Version=47fccef-dirty -X github.com/rh-amarin/hyperfleet-cli/internal/version.BuildTime=2026-05-16T14:48:49Z" -o bin/hf .
+47fccef-dirty (built 2026-05-16T14:48:49Z)

@@ -1,0 +1,15 @@
+=== hf cluster list --curl ===
+[CURL] curl -s -X GET "http://34.175.77.98:8000/api/hyperfleet/v1/clusters" \
+  -H 'Accept: application/json'
+[ERROR] Request to http://34.175.77.98:8000/api/hyperfleet/v1/clusters timed out after 30s. Check your network connection and API server.
+=== hf maestro list --curl ===
+[CURL] curl -s "http://localhost:8100/api/maestro/v1/resource-bundles?search=consumer_name='cluster1'" \
+  -H 'Accept: application/json'
+{
+  "items": [
+    {
+      "id": "03ba64e6-4476-5053-87eb-2e0e01071d74",
+      "name": "03ba64e6-4476-5053-87eb-2e0e01071d74",
+      "consumer_name": "cluster1",
+      "version": 1,
+      "manifest_count": 0,

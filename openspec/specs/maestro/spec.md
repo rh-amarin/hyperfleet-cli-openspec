@@ -101,43 +101,38 @@ The CLI SHALL delete a maestro resource by name via the HTTP API.
 
 The CLI SHALL provide an `internal/maestro` package with a typed HTTP client for the Maestro REST API.
 
-#### Scenario: Client construction from config
+#### Scenario: Client construction with curl mode
 
-- GIVEN `maestro.http-endpoint` is set in the active config
-- WHEN `maestro.NewFromConfig(s)` is called
-- THEN a `Client` is returned pointing to that endpoint with a 30-second timeout
+- GIVEN the `--curl` flag is set
+- WHEN `maestro.NewFromConfig(s, curlMode)` is called with `curlMode=true`
+- THEN the returned client MUST print a curl command to stderr before every HTTP request
 
-#### Scenario: List all resource-bundles
+#### Scenario: Curl output for GET requests
 
-- GIVEN a valid Maestro HTTP endpoint is configured
-- WHEN `client.ListResourceBundles(ctx)` is called
-- THEN the client MUST send GET to `/api/maestro/v1/resource-bundles`
-- AND decode the response into `ResourceBundleList`
+- GIVEN `curlMode=true`
+- WHEN `client.get(ctx, path, v)` is called
+- THEN the client MUST write to stderr before executing the request:
+  ```
+  [CURL] curl -s "<url>" \
+    -H 'Accept: application/json'
+  ```
+- AND the URL MUST be double-quoted
 
-#### Scenario: List resource-bundles by consumer
+#### Scenario: Curl output for DELETE requests
 
-- GIVEN a consumer name is provided
-- WHEN `client.ListResourceBundlesByConsumer(ctx, consumer)` is called
-- THEN the client MUST send GET to `/api/maestro/v1/resource-bundles?search=consumer_name='<consumer>'`
+- GIVEN `curlMode=true`
+- WHEN `client.delete(ctx, path)` is called
+- THEN the client MUST write to stderr before executing the request:
+  ```
+  [CURL] curl -s -X DELETE "<url>"
+  ```
+- AND the URL MUST be double-quoted
 
-#### Scenario: Get a resource-bundle by name
+#### Scenario: Curl mode disabled
 
-- GIVEN a resource-bundle name is provided
-- WHEN `client.GetResourceBundle(ctx, name)` is called
-- THEN the client MUST list all bundles and return the one matching the name, or nil if not found
-
-#### Scenario: Delete a resource-bundle by ID
-
-- GIVEN a valid resource-bundle ID
-- WHEN `client.DeleteResourceBundle(ctx, id)` is called
-- THEN the client MUST send DELETE to `/api/maestro/v1/resource-bundles/<id>`
-
-#### Scenario: List consumers
-
-- GIVEN a valid Maestro HTTP endpoint
-- WHEN `client.ListConsumers(ctx)` is called
-- THEN the client MUST send GET to `/api/maestro/v1/consumers`
-- AND decode the response into `ConsumerList`
+- GIVEN `curlMode=false`
+- WHEN any request is sent
+- THEN no curl output MUST be written to stderr
 
 ### Requirement: CLI Maestro List Command
 

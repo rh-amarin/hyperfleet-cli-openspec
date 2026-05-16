@@ -5,9 +5,7 @@
 Provide a shared, type-safe HTTP client for all HyperFleet API operations, handling
 authentication, error parsing, and verbose logging so that command implementations
 can focus on business logic rather than HTTP plumbing.
-
 ## Requirements
-
 ### Requirement: Resource href Construction
 
 The API client package SHALL expose a helper for building canonical href URLs for HyperFleet resources.
@@ -33,20 +31,17 @@ Note: Other specs use `/api/hyperfleet/v1/` in endpoint path examples. The `v1` 
 
 The API client SHALL be initialized from the resolved configuration store.
 
-#### Scenario: Create client from config
+#### Scenario: Create client with curl mode
 
-- GIVEN the config store has been loaded with `hyperfleet.api-url`, `hyperfleet.api-version`, and `hyperfleet.token`
-- WHEN `api.NewClient` is called with the resolved config values
-- THEN the client MUST construct its base URL as `{api-url}/api/hyperfleet/{api-version}/`
-- AND set the `Authorization: Bearer {token}` header on all requests when token is non-empty
-- AND use a default HTTP timeout of 30 seconds
+- GIVEN the `--curl` flag is set
+- WHEN `api.NewClient(baseURL, token, verbose, curlMode)` is called with `curlMode=true`
+- THEN the returned client MUST print a curl command to stderr before every HTTP request
 
-#### Scenario: Create client without token
+#### Scenario: Create client without curl mode
 
-- GIVEN `hyperfleet.token` is empty
-- WHEN the client sends a request
-- THEN the request MUST NOT include an `Authorization` header
-- AND the request MUST still be sent (some API endpoints may not require auth)
+- GIVEN the `--curl` flag is not set
+- WHEN `api.NewClient(baseURL, token, verbose, false)` is called
+- THEN the client MUST NOT print any curl output
 
 ### Requirement: Typed HTTP Methods
 
@@ -131,18 +126,28 @@ The API client SHALL parse non-2xx responses as RFC 7807 Problem Details.
 
 The API client SHALL log request details when verbose mode is enabled.
 
-#### Scenario: Verbose mode enabled
+#### Scenario: Curl mode enabled
 
-- GIVEN the client is created with `verbose=true`
-- WHEN a request is sent and a response is received
-- THEN the client MUST log to stderr: `[DEBUG] {METHOD} {URL} → {STATUS} ({DURATION})`
-- AND the duration MUST be in milliseconds
+- GIVEN the client is created with `curlMode=true`
+- WHEN any HTTP request is sent
+- THEN the client MUST write to stderr before executing the request:
+  ```
+  [CURL] curl -s -X <METHOD> "<URL>" \
+    -H 'Accept: application/json' \
+    [-H 'Content-Type: application/json' \]
+    [-H 'Authorization: Bearer <token>' \]
+    [-d '<json-body>']
+  ```
+- AND `Content-Type` header line MUST only appear when the request has a body
+- AND `Authorization` header line MUST only appear when a token is configured
+- AND the URL MUST be double-quoted to safely handle single quotes in query parameters
+- AND the output MUST go to stderr so stdout data output is not affected
 
-#### Scenario: Verbose mode disabled
+#### Scenario: Curl mode disabled
 
-- GIVEN the client is created with `verbose=false`
+- GIVEN the client is created with `curlMode=false`
 - WHEN a request is sent
-- THEN no debug output MUST be written to stderr
+- THEN no curl output MUST be written to stderr
 
 ### Requirement: Context Propagation
 
@@ -154,3 +159,4 @@ The API client SHALL support Go context for cancellation and timeouts.
 - WHEN the client detects the cancellation
 - THEN the HTTP request MUST be aborted
 - AND the client MUST return `context.Canceled` or `context.DeadlineExceeded`
+

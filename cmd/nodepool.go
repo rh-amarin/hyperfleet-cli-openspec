@@ -528,6 +528,58 @@ var nodepoolDeleteCmd = &cobra.Command{
 	},
 }
 
+// ---- nodepool force-delete ----
+
+var nodepoolForceDeleteReason string
+
+var nodepoolForceDeleteCmd = &cobra.Command{
+	Use:   "force-delete [id]",
+	Short: "Permanently remove a nodepool that is stuck in Finalizing state",
+	Args:  cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if nodepoolForceDeleteReason == "" {
+			return fmt.Errorf("[ERROR] --reason is required")
+		}
+		id := ""
+		if len(args) > 0 {
+			id = args[0]
+		}
+		if id == "" && !nodepoolInteractive {
+			return fmt.Errorf("[ERROR] nodepool ID required. Pass an explicit ID or use -i to select interactively.")
+		}
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		clusterID, err := requireClusterID(s)
+		if err != nil {
+			return err
+		}
+		if nodepoolInteractive && id == "" {
+			id, err = pickNodepoolInteractive(cmd, s, clusterID)
+			if err != nil || id == "" {
+				return err
+			}
+		}
+		client := newAPIClient(s)
+		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+
+		_, err = api.Post[resource.NodePool](context.Background(), client,
+			npBase(clusterID)+"/"+id+"/force-delete",
+			map[string]string{"reason": nodepoolForceDeleteReason},
+		)
+		if err != nil {
+			var apiErr *api.APIError
+			if errors.As(err, &apiErr) && apiErr.Status == 404 {
+				return fmt.Errorf("[ERROR] NodePool '%s' not found", id)
+			}
+			return handleAPIError(p, err)
+		}
+		p.Info(fmt.Sprintf("NodePool '%s' force-deleted", id))
+		return nil
+	},
+}
+
 // ---- nodepool conditions ----
 
 var nodepoolConditionsCmd = &cobra.Command{
@@ -718,11 +770,15 @@ var nodepoolAdapterPostStatusCmd = &cobra.Command{
 			},
 		}
 
-		result, err := api.Post[resource.AdapterStatus](context.Background(), client, "clusters/"+clusterID+"/nodepools/"+nodepoolID+"/statuses", body)
+		result, err := api.Put[resource.AdapterStatus](context.Background(), client, "clusters/"+clusterID+"/nodepools/"+nodepoolID+"/statuses", body)
 		if err != nil {
 			return handleAPIError(p, err)
 		}
 
+		if result.Adapter == "" {
+			p.Info(fmt.Sprintf("Posted adapter status for %s on nodepool %s (no-op: status unchanged)", adapterName, nodepoolID))
+			return nil
+		}
 		p.Info(fmt.Sprintf("Posted adapter status for %s on nodepool %s", adapterName, nodepoolID))
 		return p.Print(result)
 	},
@@ -840,6 +896,7 @@ func init() {
 	nodepoolCmd.AddCommand(nodepoolUpdateCmd)
 	nodepoolCmd.AddCommand(nodepoolPatchCmd)
 	nodepoolCmd.AddCommand(nodepoolDeleteCmd)
+	nodepoolCmd.AddCommand(nodepoolForceDeleteCmd)
 	nodepoolCmd.AddCommand(nodepoolConditionsCmd)
 	nodepoolCmd.AddCommand(nodepoolStatusesCmd)
 	nodepoolCmd.AddCommand(nodepoolAdapterCmd)
@@ -860,8 +917,10 @@ func init() {
 
 	nodepoolIDCmd.Flags().BoolVarP(&nodepoolIDInteractive, "interactive", "i", false, "interactively select and set the active nodepool")
 
+	nodepoolForceDeleteCmd.Flags().StringVar(&nodepoolForceDeleteReason, "reason", "", "reason for force-deleting the nodepool (required)")
+
 	for _, c := range []*cobra.Command{
-		nodepoolGetCmd, nodepoolPatchCmd, nodepoolDeleteCmd,
+		nodepoolGetCmd, nodepoolPatchCmd, nodepoolDeleteCmd, nodepoolForceDeleteCmd,
 		nodepoolConditionsCmd, nodepoolStatusesCmd, nodepoolAdapterPostStatusCmd,
 	} {
 		c.Flags().BoolVarP(&nodepoolInteractive, "interactive", "i", false,

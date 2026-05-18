@@ -5,7 +5,6 @@ import (
 	"context"
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/rh-amarin/hyperfleet-cli/internal/api"
 	"github.com/rh-amarin/hyperfleet-cli/internal/output"
@@ -53,20 +52,19 @@ func runResources(cmd *cobra.Command, _ []string) error {
 		defer cancel()
 
 		var (
-			cachedEntries  []clusterEntry
-			cachedCondCols []string
-			cachedAdCols   []string
+			cachedEntries []clusterEntry
+			cachedAdCols  []string
 		)
 		return runWatchFast(ctx, cmd.OutOrStdout(), resourcesWatchSecs, func(tick int, refresh bool) error {
 			if refresh || cachedEntries == nil {
-				entries, condCols, adCols, err := fetchResourceEntries(cmd)
+				entries, adCols, err := fetchResourceEntries(cmd)
 				if err != nil {
 					p := output.NewPrinter("table", noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 					return handleAPIError(p, err)
 				}
-				cachedEntries, cachedCondCols, cachedAdCols = entries, condCols, adCols
+				cachedEntries, cachedAdCols = entries, adCols
 			}
-			return renderResourcesTable(cmd, cachedEntries, cachedCondCols, cachedAdCols, tick, resourcesWatchSecs)
+			return renderResourcesTable(cmd, cachedEntries, cachedAdCols, tick, resourcesWatchSecs)
 		})
 	}
 
@@ -75,7 +73,7 @@ func runResources(cmd *cobra.Command, _ []string) error {
 
 // fetchResourceEntries fetches all clusters with their adapter statuses and nodepools
 // for table rendering. Returns raw errors without printing them.
-func fetchResourceEntries(cmd *cobra.Command) (entries []clusterEntry, condCols, adCols []string, err error) {
+func fetchResourceEntries(cmd *cobra.Command) (entries []clusterEntry, adCols []string, err error) {
 	s, err := loadConfig()
 	if err != nil {
 		return
@@ -117,25 +115,24 @@ func fetchResourceEntries(cmd *cobra.Command) (entries []clusterEntry, condCols,
 		})
 	}
 
-	condCols = collectConditionCols(entries)
 	adCols = collectAdapterCols(entries)
 	return
 }
 
 // renderResourcesTable renders the cluster+nodepool table from pre-fetched data.
-func renderResourcesTable(cmd *cobra.Command, entries []clusterEntry, condCols, adapterCols []string, tick, frequencySecs int) error {
+func renderResourcesTable(cmd *cobra.Command, entries []clusterEntry, adapterCols []string, tick, frequencySecs int) error {
 	p := output.NewPrinter("table", noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
-	headers := make([]string, 0, 3+len(condCols)+len(adapterCols))
+	headers := make([]string, 0, 3+len(fixedCondCols)+len(adapterCols))
 	headers = append(headers, "ID", "NAME", "GEN")
-	headers = append(headers, condCols...)
+	headers = append(headers, fixedCondCols...)
 	headers = append(headers, adapterCols...)
 
 	rows := make([][]string, 0)
 	for _, e := range entries {
-		rows = append(rows, buildClusterRow(e.cluster, e.adapterStatuses, condCols, adapterCols, tick, frequencySecs))
+		rows = append(rows, buildClusterRow(e.cluster, e.adapterStatuses, adapterCols, tick, frequencySecs))
 		for _, np := range e.nodepools {
-			rows = append(rows, buildNodePoolRow(np, e.npStatuses[np.ID], condCols, adapterCols, tick, frequencySecs))
+			rows = append(rows, buildNodePoolRow(np, e.npStatuses[np.ID], adapterCols, tick, frequencySecs))
 		}
 	}
 
@@ -157,35 +154,12 @@ func fetchAndRenderResources(cmd *cobra.Command, effectiveFmt string, tick, freq
 		return p.Print(clusterList)
 	}
 
-	entries, condCols, adCols, err := fetchResourceEntries(cmd)
+	entries, adCols, err := fetchResourceEntries(cmd)
 	if err != nil {
 		p := output.NewPrinter(effectiveFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 		return handleAPIError(p, err)
 	}
-	return renderResourcesTable(cmd, entries, condCols, adCols, tick, frequencySecs)
-}
-
-// collectConditionCols returns unique condition types (excluding *Successful) in insertion order.
-func collectConditionCols(entries []clusterEntry) []string {
-	seen := map[string]bool{}
-	var cols []string
-	add := func(t string) {
-		if !strings.HasSuffix(t, "Successful") && !seen[t] {
-			seen[t] = true
-			cols = append(cols, t)
-		}
-	}
-	for _, e := range entries {
-		for _, c := range e.cluster.Status.Conditions {
-			add(c.Type)
-		}
-		for _, np := range e.nodepools {
-			for _, c := range np.Status.Conditions {
-				add(c.Type)
-			}
-		}
-	}
-	return cols
+	return renderResourcesTable(cmd, entries, adCols, tick, frequencySecs)
 }
 
 // collectAdapterCols returns unique adapter names sorted by the earliest
@@ -228,6 +202,19 @@ func collectAdapterCols(entries []clusterEntry) []string {
 	return names
 }
 
+// fixedCondCols are the two aggregated condition columns always shown before adapter columns.
+var fixedCondCols = []string{"Reconciled", "LastKnownReconciled"}
+
+// condDot returns the status cell for a fixed condition column.
+func condDot(conditions []resource.ResourceCondition, condType string) string {
+	for _, c := range conditions {
+		if c.Type == condType {
+			return output.StatusDot(c.Status, noColor) + " " + strconv.Itoa(int(c.ObservedGeneration))
+		}
+	}
+	return "-"
+}
+
 // adapterDot returns the status cell for a named adapter column.
 // In watch mode (frequencySecs > 0) a 2-char spinner slot is always reserved so
 // column widths stay stable: active adapters show the animated frame, inactive
@@ -253,7 +240,7 @@ func adapterDot(statuses []resource.AdapterStatus, adName, condKey string, tick,
 	return "-"
 }
 
-func buildClusterRow(cl resource.Cluster, statuses []resource.AdapterStatus, condCols, adapterCols []string, tick, frequencySecs int) []string {
+func buildClusterRow(cl resource.Cluster, statuses []resource.AdapterStatus, adapterCols []string, tick, frequencySecs int) []string {
 	isDeleted := cl.DeletedTime != ""
 	gen := strconv.Itoa(int(cl.Generation))
 	if isDeleted {
@@ -265,15 +252,8 @@ func buildClusterRow(cl resource.Cluster, statuses []resource.AdapterStatus, con
 	}
 
 	row := []string{cl.ID, cl.Name, gen}
-	for _, col := range condCols {
-		val := "-"
-		for _, c := range cl.Status.Conditions {
-			if c.Type == col {
-				val = output.StatusDot(c.Status, noColor) + " " + strconv.Itoa(int(c.ObservedGeneration))
-				break
-			}
-		}
-		row = append(row, val)
+	for _, ct := range fixedCondCols {
+		row = append(row, condDot(cl.Status.Conditions, ct))
 	}
 	for _, adName := range adapterCols {
 		row = append(row, adapterDot(statuses, adName, condKey, tick, frequencySecs))
@@ -281,7 +261,7 @@ func buildClusterRow(cl resource.Cluster, statuses []resource.AdapterStatus, con
 	return row
 }
 
-func buildNodePoolRow(np resource.NodePool, statuses []resource.AdapterStatus, condCols, adapterCols []string, tick, frequencySecs int) []string {
+func buildNodePoolRow(np resource.NodePool, statuses []resource.AdapterStatus, adapterCols []string, tick, frequencySecs int) []string {
 	isDeleted := np.DeletedTime != ""
 	gen := strconv.Itoa(int(np.Generation))
 	if isDeleted {
@@ -293,15 +273,8 @@ func buildNodePoolRow(np resource.NodePool, statuses []resource.AdapterStatus, c
 	}
 
 	row := []string{"  " + np.ID, "  " + np.Name, gen}
-	for _, col := range condCols {
-		val := "-"
-		for _, c := range np.Status.Conditions {
-			if c.Type == col {
-				val = output.StatusDot(c.Status, noColor) + " " + strconv.Itoa(int(c.ObservedGeneration))
-				break
-			}
-		}
-		row = append(row, val)
+	for _, ct := range fixedCondCols {
+		row = append(row, condDot(np.Status.Conditions, ct))
 	}
 	for _, adName := range adapterCols {
 		row = append(row, adapterDot(statuses, adName, condKey, tick, frequencySecs))

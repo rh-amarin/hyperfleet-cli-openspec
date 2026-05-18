@@ -2,11 +2,14 @@
   "kind": "NodePool",
   "name": "my-nodepool",
   "labels": {
+    "shard": "1",
     "counter": "1"
   },
   "spec": {
     "counter": "1",
-    "platform": { "type": "m4" },
+    "platform": {
+      "type": "m4"
+    },
     "replicas": 1
   }
 }

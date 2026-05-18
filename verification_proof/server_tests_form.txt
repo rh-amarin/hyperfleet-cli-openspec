@@ -1,0 +1,34 @@
+=== RUN   TestHandleIndex
+--- PASS: TestHandleIndex (0.00s)
+=== RUN   TestRouteNotFound
+--- PASS: TestRouteNotFound (0.00s)
+=== RUN   TestRouteMethodNotAllowed
+--- PASS: TestRouteMethodNotAllowed (0.00s)
+=== RUN   TestHandleClusterProxy
+--- PASS: TestHandleClusterProxy (0.00s)
+=== RUN   TestHandleClustersWithStatuses
+--- PASS: TestHandleClustersWithStatuses (0.00s)
+=== RUN   TestHandleClustersUpstreamError
+--- PASS: TestHandleClustersUpstreamError (0.00s)
+=== RUN   TestRoutesMapToCorrectUpstreamPaths
+=== RUN   TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc
+=== RUN   TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/statuses
+=== RUN   TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/nodepools
+=== RUN   TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/nodepools/np1
+=== RUN   TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/nodepools/np1/statuses
+--- PASS: TestRoutesMapToCorrectUpstreamPaths (0.00s)
+    --- PASS: TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc (0.00s)
+    --- PASS: TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/statuses (0.00s)
+    --- PASS: TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/nodepools (0.00s)
+    --- PASS: TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/nodepools/np1 (0.00s)
+    --- PASS: TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/nodepools/np1/statuses (0.00s)
+=== RUN   TestPostClusterStatusesProxy
+--- PASS: TestPostClusterStatusesProxy (0.00s)
+=== RUN   TestPostNodePoolStatusesProxy
+--- PASS: TestPostNodePoolStatusesProxy (0.00s)
+=== RUN   TestPostStatusesUpstreamError
+--- PASS: TestPostStatusesUpstreamError (0.00s)
+=== RUN   TestPostToNonStatusRouteReturns405
+--- PASS: TestPostToNonStatusRouteReturns405 (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/server	(cached)

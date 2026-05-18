@@ -1,0 +1,1960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HyperFleet</title>
+<style>
+:root {
+  --bg:       #0d1117;
+  --surface:  #161b22;
+  --surface2: #1c2128;
+  --border:   #30363d;
+  --border2:  #21262d;
+  --text:     #e6edf3;
+  --fg2:      #c9d1d9;
+  --muted:    #8b949e;
+  --accent:   #58a6ff;
+  --green:    #3fb950;
+  --red:      #f85149;
+  --yellow:   #d29922;
+  --gray:     #484f58;
+  --row-hover:#1c2128;
+  --row-sel:  #1f2937;
+  --font:     ui-monospace, 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+}
+
+:root.light {
+  --bg:       #f6f8fa;
+  --surface:  #ffffff;
+  --surface2: #f0f2f5;
+  --border:   #d0d7de;
+  --border2:  #e1e4e8;
+  --text:     #1f2328;
+  --fg2:      #424a53;
+  --muted:    #656d76;
+  --accent:   #0969da;
+  --green:    #1a7f37;
+  --red:      #cf222e;
+  --yellow:   #9a6700;
+  --gray:     #57606a;
+  --row-hover:#f0f2f5;
+  --row-sel:  #dbeafe;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* ── Header ── */
+#header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  height: 40px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.logo {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.03em;
+}
+.logo span { color: var(--accent); }
+
+#env-badge {
+  background: var(--border2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+#status-msg { color: var(--muted); font-size: 11px; flex: 1; }
+
+#countdown-wrap { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; }
+.spinner { color: var(--accent); font-size: 13px; }
+#countdown-num { font-variant-numeric: tabular-nums; min-width: 8px; }
+#theme-btn, #create-cluster-btn {
+  background: none; border: 1px solid var(--border); border-radius: 4px;
+  color: var(--muted); font-size: 13px; cursor: pointer; padding: 2px 6px;
+  line-height: 1; transition: color 0.15s, border-color 0.15s;
+}
+#theme-btn:hover, #create-cluster-btn:hover { color: var(--accent); border-color: var(--accent); }
+#create-cluster-btn { font-size: 11px; padding: 3px 9px; }
+
+#search-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 3px 8px;
+  outline: none;
+  width: 160px;
+  transition: border-color 0.15s;
+}
+#search-input:focus { border-color: var(--accent); }
+#search-input::placeholder { color: var(--gray); }
+
+/* ── Layout ── */
+#app { display: flex; flex-direction: column; height: 100vh; }
+
+#content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Table panel ── */
+#table-panel {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+#table-panel::-webkit-scrollbar { width: 6px; height: 6px; }
+#table-panel::-webkit-scrollbar-track { background: var(--bg); }
+#table-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+#cluster-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+#cluster-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--surface);
+}
+
+#cluster-table th {
+  padding: 6px 8px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#cluster-table th.col-cond {
+  text-align: center;
+  width: 48px;
+  min-width: 40px;
+  max-width: 72px;
+  cursor: default;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+  overflow: visible;
+  text-overflow: unset;
+  padding: 4px 2px;
+  line-height: 1.3;
+}
+
+#cluster-table th.col-name { width: 220px; min-width: 140px; }
+#cluster-table th.col-age  { width: 44px;  min-width: 44px; text-align: right; }
+#cluster-table th.col-gen  { width: 36px;  min-width: 36px; text-align: right; }
+#cluster-table th.col-status { width: 70px; min-width: 70px; text-align: center; }
+
+#cluster-table tbody tr {
+  border-bottom: 1px solid var(--border2);
+  cursor: pointer;
+  transition: background 0.08s;
+}
+#cluster-table tbody tr:hover  { background: var(--row-hover); }
+#cluster-table tbody tr.selected { background: var(--row-sel); }
+#cluster-table tbody tr.selected td { border-left: 2px solid var(--accent); }
+#cluster-table tbody tr.selected td:first-child { padding-left: 6px; }
+
+#cluster-table td {
+  padding: 5px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-left: 2px solid transparent;
+}
+
+#cluster-table td.col-cond { text-align: center; padding: 5px 2px; }
+.act-spin {
+  display: inline-block;
+  width: 12px;
+  height: 10px;
+  vertical-align: middle;
+  margin-right: 3px;
+  --c: no-repeat linear-gradient(var(--accent) 0 0);
+  background: var(--c) 0% 50%, var(--c) 50% 50%, var(--c) 100% 50%;
+  background-size: 20% 100%;
+  animation: act-spin-l1 1s infinite linear;
+}
+@keyframes act-spin-l1 {
+  0%  { background-size: 20% 100%, 20% 100%, 20% 100% }
+  33% { background-size: 20% 10%,  20% 100%, 20% 100% }
+  50% { background-size: 20% 100%, 20% 10%,  20% 100% }
+  66% { background-size: 20% 100%, 20% 100%, 20% 10%  }
+  100%{ background-size: 20% 100%, 20% 100%, 20% 100% }
+}
+.gen-num {
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: 2px;
+  vertical-align: middle;
+  font-variant-numeric: tabular-nums;
+}
+#cluster-table td.col-age  { text-align: right; color: var(--muted); font-size: 11px; }
+#cluster-table td.col-gen  { text-align: right; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+#cluster-table tr.np-row { background: transparent; }
+#cluster-table tr.np-row td { border-top: none; padding-top: 1px; padding-bottom: 1px; opacity: 0.82; }
+#cluster-table tr.np-row .np-indent { padding-left: 18px; color: var(--muted); font-size: 11px; }
+#cluster-table tr.np-row .np-name-text { color: var(--fg2); }
+
+.name-cell { display: flex; align-items: center; gap: 6px; }
+.name-text { overflow: hidden; text-overflow: ellipsis; }
+.kind-badge {
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: var(--border2);
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+/* ── Dot ── */
+.dot {
+  font-size: 14px;
+  line-height: 1;
+  cursor: default;
+  display: inline-block;
+  position: relative;
+}
+
+/* ── Tooltip ── */
+#tooltip {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 7px 10px;
+  font-size: 11px;
+  color: var(--text);
+  white-space: pre;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  display: none;
+  max-width: 340px;
+  line-height: 1.6;
+}
+#tooltip.visible { display: block; }
+#tooltip .tip-type  { font-weight: 700; color: var(--accent); }
+#tooltip .tip-status { font-weight: 600; }
+#tooltip .tip-label { color: var(--muted); }
+
+/* ── Detail panel ── */
+#detail-panel {
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.2s ease, min-width 0.2s ease;
+  flex-shrink: 0;
+}
+
+#detail-panel.open {
+  width: 480px;
+  min-width: 480px;
+}
+
+#detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+#detail-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#close-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  transition: color 0.1s;
+  flex-shrink: 0;
+}
+#close-btn:hover { color: var(--text); }
+
+#detail-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+#detail-body::-webkit-scrollbar { width: 5px; }
+#detail-body::-webkit-scrollbar-track { background: var(--surface); }
+#detail-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── Detail sections ── */
+.section {
+  border-bottom: 1px solid var(--border2);
+  padding: 10px 14px;
+}
+
+/* ── Actions bar ── */
+.actions-bar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.btn-action {
+  background: none; border: 1px solid var(--border); border-radius: 4px;
+  color: var(--fg2); font-family: var(--font); font-size: 11px; cursor: pointer;
+  padding: 3px 10px; transition: all 0.12s;
+}
+.btn-action:hover { border-color: var(--accent); color: var(--accent); }
+.btn-action.danger { color: var(--red); border-color: var(--red); }
+.btn-action.danger:hover { background: var(--red); color: #fff; }
+.btn-action.confirm { background: var(--red); color: #fff; border-color: var(--red); }
+
+
+.section-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 2px 8px;
+  font-size: 11px;
+}
+.meta-key  { color: var(--muted); }
+.meta-val  { color: var(--text); word-break: break-all; }
+.meta-val a { color: var(--accent); text-decoration: none; }
+
+/* ── Conditions table ── */
+.cond-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.cond-table th {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 3px 6px;
+  text-align: left;
+  border-bottom: 1px solid var(--border2);
+}
+.cond-table td {
+  padding: 4px 6px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border2);
+  word-break: break-word;
+}
+.cond-table tr:last-child td { border-bottom: none; }
+.cond-table td.cond-status { text-align: center; padding: 4px 2px; }
+.cond-msg { color: var(--muted); font-size: 10px; max-width: 200px; word-break: break-word; }
+.cond-reason { color: var(--yellow); font-size: 10px; }
+.cond-type-col { min-width: 100px; }
+.cond-time { color: var(--muted); font-size: 10px; white-space: nowrap; }
+
+/* ── Adapter statuses ── */
+.adapter-block {
+  margin-bottom: 8px;
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.adapter-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--surface2);
+  font-size: 11px;
+  font-weight: 600;
+}
+.adapter-name { color: var(--accent); }
+.adapter-meta { color: var(--muted); font-size: 10px; font-weight: 400; }
+.adapter-body { padding: 2px 0; }
+
+/* ── Nodepools ── */
+.np-item {
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+
+.np-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--surface2);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+.np-toggle:hover { background: var(--row-hover); }
+
+.np-arrow {
+  color: var(--muted);
+  font-size: 10px;
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+.np-arrow.open { transform: rotate(90deg); }
+.np-name { font-weight: 600; font-size: 11px; flex: 1; }
+.np-cond-count { color: var(--muted); font-size: 10px; }
+.np-dots { display: flex; gap: 3px; }
+
+.np-body {
+  display: none;
+  border-top: 1px solid var(--border2);
+  padding: 8px 10px;
+}
+.np-body.open { display: block; }
+.np-subsection-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 6px 0 4px;
+}
+.np-loading { color: var(--muted); font-size: 11px; padding: 6px 0; }
+
+/* ── Labels ── */
+.label-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.label-tag {
+  background: var(--border2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* ── Empty / loading states ── */
+.empty-row td {
+  text-align: center;
+  color: var(--muted);
+  padding: 24px 0;
+  font-size: 11px;
+}
+
+.error-banner {
+  background: rgba(248,81,73,0.1);
+  border: 1px solid var(--red);
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: var(--red);
+  font-size: 11px;
+  margin: 8px 14px;
+}
+
+/* ── Adapter block — clickable ── */
+.adapter-block { cursor: pointer; }
+.adapter-block:hover .adapter-header { background: #252c37; }
+
+/* ── Form panel ── */
+#form-panel {
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.2s ease, min-width 0.2s ease;
+  flex-shrink: 0;
+}
+#form-panel.open { width: 420px; min-width: 420px; }
+
+#form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#form-title { font-size: 12px; font-weight: 600; color: var(--text); }
+#form-close-btn {
+  background: none; border: none; color: var(--muted); font-size: 18px;
+  cursor: pointer; padding: 0 2px; line-height: 1; transition: color 0.1s; flex-shrink: 0;
+}
+#form-close-btn:hover { color: var(--text); }
+
+#form-body {
+  flex: 1;
+  overflow-y: auto;
+}
+#form-body::-webkit-scrollbar { width: 5px; }
+#form-body::-webkit-scrollbar-track { background: var(--surface); }
+#form-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+#form-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.form-section { padding: 10px 14px; border-bottom: 1px solid var(--border2); }
+.form-section-title {
+  font-size: 10px; font-weight: 700; color: var(--muted);
+  letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px;
+}
+.form-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.form-row:last-child { margin-bottom: 0; }
+.form-label { font-size: 11px; color: var(--muted); min-width: 74px; flex-shrink: 0; }
+.form-input {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+  color: var(--text); font-family: var(--font); font-size: 11px; padding: 4px 8px;
+  outline: none; flex: 1; transition: border-color 0.15s;
+}
+.form-input:focus { border-color: var(--accent); }
+
+/* Numeric stepper */
+.stepper { display: flex; align-items: center; }
+.stepper-btn {
+  background: var(--border2); border: 1px solid var(--border); color: var(--text);
+  font-size: 14px; cursor: pointer; padding: 2px 9px; line-height: 1.4;
+  transition: background 0.1s;
+}
+.stepper-btn:first-child { border-radius: 4px 0 0 4px; border-right: none; }
+.stepper-btn:last-child  { border-radius: 0 4px 4px 0; border-left: none; }
+.stepper-btn:hover:not(:disabled) { background: var(--border); }
+.stepper-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.stepper-val {
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  font-family: var(--font); font-size: 11px; padding: 3px 0; min-width: 44px;
+  text-align: center;
+}
+
+/* Radio group */
+.radio-group { display: flex; gap: 12px; align-items: center; }
+.radio-option { display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 11px; font-weight: 600; }
+.radio-option input[type="radio"] { accent-color: var(--accent); cursor: pointer; }
+.radio-true    { color: var(--green); }
+.radio-false   { color: var(--red); }
+.radio-unknown { color: var(--yellow); }
+
+/* Condition rows */
+.cond-form-row {
+  background: var(--surface2); border: 1px solid var(--border2); border-radius: 4px;
+  padding: 8px 10px; margin-bottom: 6px; position: relative;
+}
+.cond-row-remove {
+  position: absolute; top: 6px; right: 8px; background: none; border: none;
+  color: var(--muted); font-size: 15px; cursor: pointer; padding: 0; line-height: 1;
+  transition: color 0.1s;
+}
+.cond-row-remove:hover { color: var(--red); }
+.cond-row-fields { display: flex; flex-direction: column; gap: 5px; padding-right: 22px; }
+
+.add-cond-btn {
+  background: none; border: 1px dashed var(--border); border-radius: 4px;
+  color: var(--muted); font-family: var(--font); font-size: 11px; cursor: pointer;
+  padding: 5px 0; width: 100%; margin-top: 4px; transition: all 0.1s;
+}
+.add-cond-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Buttons */
+.btn {
+  border-radius: 4px; font-family: var(--font); font-size: 11px; cursor: pointer;
+  padding: 5px 14px; border: 1px solid var(--border); transition: all 0.1s;
+}
+.btn-cancel { background: var(--surface2); color: var(--muted); }
+.btn-cancel:hover { color: var(--text); }
+.btn-submit { background: var(--accent); color: #0d1117; border-color: var(--accent); font-weight: 600; }
+.btn-submit:hover:not(:disabled) { opacity: 0.85; }
+.btn-submit:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-report {
+  background: var(--accent); border: none; border-radius: 4px;
+  color: #fff; font-family: var(--font); font-size: 11px; font-weight: 600;
+  cursor: pointer; padding: 3px 10px; transition: opacity 0.1s; letter-spacing: 0.02em;
+}
+.btn-report:hover { opacity: 0.85; }
+
+/* ── Raw JSON view ── */
+.raw-json-details { list-style: none; }
+.raw-json-summary {
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; user-select: none; list-style: none;
+}
+.raw-json-summary::-webkit-details-marker { display: none; }
+.raw-json-arrow {
+  font-size: 9px; color: var(--muted);
+  transition: transform 0.15s; display: inline-block;
+}
+details[open] .raw-json-arrow { transform: rotate(90deg); }
+pre.json-view {
+  font-size: 10px; line-height: 1.6; overflow-x: auto;
+  padding: 8px; background: var(--bg); border-radius: 4px;
+  white-space: pre; margin-top: 8px; border: 1px solid var(--border2);
+}
+.json-key  { color: var(--accent); }
+.json-str  { color: var(--green); }
+.json-num  { color: var(--yellow); }
+.json-bool { color: var(--red); }
+.json-null { color: var(--gray); }
+
+/* Form banners */
+.form-banner {
+  margin: 8px 14px; padding: 8px 12px; border-radius: 4px; font-size: 11px;
+}
+.form-banner-success { background: rgba(63,185,80,0.1); border: 1px solid var(--green); color: var(--green); }
+.form-banner-error   { background: rgba(248,81,73,0.1);  border: 1px solid var(--red);   color: var(--red); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div class="logo">Hyper<span>Fleet</span></div>
+    <div id="env-badge">—</div>
+    <div id="status-msg"></div>
+    <input id="search-input" type="text" placeholder="filter clusters / nodepools…" autocomplete="off">
+    <div id="countdown-wrap">
+      <span class="spinner" id="spinner">⠋</span>
+      <span id="countdown-num">5</span>s
+    </div>
+    <button id="create-cluster-btn" onclick="openCreateForm('createCluster')" title="Create a new cluster">＋ Cluster</button>
+    <button id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark theme">☀</button>
+  </div>
+
+  <div id="content">
+    <div id="table-panel">
+      <table id="cluster-table">
+        <thead><tr id="header-row"></tr></thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+
+    <div id="detail-panel">
+      <div id="detail-header">
+        <span id="detail-title">—</span>
+        <button id="close-btn" title="Close">×</button>
+      </div>
+      <div id="detail-body"></div>
+    </div>
+
+    <div id="form-panel">
+      <div id="form-header">
+        <span id="form-title">Report Adapter Status</span>
+        <button id="form-close-btn" title="Close" onclick="closeForm()">×</button>
+      </div>
+      <div id="form-body"></div>
+      <div id="form-footer">
+        <button class="btn btn-cancel" onclick="closeForm()">Cancel</button>
+        <button class="btn btn-submit" id="f-submit-btn" onclick="submitForm()">Submit Report</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+// ── Constants ──────────────────────────────────────────────────────────────
+const POLL_INTERVAL = 5; // seconds
+const SPINNER_FRAMES = ['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'];
+
+const CLUSTER_TEMPLATE = {
+  kind: "Cluster", name: "my-cluster",
+  labels: { counter: "1", environment: "development", shard: "1", team: "core" },
+  spec:   { counter: "1", region: "us-east-1", version: "4.15.0" }
+};
+const NODEPOOL_TEMPLATE = {
+  kind: "NodePool", name: "my-nodepool",
+  labels: { shard: "1", counter: "1" },
+  spec:   { counter: "1", platform: { type: "m4" }, replicas: 1 }
+};
+
+const DOT_COLORS = {
+  'True':    '#3fb950',
+  'False':   '#f85149',
+  'Unknown': '#d29922',
+};
+const DOT_GRAY = '#484f58';
+
+// ── State ──────────────────────────────────────────────────────────────────
+let state = {
+  clusters:              [],     // ClusterEntry[] from /api/clusters
+  selectedID:            null,   // selected cluster id
+  expandedNPs:           new Set(),
+  npData:                {},     // npID → { nodepools, statuses }
+  searchFilter:          '',
+  countdown:             POLL_INTERVAL,
+  spinnerTick:           0,
+  polling:               false,
+  npByCluster:           {},    // clusterID → NodePool[]
+  currentAdapterStatuses: [],   // adapter statuses of currently selected cluster
+  deleteConfirm:         false,
+  forceDeleteConfirm:    false,
+  formMode:              'status',   // 'status' | 'createCluster' | 'createNodepool'
+  formCreateClusterID:   null,
+  formClusterID:         null,
+  formNpID:              null,
+  formAdapter:           '',
+  formGen:               0,
+  formConditions:        [],    // [{type, status, reason, message}]
+};
+
+// ── API ────────────────────────────────────────────────────────────────────
+const api = {
+  clusters:           ()           => fetch('/api/clusters').then(r => r.json()),
+  cluster:            (id)         => fetch(`/api/clusters/${id}`).then(r => r.json()),
+  clusterStatuses:    (id)         => fetch(`/api/clusters/${id}/statuses`).then(r => r.json()),
+  nodepool:           (cid, npid)  => fetch(`/api/clusters/${cid}/nodepools/${npid}`).then(r => r.json()),
+  nodepools:          (id)         => fetch(`/api/clusters/${id}/nodepools`).then(r => r.json()),
+  nodepoolStatuses:   (cid, npid)  => fetch(`/api/clusters/${cid}/nodepools/${npid}/statuses`).then(r => r.json()),
+  postClusterStatus:  (id, body)        => fetch(`/api/clusters/${id}/statuses`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),
+  postNPStatus:       (cid, npid, body) => fetch(`/api/clusters/${cid}/nodepools/${npid}/statuses`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),
+  patchCluster:       (id, body)        => fetch(`/api/clusters/${id}`, {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),
+  deleteCluster:      (id)              => fetch(`/api/clusters/${id}`, {method:'DELETE'}),
+  patchNP:            (cid, npid, body) => fetch(`/api/clusters/${cid}/nodepools/${npid}`, {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),
+  deleteNP:           (cid, npid)       => fetch(`/api/clusters/${cid}/nodepools/${npid}`, {method:'DELETE'}),
+  forceDeleteNP:      (cid, npid, body) => fetch(`/api/clusters/${cid}/nodepools/${npid}/force-delete`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),
+  createCluster:      (body)            => fetch('/api/clusters', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),
+  createNodepool:     (cid, body)       => fetch(`/api/clusters/${cid}/nodepools`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),
+};
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function dotColor(status) {
+  return DOT_COLORS[status] || DOT_GRAY;
+}
+
+function statusDot(status, condType, cond) {
+  const color = dotColor(status);
+  const tip = buildTip(condType, cond);
+  return `<span class="dot" style="color:${color}" data-tip="${esc(tip)}">●</span>`;
+}
+
+function buildTip(condType, cond) {
+  if (!cond) return `${condType}\n(no data)`;
+  let lines = [`${condType}  ${cond.status || '–'}`];
+  if (cond.reason)  lines.push(`Reason: ${cond.reason}`);
+  if (cond.message) lines.push(`Msg:    ${cond.message}`);
+  const t = cond.last_transition_time || cond.last_updated_time;
+  if (t) lines.push(`Since:  ${fmtTime(t)}`);
+  return lines.join('\n');
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/"/g,'&quot;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+}
+
+function fmtTime(ts) {
+  if (!ts) return '—';
+  try {
+    const d = new Date(ts);
+    return d.toISOString().replace('T',' ').replace(/\.\d+Z$/,' UTC');
+  } catch { return ts; }
+}
+
+function age(ts) {
+  if (!ts) return '—';
+  const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+  if (diff < 60)       return `${diff}s`;
+  if (diff < 3600)     return `${Math.floor(diff/60)}m`;
+  if (diff < 86400)    return `${Math.floor(diff/3600)}h`;
+  return `${Math.floor(diff/86400)}d`;
+}
+
+function relTime(ts) {
+  if (!ts) return '—';
+  const secs = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+  if (secs < 60)    return `${secs}s ago`;
+  if (secs < 3600)  return `${Math.floor(secs/60)}m ago`;
+  return `${Math.floor(secs/3600)}h ago`;
+}
+
+// Collect unique adapter names sorted by earliest created_time.
+function collectAdapterCols(clusters) {
+  const adapterMap = {}; // name → earliest created_time
+  for (const c of clusters) {
+    for (const s of (c.adapter_statuses || [])) {
+      if (!adapterMap[s.adapter] || s.created_time < adapterMap[s.adapter]) {
+        adapterMap[s.adapter] = s.created_time || '';
+      }
+    }
+  }
+  return Object.keys(adapterMap).sort((a, b) =>
+    (adapterMap[a] || '').localeCompare(adapterMap[b] || ''));
+}
+
+function abbrev(s, n) {
+  return s.length <= n ? s : s.slice(0, n) + '…';
+}
+
+function isAdapterActive(ts) {
+  if (!ts) return false;
+  return (Date.now() - new Date(ts).getTime()) < 2 * POLL_INTERVAL * 1000;
+}
+
+function condForType(conditions, type) {
+  return (conditions || []).find(c => c.type === type) || null;
+}
+
+const FIXED_COND_COLS = ['Reconciled', 'LastKnownReconciled'];
+
+// ── Table rendering ────────────────────────────────────────────────────────
+function renderHeader(adapterCols) {
+  const row = document.getElementById('header-row');
+  const cols = [
+    `<th class="col-name">Name</th>`,
+    `<th class="col-age" title="Age since creation">Age</th>`,
+    `<th class="col-gen" title="Spec generation">Gen</th>`,
+    ...FIXED_COND_COLS.map(t =>
+      `<th class="col-cond" title="${esc(t)}">${esc(t)}</th>`),
+    ...adapterCols.map(a =>
+      `<th class="col-cond" title="Adapter: ${esc(a)}" style="color:var(--accent)">${esc(a)}</th>`),
+  ];
+  row.innerHTML = cols.join('');
+}
+
+function renderTable(clusters) {
+  const adapterCols = collectAdapterCols(clusters);
+
+  // Only re-render header if columns changed
+  const newColKey = adapterCols.join(',');
+  if (newColKey !== state._colKey) {
+    state._colKey = newColKey;
+    renderHeader(adapterCols);
+  }
+
+  // Build filtered view: cluster matches directly, or any of its NPs match.
+  // When a NP matches but the cluster doesn't, include the cluster (dimmed) + only matching NPs.
+  const f = state.searchFilter;
+  const matches = s => !f || s.toLowerCase().includes(f);
+
+  const filteredEntries = clusters.reduce((acc, c) => {
+    const allNPs    = state.npByCluster[c.id] || [];
+    const clusterOk = matches(c.name) || matches(c.id);
+    const matchedNPs = allNPs.filter(np => matches(np.name) || matches(np.id));
+    if (clusterOk || matchedNPs.length > 0) {
+      acc.push({ cluster: c, nps: clusterOk ? allNPs : matchedNPs, dimCluster: !clusterOk });
+    }
+    return acc;
+  }, []);
+
+  const tbody = document.getElementById('table-body');
+
+  // Remove rows for clusters no longer in filtered set
+  const currentIDs = new Set(filteredEntries.map(e => e.cluster.id));
+  for (const row of [...tbody.querySelectorAll('tr[data-id]')]) {
+    if (!currentIDs.has(row.dataset.id)) row.remove();
+  }
+  // Remove NP rows whose cluster is gone
+  for (const row of [...tbody.querySelectorAll('tr[data-np-parent]')]) {
+    if (!currentIDs.has(row.dataset.npParent)) row.remove();
+  }
+
+  if (filteredEntries.length === 0) {
+    if (!tbody.querySelector('.empty-row')) {
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="99">No results</td></tr>`;
+    }
+    return;
+  }
+  tbody.querySelector('.empty-row')?.remove();
+
+  for (const { cluster, nps, dimCluster } of filteredEntries) {
+    const existing = tbody.querySelector(`tr[data-id="${cluster.id}"]`);
+    const html = buildRow(cluster, adapterCols, dimCluster);
+    if (existing) {
+      existing.outerHTML = html;
+    } else {
+      tbody.insertAdjacentHTML('beforeend', html);
+    }
+    if (cluster.id === state.selectedID) {
+      tbody.querySelector(`tr[data-id="${cluster.id}"]`)?.classList.add('selected');
+    }
+
+    // Sync NP rows: remove stale ones, insert/update visible ones
+    const visibleNPIDs = new Set(nps.map(n => n.id));
+    for (const row of [...tbody.querySelectorAll(`tr[data-np-parent="${cluster.id}"]`)]) {
+      if (!visibleNPIDs.has(row.dataset.npId)) row.remove();
+    }
+    let afterEl = tbody.querySelector(`tr[data-id="${cluster.id}"]`);
+    for (const np of nps) {
+      const npHtml = buildNPRow(np, cluster.id, adapterCols);
+      const existingNP = tbody.querySelector(`tr[data-np-id="${np.id}"]`);
+      if (existingNP) {
+        existingNP.outerHTML = npHtml;
+        afterEl = tbody.querySelector(`tr[data-np-id="${np.id}"]`) || afterEl;
+      } else {
+        afterEl.insertAdjacentHTML('afterend', npHtml);
+        afterEl = tbody.querySelector(`tr[data-np-id="${np.id}"]`) || afterEl;
+      }
+      if (np.id === state.selectedID) {
+        tbody.querySelector(`tr[data-np-id="${np.id}"]`)?.classList.add('selected');
+      }
+    }
+  }
+}
+
+function buildNPRow(np, clusterID, adapterCols) {
+  const conditions = np.status?.conditions || [];
+  const condCells = FIXED_COND_COLS.map(type => {
+    const cond = condForType(conditions, type);
+    const status = cond?.status || '';
+    if (!status) return `<td class="col-cond"><span style="color:var(--border2)">·</span></td>`;
+    const gen = cond.observed_generation != null ? `<span class="gen-num">${cond.observed_generation}</span>` : '';
+    return `<td class="col-cond">${statusDot(status, type, cond)}${gen}</td>`;
+  });
+  const adapterCells = adapterCols.map(() => `<td class="col-cond" style="color:var(--border2)">·</td>`);
+
+  const npDelMark = np.deleted_time ? ' ❌' : '';
+  return `<tr class="np-row" data-np-id="${esc(np.id)}" data-np-parent="${esc(clusterID)}"
+      onclick="selectNP('${esc(clusterID)}','${esc(np.id)}')">
+    <td class="col-name np-indent">
+      <div class="name-cell">
+        <span style="color:var(--border2);margin-right:2px">└</span>
+        <span class="np-name-text" title="${esc(np.id)}">${esc(np.name)}${npDelMark}</span>
+      </div>
+    </td>
+    <td class="col-age">${age(np.created_time)}</td>
+    <td class="col-gen">${np.generation ?? '—'}</td>
+    ${condCells.join('')}
+    ${adapterCells.join('')}
+  </tr>`;
+}
+
+function buildRow(cluster, adapterCols, dim) {
+  const isDeleted = !!cluster.deleted_time;
+  const conditions = cluster.status?.conditions || [];
+  const condCells = FIXED_COND_COLS.map(type => {
+    const cond = condForType(conditions, type);
+    const status = cond?.status || '';
+    const gen = (cond && cond.observed_generation != null) ? `<span class="gen-num">${cond.observed_generation}</span>` : '';
+    return `<td class="col-cond">${statusDot(status, type, cond)}${gen}</td>`;
+  });
+
+  const adapterCells = adapterCols.map(name => {
+    const s = (cluster.adapter_statuses || []).find(a => a.adapter === name);
+    if (!s) return `<td class="col-cond"><span class="act-spin" style="visibility:hidden"></span>${statusDot('', name, null)}</td>`;
+    // For non-deleted: ignore Finalized (it means "not deleting" = healthy state).
+    // For deleted: show only Finalized to reflect deletion progress.
+    const relevant = (s.conditions || []).filter(c =>
+      isDeleted ? c.type === 'Finalized' : c.type !== 'Finalized'
+    );
+    let overall = relevant.length ? 'True' : '';
+    for (const c of relevant) {
+      if (c.status === 'False') { overall = 'False'; break; }
+      if (c.status === 'Unknown') overall = 'Unknown';
+    }
+    const tip = s.conditions.map(c => buildTip(`${name}/${c.type}`, c)).join('\n─\n');
+    const color = dotColor(overall);
+    const active = isAdapterActive(s.last_report_time);
+    const spin = `<span class="act-spin"${active ? '' : ' style="visibility:hidden"'}></span>`;
+    const gen = s.observed_generation != null ? `<span class="gen-num">${s.observed_generation}</span>` : '';
+    return `<td class="col-cond">${spin}<span class="dot" style="color:${color}" data-tip="${esc(tip)}">●</span>${gen}</td>`;
+  });
+
+  const clusterDeletedMark = isDeleted ? ' ❌' : '';
+  return `<tr data-id="${esc(cluster.id)}" onclick="selectCluster('${esc(cluster.id)}')"${dim ? ' style="opacity:0.4"' : ''}>
+    <td class="col-name"><div class="name-cell"><span class="name-text" title="${esc(cluster.id)}">${esc(cluster.name)}${clusterDeletedMark}</span></div></td>
+    <td class="col-age">${age(cluster.created_time)}</td>
+    <td class="col-gen">${cluster.generation ?? '—'}</td>
+    ${condCells.join('')}
+    ${adapterCells.join('')}
+  </tr>`;
+}
+
+// ── Detail panel ───────────────────────────────────────────────────────────
+async function selectCluster(id) {
+  state.selectedID = id;
+  state.expandedNPs = new Set();
+  state.npData = {};
+  state._currentNPID = null;
+  state._currentNPClusterID = null;
+
+  document.querySelectorAll('#table-body tr').forEach(r => r.classList.remove('selected'));
+  document.querySelector(`#table-body tr[data-id="${id}"]`)?.classList.add('selected');
+
+  const panel = document.getElementById('detail-panel');
+  panel.classList.add('open');
+
+  const cluster = state.clusters.find(c => c.id === id);
+  if (!cluster) return;
+
+  document.getElementById('detail-title').textContent = cluster.name;
+  document.getElementById('detail-body').innerHTML = renderDetailLoading();
+
+  await refreshDetail(id);
+}
+
+async function selectNP(clusterID, npID) {
+  state.selectedID = npID;
+  state.expandedNPs = new Set();
+
+  document.querySelectorAll('#table-body tr').forEach(r => r.classList.remove('selected'));
+  document.querySelector(`#table-body tr[data-np-id="${npID}"]`)?.classList.add('selected');
+
+  const panel = document.getElementById('detail-panel');
+  panel.classList.add('open');
+
+  const np = (state.npByCluster[clusterID] || []).find(n => n.id === npID);
+  document.getElementById('detail-title').textContent = np ? np.name : npID;
+  document.getElementById('detail-body').innerHTML = renderDetailLoading();
+
+  await refreshNPDetail(clusterID, npID);
+}
+
+async function refreshNPDetail(clusterID, npID) {
+  const np = (state.npByCluster[clusterID] || []).find(n => n.id === npID);
+  try {
+    const statusesResp = await api.nodepoolStatuses(clusterID, npID);
+    const adapterStatuses = statusesResp?.items || [];
+    state.currentAdapterStatuses = adapterStatuses;
+    state._currentNPClusterID = clusterID;
+    state._currentNPID = npID;
+    state.activePatch   = null;
+
+    const npDeletedMark = np?.deleted_time ? ' ❌' : '';
+    document.getElementById('detail-title').textContent = (np ? np.name : npID) + npDeletedMark;
+    let html = '';
+
+    // ── Actions ──
+    html += renderActionsBar(clusterID, npID, np);
+
+    html += `<div class="section">
+      <div class="section-title">Node Pool</div>
+      <div class="meta-grid">
+        <span class="meta-key">ID</span>      <span class="meta-val">${esc(npID)}</span>
+        <span class="meta-key">Name</span>    <span class="meta-val">${esc(np?.name || '—')}</span>
+        <span class="meta-key">Created</span> <span class="meta-val">${fmtTime(np?.created_time)}</span>
+        <span class="meta-key">Updated</span> <span class="meta-val">${fmtTime(np?.updated_time)}</span>
+      </div>
+    </div>`;
+
+    // ── Raw JSON ──
+    if (np) html += renderRawJSON(np);
+
+    const conds = np?.status?.conditions || [];
+    html += `<div class="section">
+      <div class="section-title">Conditions (${conds.length})</div>
+      ${renderConditionsTable(conds)}
+    </div>`;
+
+    html += `<div class="section">
+      <div class="section-title">Adapter Statuses (${adapterStatuses.length})</div>`;
+    if (!adapterStatuses.length) {
+      html += `<span style="color:var(--muted);font-size:11px">None reported</span>`;
+    } else {
+      for (const a of adapterStatuses) html += renderAdapterBlock(a, clusterID, npID);
+    }
+    html += `</div>`;
+
+    const rawWasOpenNP = document.querySelector('.raw-json-details')?.open ?? false;
+    document.getElementById('detail-body').innerHTML = html;
+    if (rawWasOpenNP) document.querySelector('.raw-json-details')?.setAttribute('open', '');
+    _restoreDeleteConfirm();
+  } catch (e) {
+    document.getElementById('detail-body').innerHTML =
+      `<div class="error-banner">Failed to load NP detail: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderDetailLoading() {
+  return `<div class="section"><div class="meta-grid">
+    <span class="meta-key">Loading…</span><span></span>
+  </div></div>`;
+}
+
+async function refreshDetail(id) {
+  if (!id) return;
+  // If id belongs to a nodepool, delegate to NP refresh
+  if (state._currentNPID === id && state._currentNPClusterID) {
+    return refreshNPDetail(state._currentNPClusterID, id);
+  }
+  const cluster = state.clusters.find(c => c.id === id);
+  if (!cluster) return;
+
+  try {
+    const [statusesResp, npResp] = await Promise.all([
+      api.clusterStatuses(id),
+      api.nodepools(id),
+    ]);
+    renderDetail(cluster, statusesResp, npResp);
+  } catch (e) {
+    document.getElementById('detail-body').innerHTML =
+      `<div class="error-banner">Failed to load detail: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderDetail(cluster, statusesResp, npResp) {
+  const adapterStatuses = statusesResp?.items || [];
+  const nodepools       = npResp?.items || [];
+  state.currentAdapterStatuses = adapterStatuses;
+
+  const deletedMark = cluster.deleted_time ? ' ❌' : '';
+  document.getElementById('detail-title').textContent = cluster.name + deletedMark;
+
+  let html = '';
+
+  // ── Actions ──
+  html += renderActionsBar(cluster.id, null, cluster);
+
+  // ── Metadata ──
+  html += `<div class="section">
+    <div class="section-title">Cluster</div>
+    <div class="meta-grid">
+      <span class="meta-key">ID</span>       <span class="meta-val">${esc(cluster.id)}</span>
+      <span class="meta-key">Name</span>     <span class="meta-val">${esc(cluster.name)}</span>
+      <span class="meta-key">Created</span>  <span class="meta-val">${fmtTime(cluster.created_time)}</span>
+      <span class="meta-key">Updated</span>  <span class="meta-val">${fmtTime(cluster.updated_time)}</span>
+      <span class="meta-key">By</span>       <span class="meta-val">${esc(cluster.created_by || '—')}</span>
+    </div>`;
+
+  const labels = Object.entries(cluster.labels || {});
+  if (labels.length) {
+    html += `<div class="label-list" style="margin-top:6px">
+      ${labels.map(([k,v]) => `<span class="label-tag">${esc(k)}=${esc(v)}</span>`).join('')}
+    </div>`;
+  }
+  html += `</div>`;
+
+  // ── Raw JSON ──
+  html += renderRawJSON(cluster);
+
+  // ── Resource Conditions ──
+  const conds = cluster.status?.conditions || [];
+  html += `<div class="section">
+    <div class="section-title">Conditions (${conds.length})</div>
+    ${renderConditionsTable(conds)}
+  </div>`;
+
+  // ── Adapter Statuses ──
+  html += `<div class="section">
+    <div class="section-title">Adapter Statuses (${adapterStatuses.length})</div>`;
+  if (!adapterStatuses.length) {
+    html += `<span style="color:var(--muted);font-size:11px">None reported</span>`;
+  } else {
+    for (const adapter of adapterStatuses) {
+      html += renderAdapterBlock(adapter, cluster.id, null);
+    }
+  }
+  html += `</div>`;
+
+  // ── Nodepools ──
+  html += `<div class="section">
+    <div class="section-title">Node Pools (${nodepools.length})</div>`;
+  if (!nodepools.length) {
+    html += `<span style="color:var(--muted);font-size:11px">None</span>`;
+  } else {
+    for (const np of nodepools) {
+      html += renderNPItem(cluster.id, np);
+    }
+  }
+  html += `</div>`;
+
+  const rawWasOpen = document.querySelector('.raw-json-details')?.open ?? false;
+  document.getElementById('detail-body').innerHTML = html;
+  if (rawWasOpen) document.querySelector('.raw-json-details')?.setAttribute('open', '');
+  _restoreDeleteConfirm();
+
+  // Re-expand any previously expanded nodepools
+  for (const npid of state.expandedNPs) {
+    const body = document.getElementById(`np-body-${npid}`);
+    const arrow = document.getElementById(`np-arrow-${npid}`);
+    if (body) {
+      body.classList.add('open');
+      if (arrow) arrow.classList.add('open');
+      loadNPDetail(cluster.id, npid);
+    }
+  }
+}
+
+function renderConditionsTable(conds) {
+  if (!conds.length) return `<span style="color:var(--muted);font-size:11px">None</span>`;
+  return `<table class="cond-table">
+    <thead><tr>
+      <th class="cond-type-col">Type</th>
+      <th style="width:34px">St</th>
+      <th>Reason / Message</th>
+      <th>Since</th>
+    </tr></thead>
+    <tbody>
+      ${conds.map(c => `<tr>
+        <td>${esc(c.type)}</td>
+        <td class="cond-status">${statusDot(c.status, c.type, c)}</td>
+        <td>
+          ${c.reason ? `<div class="cond-reason">${esc(c.reason)}</div>` : ''}
+          ${c.message ? `<div class="cond-msg">${esc(c.message)}</div>` : ''}
+        </td>
+        <td class="cond-time">${age(c.last_transition_time)}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function renderAdapterBlock(adapter, clusterID, npID) {
+  const lastReport = relTime(adapter.last_report_time);
+  const clickArgs = `'${esc(clusterID)}','${esc(adapter.adapter)}',${npID ? `'${esc(npID)}'` : 'null'}`;
+  let html = `<div class="adapter-block" onclick="openStatusForm(${clickArgs})">
+    <div class="adapter-header">
+      <span class="adapter-name">${esc(adapter.adapter)}</span>
+      <span class="adapter-meta">gen ${adapter.observed_generation || 0} · ${lastReport}</span>`;
+
+  if (adapter.metadata?.job_name) {
+    html += `<span class="adapter-meta"> · ${esc(adapter.metadata.job_name)}</span>`;
+  }
+  html += `</div>
+    <div class="adapter-body">
+      ${renderConditionsTable(adapter.conditions || [])}
+    </div>
+  </div>`;
+  return html;
+}
+
+function renderNPItem(clusterID, np) {
+  const conds = np.status?.conditions || [];
+  const dotsHTML = conds.map(c =>
+    statusDot(c.status, c.type, c)).join(' ');
+
+  return `<div class="np-item" id="np-item-${esc(np.id)}">
+    <div class="np-toggle" onclick="toggleNP('${esc(clusterID)}','${esc(np.id)}')">
+      <span class="np-arrow" id="np-arrow-${esc(np.id)}">▶</span>
+      <span class="np-name">${esc(np.name)}</span>
+      <span class="np-dots">${dotsHTML}</span>
+      <span class="np-cond-count">${conds.length} cond</span>
+    </div>
+    <div class="np-body" id="np-body-${esc(np.id)}">
+      <div class="np-loading">Loading…</div>
+    </div>
+  </div>`;
+}
+
+async function toggleNP(clusterID, npID) {
+  const body  = document.getElementById(`np-body-${npID}`);
+  const arrow = document.getElementById(`np-arrow-${npID}`);
+  if (!body) return;
+
+  const isOpen = body.classList.contains('open');
+  if (isOpen) {
+    body.classList.remove('open');
+    arrow?.classList.remove('open');
+    state.expandedNPs.delete(npID);
+  } else {
+    body.classList.add('open');
+    arrow?.classList.add('open');
+    state.expandedNPs.add(npID);
+    await loadNPDetail(clusterID, npID);
+  }
+}
+
+async function loadNPDetail(clusterID, npID) {
+  const body = document.getElementById(`np-body-${npID}`);
+  if (!body) return;
+
+  try {
+    const statusesResp = await api.nodepoolStatuses(clusterID, npID);
+    const adapterStatuses = statusesResp?.items || [];
+
+    const np = state.clusters
+      .find(c => c.id === clusterID)
+      ?.adapter_statuses; // (not used directly — np from detail)
+
+    let html = '';
+
+    // We have nodepool conditions from the list (already in the toggle header).
+    // Find the nodepool in state for its conditions:
+    const npObj = state._npLists?.[clusterID]?.find(n => n.id === npID);
+    const conds  = npObj?.status?.conditions || [];
+
+    if (conds.length) {
+      html += `<div class="np-subsection-title">Conditions</div>`;
+      html += renderConditionsTable(conds);
+    }
+
+    if (adapterStatuses.length) {
+      html += `<div class="np-subsection-title">Adapter Statuses</div>`;
+      for (const a of adapterStatuses) html += renderAdapterBlock(a, clusterID, npID);
+    }
+
+    if (!html) html = `<span style="color:var(--muted);font-size:11px">No conditions or adapter statuses</span>`;
+    body.innerHTML = html;
+  } catch (e) {
+    body.innerHTML = `<div class="error-banner">Failed to load: ${esc(e.message)}</div>`;
+  }
+}
+
+function closeDetail() {
+  state.selectedID = null;
+  state.expandedNPs = new Set();
+  state._currentNPID = null;
+  state._currentNPClusterID = null;
+  document.getElementById('detail-panel').classList.remove('open');
+  document.querySelectorAll('#table-body tr').forEach(r => r.classList.remove('selected'));
+}
+
+// ── Polling ────────────────────────────────────────────────────────────────
+let _spinInterval = null;
+let _countInterval = null;
+let _pollTimeout  = null;
+
+async function poll() {
+  if (state.polling) return;
+  state.polling = true;
+  state.countdown = POLL_INTERVAL;
+
+  try {
+    const resp = await api.clusters();
+    state.clusters = resp.items || [];
+
+    // Concurrently fetch nodepools for each cluster
+    const npResults = await Promise.allSettled(
+      state.clusters.map(c => api.nodepools(c.id).then(r => ({id: c.id, items: r.items || []})))
+    );
+    const npByCluster = {};
+    for (const r of npResults) {
+      if (r.status === 'fulfilled') npByCluster[r.value.id] = r.value.items;
+    }
+    state.npByCluster = npByCluster;
+    // Keep _npLists in sync for the detail panel's NP expand logic
+    state._npLists = npByCluster;
+
+    renderTable(state.clusters);
+
+    if (state.selectedID) {
+      await refreshDetail(state.selectedID);
+    }
+
+    document.getElementById('status-msg').textContent = '';
+  } catch (e) {
+    document.getElementById('status-msg').textContent = `⚠ ${e.message}`;
+  } finally {
+    state.polling = false;
+  }
+}
+
+function startPolling() {
+  // Spinner tick every 100ms
+  _spinInterval = setInterval(() => {
+    state.spinnerTick++;
+    document.getElementById('spinner').textContent =
+      SPINNER_FRAMES[state.spinnerTick % SPINNER_FRAMES.length];
+  }, 100);
+
+  // Countdown tick every 1s
+  _countInterval = setInterval(() => {
+    if (state.polling) {
+      document.getElementById('countdown-num').textContent = '…';
+      return;
+    }
+    state.countdown--;
+    document.getElementById('countdown-num').textContent = Math.max(0, state.countdown);
+    if (state.countdown <= 0) {
+      state.countdown = POLL_INTERVAL;
+      poll();
+    }
+  }, 1000);
+
+  // Initial fetch immediately
+  poll();
+}
+
+// ── Tooltip ────────────────────────────────────────────────────────────────
+const tooltipEl = document.getElementById('tooltip');
+let _tipTarget = null;
+
+document.addEventListener('mouseover', e => {
+  const el = e.target.closest('[data-tip]');
+  if (!el || el === _tipTarget) return;
+  _tipTarget = el;
+  renderTooltip(el.dataset.tip);
+  tooltipEl.classList.add('visible');
+});
+
+document.addEventListener('mouseout', e => {
+  const el = e.target.closest('[data-tip]');
+  if (el) {
+    _tipTarget = null;
+    tooltipEl.classList.remove('visible');
+  }
+});
+
+document.addEventListener('mousemove', e => {
+  // Position tooltip near cursor, keeping it in viewport
+  const pad = 12;
+  let x = e.clientX + pad;
+  let y = e.clientY + pad;
+  const tw = tooltipEl.offsetWidth;
+  const th = tooltipEl.offsetHeight;
+  if (x + tw > window.innerWidth  - pad) x = e.clientX - tw - pad;
+  if (y + th > window.innerHeight - pad) y = e.clientY - th - pad;
+  tooltipEl.style.left = x + 'px';
+  tooltipEl.style.top  = y + 'px';
+});
+
+function renderTooltip(tip) {
+  // tip is newline-separated lines; first line is "Type  Status"
+  const lines = tip.split('\n');
+  const parts = lines[0].match(/^(.+?)\s{2,}(.+)$/);
+  let html = '';
+  if (parts) {
+    const typeName = parts[1].trim();
+    const status   = parts[2].trim();
+    const color    = DOT_COLORS[status] || DOT_GRAY;
+    html += `<div><span class="tip-type">${esc(typeName)}</span>  <span class="tip-status" style="color:${color}">${esc(status)}</span></div>`;
+    for (let i = 1; i < lines.length; i++) {
+      const m = lines[i].match(/^(\w+):\s+(.*)/);
+      if (m) {
+        html += `<div><span class="tip-label">${esc(m[1])}:</span> ${esc(m[2])}</div>`;
+      }
+    }
+  } else {
+    html = lines.map(l => `<div>${esc(l)}</div>`).join('');
+  }
+  tooltipEl.innerHTML = html;
+}
+
+// ── Actions bar ───────────────────────────────────────────────────────────
+function renderActionsBar(clusterID, npID, obj) {
+  const reportArgs = npID
+    ? `'${esc(clusterID)}', null, '${esc(npID)}'`
+    : `'${esc(clusterID)}', null, null`;
+  const patchSpecArgs   = npID ? `'${esc(clusterID)}','${esc(npID)}','spec'`   : `'${esc(clusterID)}',null,'spec'`;
+  const patchLabelsArgs = npID ? `'${esc(clusterID)}','${esc(npID)}','labels'` : `'${esc(clusterID)}',null,'labels'`;
+  const deleteArgs      = npID ? `'${esc(clusterID)}','${esc(npID)}'`          : `'${esc(clusterID)}',null`;
+
+  const forceDeleteBtn = npID
+    ? `<button class="btn-action danger" id="force-delete-btn" onclick="startForceDelete('${esc(clusterID)}','${esc(npID)}')">Force Delete</button>`
+    : '';
+  const createNPBtn = !npID
+    ? `<button class="btn-report" onclick="openCreateForm('createNodepool','${esc(clusterID)}')">＋ NodePool</button>`
+    : '';
+
+  return `<div class="section" id="actions-section">
+    <div class="section-title">Actions</div>
+    <div class="actions-bar">
+      <button class="btn-report" onclick="openStatusForm(${reportArgs})">+ Report</button>
+      ${createNPBtn}
+      <button class="btn-action" id="patch-spec-btn" onclick="doPatch(${patchSpecArgs})">Patch Spec</button>
+      <button class="btn-action" id="patch-labels-btn" onclick="doPatch(${patchLabelsArgs})">Patch Labels</button>
+      <button class="btn-action danger" id="delete-btn" onclick="startDelete(${deleteArgs})">Delete</button>
+      ${forceDeleteBtn}
+    </div>
+    <div id="delete-confirm-wrap" style="display:none;margin-top:10px;display:none;align-items:center;gap:8px">
+      <span style="font-size:11px;color:var(--red)">Delete permanently?</span>
+      <button class="btn-action confirm" onclick="confirmDelete(${deleteArgs})">Yes, Delete</button>
+      <button class="btn-action" onclick="cancelDelete()">Cancel</button>
+    </div>
+    <div id="force-delete-confirm-wrap" style="display:none;margin-top:10px;flex-direction:column;gap:8px">
+      <span style="font-size:11px;color:var(--red)">Force-delete permanently removes this nodepool. Provide a reason:</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="force-delete-reason" type="text" placeholder="Reason (required)"
+          style="flex:1;padding:4px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:4px"
+          oninput="document.getElementById('force-delete-submit-btn').disabled=!this.value.trim()" />
+        <button class="btn-action confirm" id="force-delete-submit-btn" disabled
+          onclick="confirmForceDelete('${esc(clusterID)}','${esc(npID)}')">Yes, Force Delete</button>
+        <button class="btn-action" onclick="cancelForceDelete()">Cancel</button>
+      </div>
+    </div>
+    <div id="action-banner" style="display:none;margin-top:8px;font-size:11px"></div>
+  </div>`;
+}
+
+async function doPatch(clusterID, npID, section) {
+  const btn = document.getElementById(section === 'spec' ? 'patch-spec-btn' : 'patch-labels-btn');
+  const banner = document.getElementById('action-banner');
+  if (btn) btn.disabled = true;
+  showActionBanner('Patching…', 'var(--muted)');
+
+  try {
+    // Fetch current object to read existing counter value
+    const obj = npID
+      ? await api.nodepool(clusterID, npID)
+      : await api.cluster(clusterID);
+
+    const current = obj?.[section] || {};
+    const oldVal  = parseInt(current.counter || '0', 10) || 0;
+    const newVal  = oldVal + 1;
+    const body    = { [section]: { ...current, counter: String(newVal) } };
+
+    const resp = npID
+      ? await api.patchNP(clusterID, npID, body)
+      : await api.patchCluster(clusterID, body);
+
+    if (resp.ok) {
+      showActionBanner(`${section}.counter: ${oldVal} → ${newVal}`, 'var(--green)');
+      if (state.selectedID) await refreshDetail(state.selectedID);
+    } else {
+      const data = await resp.json().catch(() => ({}));
+      showActionBanner(data.detail || data.error || `HTTP ${resp.status}`, 'var(--red)');
+    }
+  } catch (e) {
+    showActionBanner(e.message, 'var(--red)');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function startDelete(clusterID, npID) {
+  state.deleteConfirm = true;
+  const wrap = document.getElementById('delete-confirm-wrap');
+  if (wrap) { wrap.style.display = 'flex'; }
+  const btn = document.getElementById('delete-btn');
+  if (btn) btn.style.display = 'none';
+}
+
+function cancelDelete() {
+  state.deleteConfirm = false;
+  const wrap = document.getElementById('delete-confirm-wrap');
+  if (wrap) wrap.style.display = 'none';
+  const btn = document.getElementById('delete-btn');
+  if (btn) btn.style.display = '';
+}
+
+function _restoreDeleteConfirm() {
+  if (state.deleteConfirm) {
+    const wrap = document.getElementById('delete-confirm-wrap');
+    if (wrap) wrap.style.display = 'flex';
+    const btn = document.getElementById('delete-btn');
+    if (btn) btn.style.display = 'none';
+  }
+  if (state.forceDeleteConfirm) {
+    const wrap = document.getElementById('force-delete-confirm-wrap');
+    if (wrap) wrap.style.display = 'flex';
+    const btn = document.getElementById('force-delete-btn');
+    if (btn) btn.style.display = 'none';
+  }
+}
+
+async function confirmDelete(clusterID, npID) {
+  try {
+    const resp = npID
+      ? await api.deleteNP(clusterID, npID)
+      : await api.deleteCluster(clusterID);
+
+    cancelDelete();
+    if (resp.ok) {
+      showActionBanner('Delete accepted — object will disappear once reconciled.', 'var(--muted)');
+      poll(); // refresh table in background without closing panel
+    } else {
+      const data = await resp.json().catch(() => ({}));
+      showActionBanner(data.detail || data.error || `HTTP ${resp.status}`, 'var(--red)');
+    }
+  } catch (e) {
+    cancelDelete();
+    showActionBanner(e.message, 'var(--red)');
+  }
+}
+
+function startForceDelete(clusterID, npID) {
+  state.forceDeleteConfirm = true;
+  const wrap = document.getElementById('force-delete-confirm-wrap');
+  if (wrap) { wrap.style.display = 'flex'; }
+  const btn = document.getElementById('force-delete-btn');
+  if (btn) btn.style.display = 'none';
+  const input = document.getElementById('force-delete-reason');
+  if (input) { input.value = ''; input.focus(); }
+  const submit = document.getElementById('force-delete-submit-btn');
+  if (submit) submit.disabled = true;
+}
+
+function cancelForceDelete() {
+  state.forceDeleteConfirm = false;
+  const wrap = document.getElementById('force-delete-confirm-wrap');
+  if (wrap) wrap.style.display = 'none';
+  const btn = document.getElementById('force-delete-btn');
+  if (btn) btn.style.display = '';
+}
+
+async function confirmForceDelete(clusterID, npID) {
+  const reason = document.getElementById('force-delete-reason')?.value?.trim();
+  if (!reason) return;
+  const submit = document.getElementById('force-delete-submit-btn');
+  if (submit) submit.disabled = true;
+  try {
+    const resp = await api.forceDeleteNP(clusterID, npID, { reason });
+    cancelForceDelete();
+    if (resp.ok || resp.status === 204) {
+      showActionBanner('Force-delete accepted — nodepool permanently removed.', 'var(--muted)');
+      poll();
+    } else {
+      const data = await resp.json().catch(() => ({}));
+      showActionBanner(data.detail || data.error || `HTTP ${resp.status}`, 'var(--red)');
+    }
+  } catch (e) {
+    cancelForceDelete();
+    showActionBanner(e.message, 'var(--red)');
+  }
+}
+
+function showActionBanner(msg, color) {
+  const banner = document.getElementById('action-banner');
+  if (!banner) return;
+  banner.style.display = 'block';
+  banner.style.color = color;
+  banner.textContent = msg;
+}
+
+// ── Form panel ────────────────────────────────────────────────────────────
+function openStatusForm(clusterID, adapterName, npID) {
+  state.formClusterID = clusterID;
+  state.formNpID      = npID || null;
+
+  // Pre-fill from existing adapter data if adapterName given
+  const source = npID
+    ? (state._npAdapterStatuses?.[npID] || []).find(a => a.adapter === adapterName)
+    : state.currentAdapterStatuses.find(a => a.adapter === adapterName);
+
+  state.formAdapter    = adapterName || '';
+  state.formGen        = source ? ((source.observed_generation || 0) + 1) : 0;
+  state.formConditions = source
+    ? (source.conditions || []).map(c => ({type: c.type, status: c.status || 'Unknown', reason: c.reason || '', message: c.message || ''}))
+    : [];
+
+  renderFormBody();
+  clearFormBanner();
+  document.getElementById('f-submit-btn').disabled = false;
+  document.getElementById('form-panel').classList.add('open');
+}
+
+function closeForm() {
+  document.getElementById('form-panel').classList.remove('open');
+  document.getElementById('form-title').textContent   = 'Report Adapter Status';
+  document.getElementById('f-submit-btn').textContent = 'Submit Report';
+  state.formMode            = 'status';
+  state.formCreateClusterID = null;
+  state.formClusterID       = null;
+  state.formNpID            = null;
+  state.formAdapter         = '';
+  state.formGen             = 0;
+  state.formConditions      = [];
+}
+
+function submitForm() {
+  if (state.formMode === 'createCluster' || state.formMode === 'createNodepool') {
+    submitCreateForm();
+  } else {
+    submitStatusForm();
+  }
+}
+
+function openCreateForm(mode, clusterID) {
+  state.formMode            = mode;
+  state.formCreateClusterID = clusterID || null;
+  const isCluster = mode === 'createCluster';
+  const title     = isCluster ? 'Create Cluster' : 'Create NodePool';
+  const template  = isCluster ? CLUSTER_TEMPLATE : NODEPOOL_TEMPLATE;
+
+  document.getElementById('form-title').textContent   = title;
+  document.getElementById('f-submit-btn').textContent = title;
+  document.getElementById('f-submit-btn').disabled    = false;
+  document.getElementById('form-body').innerHTML = `
+    <div style="display:flex;flex-direction:column;height:100%">
+      <textarea id="create-json-editor" spellcheck="false"
+        style="flex:1;width:100%;min-height:420px;background:var(--bg);color:var(--text);
+               border:none;border-bottom:1px solid var(--border2);font-family:var(--font);
+               font-size:12px;line-height:1.6;padding:14px;resize:none;outline:none;
+               box-sizing:border-box;tab-size:2"
+      >${JSON.stringify(template, null, 2)}</textarea>
+    </div>`;
+  clearFormBanner();
+  document.getElementById('form-panel').classList.add('open');
+  document.getElementById('create-json-editor').focus();
+}
+
+async function submitCreateForm() {
+  const raw = document.getElementById('create-json-editor')?.value || '';
+  let body;
+  try {
+    body = JSON.parse(raw);
+  } catch (e) {
+    showFormBanner(`Invalid JSON: ${e.message}`, false);
+    return;
+  }
+
+  const btn = document.getElementById('f-submit-btn');
+  if (btn) btn.disabled = true;
+  clearFormBanner();
+
+  try {
+    const resp = state.formMode === 'createCluster'
+      ? await api.createCluster(body)
+      : await api.createNodepool(state.formCreateClusterID, body);
+
+    if (resp.ok || resp.status === 201) {
+      const created = await resp.json().catch(() => ({}));
+      const name = created.name || created.id || '?';
+      showFormBanner(`Created: ${name}`, true);
+      poll();
+      setTimeout(() => closeForm(), 1200);
+    } else {
+      const data = await resp.json().catch(() => ({}));
+      showFormBanner(data.detail || data.error || `HTTP ${resp.status}`, false);
+      if (btn) btn.disabled = false;
+    }
+  } catch (e) {
+    showFormBanner(e.message, false);
+    if (btn) btn.disabled = false;
+  }
+}
+
+function renderFormBody() {
+  const genDisabled = state.formGen <= 0 ? ' disabled' : '';
+  let html = `<div class="form-section">
+    <div class="form-row">
+      <label class="form-label">Adapter</label>
+      <input class="form-input" type="text" id="f-adapter" value="${esc(state.formAdapter)}"
+             oninput="state.formAdapter=this.value" placeholder="adapter name">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Generation</label>
+      <div class="stepper">
+        <button class="stepper-btn" onclick="stepperDec()"${genDisabled}>−</button>
+        <span class="stepper-val" id="f-gen-val">${state.formGen}</span>
+        <button class="stepper-btn" onclick="stepperInc()">+</button>
+      </div>
+    </div>
+  </div>
+  <div class="form-section">
+    <div class="form-row" style="justify-content:space-between;align-items:center">
+      <label class="form-label">Conditions</label>
+      <button class="add-cond-btn" onclick="addCondition()">+ Add</button>
+    </div>
+    <div id="f-cond-list">
+      ${state.formConditions.map((c,i) => renderConditionRowHTML(i,c)).join('')}
+    </div>
+  </div>`;
+  document.getElementById('form-body').innerHTML = html;
+}
+
+function renderConditionRowHTML(idx, cond) {
+  const statuses = ['True','False','Unknown'];
+  const radios = statuses.map(s => {
+    const checked = cond.status === s ? ' checked' : '';
+    const cls = `radio-${s.toLowerCase()}`;
+    return `<label class="radio-option ${cls}">
+      <input type="radio" name="cond-status-${idx}" value="${s}"${checked}
+             onchange="updateCondStatus(${idx},'${s}')"> ${s}
+    </label>`;
+  }).join('');
+
+  return `<div class="cond-form-row" id="cond-row-${idx}">
+    <button class="cond-row-remove" onclick="removeCondition(${idx})" title="Remove">×</button>
+    <div class="cond-row-fields">
+      <input class="form-input" type="text" placeholder="Type" value="${esc(cond.type)}"
+             oninput="updateCondField(${idx},'type',this.value)">
+      <div class="radio-group">${radios}</div>
+      <input class="form-input" type="text" placeholder="Reason (optional)" value="${esc(cond.reason||'')}"
+             oninput="updateCondField(${idx},'reason',this.value)">
+      <input class="form-input" type="text" placeholder="Message (optional)" value="${esc(cond.message||'')}"
+             oninput="updateCondField(${idx},'message',this.value)">
+    </div>
+  </div>`;
+}
+
+function stepperDec() {
+  if (state.formGen <= 0) return;
+  state.formGen--;
+  document.getElementById('f-gen-val').textContent = state.formGen;
+  document.querySelector('.stepper-btn').disabled = state.formGen <= 0;
+}
+
+function stepperInc() {
+  state.formGen++;
+  document.getElementById('f-gen-val').textContent = state.formGen;
+  const decBtn = document.querySelector('.stepper-btn');
+  if (decBtn) decBtn.disabled = false;
+}
+
+function addCondition() {
+  state.formConditions.push({type: '', status: 'Unknown', reason: '', message: ''});
+  const list = document.getElementById('f-cond-list');
+  if (list) {
+    const idx = state.formConditions.length - 1;
+    list.insertAdjacentHTML('beforeend', renderConditionRowHTML(idx, state.formConditions[idx]));
+  }
+}
+
+function removeCondition(idx) {
+  state.formConditions.splice(idx, 1);
+  // Re-render entire conditions list so indices stay consistent
+  const list = document.getElementById('f-cond-list');
+  if (list) list.innerHTML = state.formConditions.map((c,i) => renderConditionRowHTML(i,c)).join('');
+}
+
+function updateCondField(idx, field, value) {
+  if (state.formConditions[idx]) state.formConditions[idx][field] = value;
+}
+
+function updateCondStatus(idx, status) {
+  if (state.formConditions[idx]) state.formConditions[idx].status = status;
+}
+
+async function submitStatusForm() {
+  const adapterName = (document.getElementById('f-adapter')?.value || state.formAdapter).trim();
+  if (!adapterName) {
+    showFormBanner('Adapter name is required', false);
+    return;
+  }
+
+  const payload = {
+    adapter:              adapterName,
+    observed_generation:  state.formGen,
+    observed_time:        new Date().toISOString(),
+    conditions:           state.formConditions.map(c => {
+      const obj = {type: c.type, status: c.status};
+      if (c.reason)  obj.reason  = c.reason;
+      if (c.message) obj.message = c.message;
+      return obj;
+    }),
+  };
+
+  const btn = document.getElementById('f-submit-btn');
+  btn.disabled = true;
+  clearFormBanner();
+
+  try {
+    let resp;
+    if (state.formNpID) {
+      resp = await api.postNPStatus(state.formClusterID, state.formNpID, payload);
+    } else {
+      resp = await api.postClusterStatus(state.formClusterID, payload);
+    }
+
+    if (resp.ok) {
+      showFormBanner('Status reported successfully', true);
+      if (state.selectedID) await refreshDetail(state.selectedID);
+    } else {
+      const data = await resp.json().catch(() => ({}));
+      const msg = data.detail || data.error || `HTTP ${resp.status}`;
+      showFormBanner(`Error: ${msg}`, false);
+      btn.disabled = false;
+    }
+  } catch (e) {
+    showFormBanner(`Error: ${e.message}`, false);
+    btn.disabled = false;
+  }
+}
+
+function showFormBanner(msg, success) {
+  clearFormBanner();
+  const banner = document.createElement('div');
+  banner.className = 'form-banner ' + (success ? 'form-banner-success' : 'form-banner-error');
+  banner.textContent = msg;
+  document.getElementById('form-body').prepend(banner);
+}
+
+function clearFormBanner() {
+  document.getElementById('form-body').querySelectorAll('.form-banner').forEach(el => el.remove());
+}
+
+// ── Raw JSON ───────────────────────────────────────────────────────────────
+function highlightJSON(obj) {
+  const raw = JSON.stringify(obj, null, 2)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return raw.replace(
+    /("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(?:true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+    match => {
+      if (/^"/.test(match)) {
+        return `<span class="${/:$/.test(match) ? 'json-key' : 'json-str'}">${match}</span>`;
+      }
+      if (/^(true|false)$/.test(match)) return `<span class="json-bool">${match}</span>`;
+      if (match === 'null')             return `<span class="json-null">${match}</span>`;
+      return `<span class="json-num">${match}</span>`;
+    }
+  );
+}
+
+function renderRawJSON(obj) {
+  return `<div class="section">
+    <details class="raw-json-details">
+      <summary class="raw-json-summary">
+        <span class="raw-json-arrow">▶</span>
+        <span class="section-title" style="margin-bottom:0">Raw JSON</span>
+      </summary>
+      <pre class="json-view">${highlightJSON(obj)}</pre>
+    </details>
+  </div>`;
+}
+
+// ── Event wiring ────────────────────────────────────────────────────────────
+document.getElementById('close-btn').addEventListener('click', closeDetail);
+
+document.getElementById('search-input').addEventListener('input', e => {
+  state.searchFilter = e.target.value.toLowerCase().trim();
+  renderTable(state.clusters);
+});
+
+// ── Theme ──────────────────────────────────────────────────────────────────
+function toggleTheme() {
+  const isLight = document.documentElement.classList.toggle('light');
+  document.getElementById('theme-btn').textContent = isLight ? '🌙' : '☀';
+  try { localStorage.setItem('hf-theme', isLight ? 'light' : 'dark'); } catch {}
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+(async () => {
+  // Restore saved theme
+  try {
+    if (localStorage.getItem('hf-theme') === 'light') {
+      document.documentElement.classList.add('light');
+      document.getElementById('theme-btn').textContent = '🌙';
+    }
+  } catch {}
+
+  document.getElementById('env-badge').textContent = 'hf ui';
+  startPolling();
+})();
+</script>
+</body>
+</html>

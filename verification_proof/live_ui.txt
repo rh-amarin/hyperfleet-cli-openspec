@@ -1,0 +1,88 @@
+=== Live verification: hf ui ===
+Date: Sun May 17 07:21:04 UTC 2026
+
+=== Command ===
+./bin/hf ui --port 8090
+
+=== Server startup ===
+Serving HyperFleet UI at http://localhost:8090
+
+=== GET / → HTML dashboard ===
+HTTP/1.1 200 OK
+Content-Type: text/html; charset=utf-8
+Date: Sun, 17 May 2026 07:21:04 GMT
+Transfer-Encoding: chunked
+
+
+=== GET /api/clusters → merged cluster+statuses JSON ===
+total: 4 clusters
+  aaaa (019e321b…)
+    conditions: ['Ready=True', 'Reconciled=True', 'LastKnownReconciled=True', 'ClNamespaceSuccessful=True', 'ClJobSuccessful=True', 'ClDeploymentSuccessful=True', 'ClMaestroSuccessful=True']
+    adapters:   ['cl-precondition-error', 'cl-job', 'cl-invalid-resource', 'cl-namespace', 'cl-deployment', 'cl-maestro']
+  my-cluster (019e30db…)
+    conditions: ['Ready=True', 'Reconciled=True', 'LastKnownReconciled=True', 'ClNamespaceSuccessful=True', 'ClJobSuccessful=True', 'ClDeploymentSuccessful=True', 'ClMaestroSuccessful=True']
+    adapters:   ['cl-maestro', 'cl-invalid-resource', 'cl-namespace', 'cl-deployment', 'cl-job', 'cl-precondition-error']
+  hp-cluster-51bbf023 (019e2c46…)
+    conditions: ['Ready=True', 'Reconciled=True', 'LastKnownReconciled=True', 'ClNamespaceSuccessful=True', 'ClJobSuccessful=True', 'ClDeploymentSuccessful=True', 'ClMaestroSuccessful=True']
+    adapters:   ['cl-deployment', 'cl-job', 'cl-invalid-resource', 'cl-namespace', 'cl-crash', 'cl-maestro', 'cl-precondition-error']
+  hp-cluster-5b2e5bd8 (019e2c42…)
+    conditions: ['Ready=True', 'Reconciled=True', 'LastKnownReconciled=True', 'ClNamespaceSuccessful=True', 'ClJobSuccessful=True', 'ClDeploymentSuccessful=True', 'ClMaestroSuccessful=True']
+    adapters:   ['cl-invalid-resource', 'cl-job', 'cl-deployment', 'cl-crash', 'cl-namespace', 'cl-precondition-error', 'cl-maestro']
+
+=== GET /api/clusters/missing-id → 404 forwarded ===
+HTTP status: 404
+
+=== GET /unknown-route → 404 ===
+HTTP status: 404
+
+=== go build ./... ===
+OK
+
+=== go vet ./... ===
+OK
+
+=== go test ./internal/server/... ===
+=== RUN   TestHandleIndex
+--- PASS: TestHandleIndex (0.00s)
+=== RUN   TestRouteNotFound
+--- PASS: TestRouteNotFound (0.00s)
+=== RUN   TestRouteMethodNotAllowed
+--- PASS: TestRouteMethodNotAllowed (0.00s)
+=== RUN   TestHandleClusterProxy
+--- PASS: TestHandleClusterProxy (0.00s)
+=== RUN   TestHandleClustersWithStatuses
+--- PASS: TestHandleClustersWithStatuses (0.00s)
+=== RUN   TestHandleClustersUpstreamError
+--- PASS: TestHandleClustersUpstreamError (0.00s)
+=== RUN   TestRoutesMapToCorrectUpstreamPaths
+=== RUN   TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc
+=== RUN   TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/statuses
+=== RUN   TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/nodepools
+=== RUN   TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/nodepools/np1
+=== RUN   TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/nodepools/np1/statuses
+--- PASS: TestRoutesMapToCorrectUpstreamPaths (0.00s)
+    --- PASS: TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc (0.00s)
+    --- PASS: TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/statuses (0.00s)
+    --- PASS: TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/nodepools (0.00s)
+    --- PASS: TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/nodepools/np1 (0.00s)
+    --- PASS: TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/nodepools/np1/statuses (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/server	(cached)
+
+=== go test ./... (all packages) ===
+?   	github.com/rh-amarin/hyperfleet-cli	[no test files]
+ok  	github.com/rh-amarin/hyperfleet-cli/cmd	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/api	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/config	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/db	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/insights	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/kube	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/maestro	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/output	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/pubsub	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/repos	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/resource	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/selector	(cached)
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/server	(cached)
+?   	github.com/rh-amarin/hyperfleet-cli/internal/ui	[no test files]
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/version	(cached)

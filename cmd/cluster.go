@@ -661,11 +661,15 @@ var clusterAdapterPostStatusCmd = &cobra.Command{
 			},
 		}
 
-		result, err := api.Post[resource.AdapterStatus](context.Background(), client, "clusters/"+clusterID+"/statuses", body)
+		result, err := api.Put[resource.AdapterStatus](context.Background(), client, "clusters/"+clusterID+"/statuses", body)
 		if err != nil {
 			return handleAPIError(p, err)
 		}
 
+		if result.Adapter == "" {
+			p.Info(fmt.Sprintf("Posted adapter status for %s on cluster %s (no-op: status unchanged)", adapterName, clusterID))
+			return nil
+		}
 		p.Info(fmt.Sprintf("Posted adapter status for %s on cluster %s", adapterName, clusterID))
 		return p.Print(result)
 	},

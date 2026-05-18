@@ -109,6 +109,9 @@ func decode[T any](resp *http.Response) (T, error) {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return zero, parseError(resp)
 	}
+	if resp.StatusCode == http.StatusNoContent {
+		return zero, nil
+	}
 	var result T
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return zero, fmt.Errorf("decode response: %w", err)
@@ -129,6 +132,16 @@ func Get[T any](ctx context.Context, c *Client, path string) (T, error) {
 // Post sends a POST request with body and decodes the response into T.
 func Post[T any](ctx context.Context, c *Client, path string, body any) (T, error) {
 	resp, err := c.do(ctx, http.MethodPost, path, body)
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+	return decode[T](resp)
+}
+
+// Put sends a PUT request with body and decodes the response into T.
+func Put[T any](ctx context.Context, c *Client, path string, body any) (T, error) {
+	resp, err := c.do(ctx, http.MethodPut, path, body)
 	if err != nil {
 		var zero T
 		return zero, err

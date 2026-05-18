@@ -839,7 +839,7 @@ func TestNodePoolAdapterPostStatus(t *testing.T) {
 	var capturedBody []byte
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		wantPath := apiPrefix + "/clusters/" + clusterID + "/nodepools/" + nodepoolID + "/statuses"
-		if r.Method == http.MethodPost && r.URL.Path == wantPath {
+		if r.Method == http.MethodPut && r.URL.Path == wantPath {
 			capturedBody, _ = io.ReadAll(r.Body)
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, `{

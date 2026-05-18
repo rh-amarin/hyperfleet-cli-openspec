@@ -69,14 +69,26 @@ func TestRouteNotFound(t *testing.T) {
 	}
 }
 
-// TestRouteMethodNotAllowed returns 405 for non-GET requests.
+// TestRouteMethodNotAllowed returns 405 for methods not accepted on a route.
 func TestRouteMethodNotAllowed(t *testing.T) {
-	srv := New(nil, 0, nil)
-	req := httptest.NewRequest(http.MethodPost, "/api/clusters", nil)
-	rr := httptest.NewRecorder()
-	srv.route(rr, req)
-	if rr.Code != http.StatusMethodNotAllowed {
-		t.Fatalf("expected 405, got %d", rr.Code)
+	upstream := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{}`)
+	})
+	srv, _ := newTestServer(t, upstream)
+
+	cases := []struct{ method, path string }{
+		{http.MethodDelete, "/api/clusters"},                          // DELETE /clusters not allowed
+		{http.MethodPut, "/api/clusters/abc"},                        // PUT /cluster not allowed
+		{http.MethodDelete, "/api/clusters/abc/nodepools"},           // DELETE /nodepools not allowed
+	}
+	for _, c := range cases {
+		req := httptest.NewRequest(c.method, c.path, nil)
+		rr := httptest.NewRecorder()
+		srv.route(rr, req)
+		if rr.Code != http.StatusMethodNotAllowed {
+			t.Errorf("%s %s: expected 405, got %d", c.method, c.path, rr.Code)
+		}
 	}
 }
 
@@ -235,8 +247,8 @@ func TestPostClusterStatusesProxy(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
 	}
-	if receivedMethod != http.MethodPost {
-		t.Errorf("expected upstream method POST, got %q", receivedMethod)
+	if receivedMethod != http.MethodPut {
+		t.Errorf("expected upstream method PUT, got %q", receivedMethod)
 	}
 	var sent map[string]any
 	if err := json.Unmarshal([]byte(receivedBody), &sent); err != nil {
@@ -287,13 +299,18 @@ func TestPostStatusesUpstreamError(t *testing.T) {
 	}
 }
 
-// TestPostToNonStatusRouteReturns405 verifies GET-only routes reject POST.
+// TestPostToNonStatusRouteReturns405 verifies routes that do not accept POST return 405.
 func TestPostToNonStatusRouteReturns405(t *testing.T) {
-	srv := New(nil, 0, nil)
+	upstream := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{}`)
+	})
+	srv, _ := newTestServer(t, upstream)
+
+	// /api/clusters/{id} only accepts GET, PATCH, DELETE — not POST
+	// /api/clusters/{id}/nodepools/{npid} only accepts GET, PATCH, DELETE — not POST
 	paths := []string{
-		"/api/clusters",
 		"/api/clusters/abc",
-		"/api/clusters/abc/nodepools",
 		"/api/clusters/abc/nodepools/np1",
 	}
 	for _, p := range paths {

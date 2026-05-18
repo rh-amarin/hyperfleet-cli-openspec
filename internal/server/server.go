@@ -32,16 +32,15 @@ func (s *Server) Listen() error {
 }
 
 // route dispatches all requests.
-// Status paths (…/statuses) accept GET and POST; all other paths are GET-only.
 // Path patterns (after trimming leading/trailing slashes):
 //
-//	""                                              → index.html            (GET)
-//	api/clusters                                    → handleClusters        (GET)
-//	api/clusters/{id}                               → handleCluster         (GET)
-//	api/clusters/{id}/statuses                      → handleClusterStatuses (GET|POST)
-//	api/clusters/{id}/nodepools                     → handleNodePools       (GET)
-//	api/clusters/{id}/nodepools/{npid}              → handleNodePool        (GET)
-//	api/clusters/{id}/nodepools/{npid}/statuses     → handleNodePoolStatuses(GET|POST)
+//	""                                              → index.html                (GET)
+//	api/clusters                                    → handleClusters            (GET)
+//	api/clusters/{id}                               → handleCluster             (GET|PATCH|DELETE)
+//	api/clusters/{id}/statuses                      → handleClusterStatuses     (GET|POST)
+//	api/clusters/{id}/nodepools                     → handleNodePools           (GET)
+//	api/clusters/{id}/nodepools/{npid}              → handleNodePool            (GET|PATCH|DELETE)
+//	api/clusters/{id}/nodepools/{npid}/statuses     → handleNodePoolStatuses    (GET|POST)
 func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 	path := strings.Trim(r.URL.Path, "/")
 
@@ -58,21 +57,29 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(path, "/")
 
 	switch {
-	// /api/clusters  (GET only)
+	// /api/clusters  (GET | POST)
 	case len(parts) == 2 && parts[0] == "api" && parts[1] == "clusters":
-		if r.Method != http.MethodGet {
+		switch r.Method {
+		case http.MethodGet:
+			s.handleClusters(w, r)
+		case http.MethodPost:
+			s.handleCreateCluster(w, r)
+		default:
 			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
-			return
 		}
-		s.handleClusters(w, r)
 
-	// /api/clusters/{id}  (GET only)
+	// /api/clusters/{id}  (GET|PATCH|DELETE)
 	case len(parts) == 3 && parts[0] == "api" && parts[1] == "clusters":
-		if r.Method != http.MethodGet {
+		switch r.Method {
+		case http.MethodGet:
+			s.handleCluster(w, r, parts[2])
+		case http.MethodPatch:
+			s.handlePatchCluster(w, r, parts[2])
+		case http.MethodDelete:
+			s.handleDeleteCluster(w, r, parts[2])
+		default:
 			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
-			return
 		}
-		s.handleCluster(w, r, parts[2])
 
 	// /api/clusters/{id}/statuses  (GET|POST)
 	// /api/clusters/{id}/nodepools (GET only)
@@ -88,22 +95,30 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 			}
 		case "nodepools":
-			if r.Method != http.MethodGet {
+			switch r.Method {
+			case http.MethodGet:
+				s.handleNodePools(w, r, parts[2])
+			case http.MethodPost:
+				s.handleCreateNodePool(w, r, parts[2])
+			default:
 				http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
-				return
 			}
-			s.handleNodePools(w, r, parts[2])
 		default:
 			http.NotFound(w, r)
 		}
 
-	// /api/clusters/{id}/nodepools/{npid}  (GET only)
+	// /api/clusters/{id}/nodepools/{npid}  (GET|PATCH|DELETE)
 	case len(parts) == 5 && parts[0] == "api" && parts[1] == "clusters" && parts[3] == "nodepools":
-		if r.Method != http.MethodGet {
+		switch r.Method {
+		case http.MethodGet:
+			s.handleNodePool(w, r, parts[2], parts[4])
+		case http.MethodPatch:
+			s.handlePatchNodePool(w, r, parts[2], parts[4])
+		case http.MethodDelete:
+			s.handleDeleteNodePool(w, r, parts[2], parts[4])
+		default:
 			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
-			return
 		}
-		s.handleNodePool(w, r, parts[2], parts[4])
 
 	// /api/clusters/{id}/nodepools/{npid}/statuses  (GET|POST)
 	case len(parts) == 6 && parts[0] == "api" && parts[1] == "clusters" && parts[3] == "nodepools" && parts[5] == "statuses":
@@ -115,6 +130,14 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		default:
 			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 		}
+
+	// /api/clusters/{id}/nodepools/{npid}/force-delete  (POST)
+	case len(parts) == 6 && parts[0] == "api" && parts[1] == "clusters" && parts[3] == "nodepools" && parts[5] == "force-delete":
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		s.handleForceDeleteNodePool(w, r, parts[2], parts[4])
 
 	default:
 		http.NotFound(w, r)

@@ -109,18 +109,80 @@ func (s *Server) handleNodePoolStatuses(w http.ResponseWriter, r *http.Request, 
 	s.proxyJSON(w, r, "clusters/"+clusterID+"/nodepools/"+npID+"/statuses")
 }
 
-// handlePostClusterStatuses proxies POST /api/clusters/{id}/statuses → clusters/{id}/statuses.
+// handlePostClusterStatuses proxies POST /api/clusters/{id}/statuses → PUT clusters/{id}/statuses.
 func (s *Server) handlePostClusterStatuses(w http.ResponseWriter, r *http.Request, id string) {
-	s.proxyPOST(w, r, "clusters/"+id+"/statuses")
+	s.proxyPUT(w, r, "clusters/"+id+"/statuses")
 }
 
-// handlePostNodePoolStatuses proxies POST /api/clusters/{id}/nodepools/{npid}/statuses.
+// handlePostNodePoolStatuses proxies POST /api/clusters/{id}/nodepools/{npid}/statuses → PUT upstream.
 func (s *Server) handlePostNodePoolStatuses(w http.ResponseWriter, r *http.Request, clusterID, npID string) {
-	s.proxyPOST(w, r, "clusters/"+clusterID+"/nodepools/"+npID+"/statuses")
+	s.proxyPUT(w, r, "clusters/"+clusterID+"/nodepools/"+npID+"/statuses")
 }
 
-// proxyPOST reads the request body, forwards it verbatim to the upstream HyperFleet
-// API via POST, and writes the raw response back to w.
+// handleCreateCluster proxies POST /api/clusters → clusters.
+func (s *Server) handleCreateCluster(w http.ResponseWriter, r *http.Request) {
+	s.proxyPOST(w, r, "clusters")
+}
+
+// handleCreateNodePool proxies POST /api/clusters/{id}/nodepools → clusters/{id}/nodepools.
+func (s *Server) handleCreateNodePool(w http.ResponseWriter, r *http.Request, clusterID string) {
+	s.proxyPOST(w, r, "clusters/"+clusterID+"/nodepools")
+}
+
+// handleForceDeleteNodePool proxies POST /api/clusters/{cid}/nodepools/{npid}/force-delete → upstream POST.
+func (s *Server) handleForceDeleteNodePool(w http.ResponseWriter, r *http.Request, clusterID, npID string) {
+	s.proxyPOST(w, r, "clusters/"+clusterID+"/nodepools/"+npID+"/force-delete")
+}
+
+// handlePatchCluster proxies PATCH /api/clusters/{id} → clusters/{id}.
+func (s *Server) handlePatchCluster(w http.ResponseWriter, r *http.Request, id string) {
+	s.proxyPATCH(w, r, "clusters/"+id)
+}
+
+// handleDeleteCluster proxies DELETE /api/clusters/{id} → clusters/{id}.
+func (s *Server) handleDeleteCluster(w http.ResponseWriter, r *http.Request, id string) {
+	s.proxyDELETE(w, r, "clusters/"+id)
+}
+
+// handlePatchNodePool proxies PATCH /api/clusters/{cid}/nodepools/{npid} → clusters/{cid}/nodepools/{npid}.
+func (s *Server) handlePatchNodePool(w http.ResponseWriter, r *http.Request, clusterID, npID string) {
+	s.proxyPATCH(w, r, "clusters/"+clusterID+"/nodepools/"+npID)
+}
+
+// handleDeleteNodePool proxies DELETE /api/clusters/{cid}/nodepools/{npid} → clusters/{cid}/nodepools/{npid}.
+func (s *Server) handleDeleteNodePool(w http.ResponseWriter, r *http.Request, clusterID, npID string) {
+	s.proxyDELETE(w, r, "clusters/"+clusterID+"/nodepools/"+npID)
+}
+
+// proxyPATCH reads the request body, forwards it to the upstream via PATCH, and writes the raw response.
+func (s *Server) proxyPATCH(w http.ResponseWriter, r *http.Request, apiPath string) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "reading request body: " + err.Error()})
+		return
+	}
+	raw, err := api.Patch[json.RawMessage](r.Context(), s.client, apiPath, json.RawMessage(body))
+	if err != nil {
+		s.writeError(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(raw)
+}
+
+// proxyDELETE forwards a DELETE to the upstream HyperFleet API and writes the raw response.
+func (s *Server) proxyDELETE(w http.ResponseWriter, r *http.Request, apiPath string) {
+	raw, err := api.Delete[json.RawMessage](r.Context(), s.client, apiPath)
+	if err != nil {
+		s.writeError(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(raw)
+}
+
+// proxyPOST reads the request body, forwards it to the upstream HyperFleet API via POST,
+// and writes the raw response back to w. A 204 No Content from upstream is forwarded as-is.
 func (s *Server) proxyPOST(w http.ResponseWriter, r *http.Request, apiPath string) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -130,6 +192,31 @@ func (s *Server) proxyPOST(w http.ResponseWriter, r *http.Request, apiPath strin
 	raw, err := api.Post[json.RawMessage](r.Context(), s.client, apiPath, json.RawMessage(body))
 	if err != nil {
 		s.writeError(w, err)
+		return
+	}
+	if len(raw) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(raw)
+}
+
+// proxyPUT reads the request body, forwards it to the upstream HyperFleet API via PUT,
+// and writes the raw response back to w. A 204 No Content from upstream is forwarded as-is.
+func (s *Server) proxyPUT(w http.ResponseWriter, r *http.Request, apiPath string) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "reading request body: " + err.Error()})
+		return
+	}
+	raw, err := api.Put[json.RawMessage](r.Context(), s.client, apiPath, json.RawMessage(body))
+	if err != nil {
+		s.writeError(w, err)
+		return
+	}
+	if len(raw) == 0 {
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

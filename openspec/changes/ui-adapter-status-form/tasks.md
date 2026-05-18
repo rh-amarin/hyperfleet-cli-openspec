@@ -29,6 +29,6 @@
 - [x] 3.2 Run `go vet ./...` — zero warnings
 - [x] 3.3 Run `go test ./internal/server/...` and save output to `verification_proof/server_tests_form.txt`
 - [x] 3.4 Run `go test ./...` and save output to `verification_proof/all_tests_form.txt`
-- [ ] 3.5 Live: open `hf ui`, click an adapter status block, confirm form opens pre-filled with correct adapter/generation/conditions
-- [ ] 3.6 Live: edit generation stepper, toggle a condition status radio, submit; confirm 2xx and detail panel refreshes
-- [ ] 3.7 Live: open blank form via "+ Report", fill manually, submit successfully
+- [x] 3.5 Live: open `hf ui`, click an adapter status block, confirm form opens pre-filled with correct adapter/generation/conditions
+- [x] 3.6 Live: edit generation stepper, toggle a condition status radio, submit; confirm 2xx and detail panel refreshes
+- [x] 3.7 Live: open blank form via "+ Report", fill manually, submit successfully

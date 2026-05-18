@@ -19,6 +19,7 @@
 11. [Output Formats](#11-output-formats)
 12. [Environment Variables](#12-environment-variables)
 13. [Config Key Reference](#13-config-key-reference)
+14. [Browser dashboard (`hf ui`)](#14-browser-dashboard-hf-ui)
 
 ---
 
@@ -638,3 +639,53 @@ hf kube port-forward start
 | `database` | `name` | `hyperfleet` | Database name |
 | `database` | `user` | `hyperfleet` | Database user |
 | `database` | `password` | _(set via config)_ | Database password — never hardcode |
+
+---
+
+## 14. Browser dashboard (`hf ui`)
+
+`hf ui` starts a local HTTP server that serves the embedded HyperFleet dashboard. It uses the same active environment and HyperFleet API as the CLI; no separate login is required beyond your `hyperfleet.api-url` (and token, if configured).
+
+### 14.1 Start the dashboard
+
+```bash
+$ hf ui
+Serving HyperFleet UI at http://localhost:8088
+```
+
+Listen on another port or open your default browser automatically:
+
+```bash
+$ hf ui --port 9000
+$ hf ui --open
+```
+
+Requires an activated environment (`hf config env activate …`), like other commands that call the API.
+
+### 14.2 What you can do
+
+- Browse clusters and nested node pools in one table with live polling (every few seconds).
+- Filter rows with the header search box (matches cluster **name**, cluster **id**, or node pool **name** / **id**; when only a child matches, the cluster row is kept and dimmed).
+- Open the **detail** panel by clicking a **cluster** row or a **node pool** row nested under it.
+- For a cluster: view conditions, adapter statuses, **Raw JSON**, and actions (**＋ Report**, **＋ NodePool**, **Patch Spec**, **Patch Labels**, **Delete**).
+- For a node pool: view **Node Pool** metadata, conditions, adapter statuses, plus **Patch**, **Delete**, and **Force Delete** (force delete requires a reason).
+- Create a cluster from **＋ Cluster** (edit the JSON body, same shape as `hf cluster create --file`).
+- Create a node pool from a cluster’s detail panel (**＋ NodePool**), again via JSON—the same fields the API expects from `hf nodepool create --file`. Node pool **names** must satisfy API limits (typically **≤ 15 characters** in HyperFleet deployments).
+- Toggle **light / dark** theme with the Sun / Moon button; choice is remembered in browser `localStorage` under **`hf-theme`**.
+
+### 14.3 UI layout overview
+
+Rough layout (three columns when a form is open):
+
+1. **Top bar** — branding, badge, optional status/error text, filter field, countdown to the next poll, **＋ Cluster**, theme toggle.
+2. **Main table** — cluster rows with indented node pool rows (`└`), shared condition / adapter columns across the fleet.
+3. **Detail column** — opens when you select a row: **Actions** (report, create node pool, patch, delete), metadata, **Raw JSON ▸**, **Conditions**, **Adapter statuses**.
+4. **Form column** (when used) — slides in for **reporting adapter status**, **create cluster**, **create node pool**, etc.; footer has **Cancel** and the primary action.
+
+Hover a condition **●** in the grid or detail tables for a tooltip (type, status, reason, message, timestamps where available). While an adapter reported recently enough to count as active, small activity indicators may appear beside that adapter column.
+
+### 14.4 Example (light mode)
+
+[`hf-ui-dashboard-light.png`](docs/user-guide/images/hf-ui-dashboard-light.png) — one annotated screenshot of the full layout: clusters and node pools in the main grid, the **cluster detail** column (**Actions** including **Delete**, **Raw JSON ▸**, conditions, adapter statuses), and the **Report adapter status** panel (open an adapter from that list to submit a report).
+
+![HyperFleet dashboard (annotated)](docs/user-guide/images/hf-ui-dashboard-light.png)

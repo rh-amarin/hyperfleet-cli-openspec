@@ -1,0 +1,460 @@
+=== RUN   TestClusterList
+--- PASS: TestClusterList (0.00s)
+=== RUN   TestClusterList_Table
+--- PASS: TestClusterList_Table (0.00s)
+=== RUN   TestClusterTable
+--- PASS: TestClusterTable (0.00s)
+=== RUN   TestClusterList_Search_NoFlag
+--- PASS: TestClusterList_Search_NoFlag (0.00s)
+=== RUN   TestClusterList_Search_LabelFilter
+--- PASS: TestClusterList_Search_LabelFilter (0.00s)
+=== RUN   TestClusterList_Search_CompoundExpr
+--- PASS: TestClusterList_Search_CompoundExpr (0.00s)
+=== RUN   TestClusterList_Search_APIError400
+--- PASS: TestClusterList_Search_APIError400 (0.00s)
+=== RUN   TestClusterGet
+--- PASS: TestClusterGet (0.00s)
+=== RUN   TestClusterGet_FromState
+--- PASS: TestClusterGet_FromState (0.00s)
+=== RUN   TestClusterGet_NotFound
+--- PASS: TestClusterGet_NotFound (0.00s)
+=== RUN   TestClusterCreate
+[INFO] Created default cluster template at /tmp/TestClusterCreate2155894590/001/cluster-template.json
+[INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
+--- PASS: TestClusterCreate (0.00s)
+=== RUN   TestClusterCreate_DuplicateGuard
+[INFO] Created default cluster template at /tmp/TestClusterCreate_DuplicateGuard255192630/001/cluster-template.json
+[WARN] Cluster 'test-cluster' already exists, skipping creation
+--- PASS: TestClusterCreate_DuplicateGuard (0.00s)
+=== RUN   TestClusterCreate_Defaults
+[INFO] Created default cluster template at /tmp/TestClusterCreate_Defaults4241629736/001/cluster-template.json
+[INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
+--- PASS: TestClusterCreate_Defaults (0.00s)
+=== RUN   TestClusterUpdate
+--- PASS: TestClusterUpdate (0.00s)
+=== RUN   TestClusterDelete
+--- PASS: TestClusterDelete (0.00s)
+=== RUN   TestClusterDelete_FromState
+--- PASS: TestClusterDelete_FromState (0.00s)
+=== RUN   TestClusterDelete_NotFound
+--- PASS: TestClusterDelete_NotFound (0.00s)
+=== RUN   TestClusterConditions
+--- PASS: TestClusterConditions (0.00s)
+=== RUN   TestClusterConditions_FromState
+--- PASS: TestClusterConditions_FromState (0.00s)
+=== RUN   TestClusterStatuses
+--- PASS: TestClusterStatuses (0.00s)
+=== RUN   TestClusterStatuses_Table
+--- PASS: TestClusterStatuses_Table (0.00s)
+=== RUN   TestClusterSearch_ByName_Found
+[INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
+--- PASS: TestClusterSearch_ByName_Found (0.00s)
+=== RUN   TestClusterSearch_ByName_NotFound
+[WARN] No clusters found matching 'nonexistent'
+--- PASS: TestClusterSearch_ByName_NotFound (0.00s)
+=== RUN   TestClusterSearch_ByName_Multiple
+[WARN] Multiple clusters found matching 'test-cluster', using first result
+[INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
+--- PASS: TestClusterSearch_ByName_Multiple (0.00s)
+=== RUN   TestClusterSearch_NoArgs_WithState
+--- PASS: TestClusterSearch_NoArgs_WithState (0.00s)
+=== RUN   TestClusterSearch_NoArgs_WithoutState
+--- PASS: TestClusterSearch_NoArgs_WithoutState (0.00s)
+=== RUN   TestClusterPatch_Spec
+[INFO] Incrementing spec.counter: 0 -> 1
+--- PASS: TestClusterPatch_Spec (0.01s)
+=== RUN   TestClusterPatch_Labels
+[INFO] Incrementing labels.counter: 1 -> 2
+--- PASS: TestClusterPatch_Labels (0.00s)
+=== RUN   TestClusterPatch_NoArgs
+--- PASS: TestClusterPatch_NoArgs (0.00s)
+=== RUN   TestClusterCreate_PositionalArgs
+[INFO] Created default cluster template at /tmp/TestClusterCreate_PositionalArgs523622826/001/cluster-template.json
+[INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
+--- PASS: TestClusterCreate_PositionalArgs (0.00s)
+=== RUN   TestClusterAdapterPostStatus
+[INFO] Posted adapter status for cl-deployment on cluster 019dc049-43a8-7a42-b44a-8d7f89e9e10f
+--- PASS: TestClusterAdapterPostStatus (0.00s)
+=== RUN   TestClusterAdapterPostStatus_InvalidStatus
+--- PASS: TestClusterAdapterPostStatus_InvalidStatus (0.00s)
+=== RUN   TestClusterCreate_Template_NameFromPositionalArg
+[INFO] Created default cluster template at /tmp/TestClusterCreate_Template_NameFromPositionalArg2837959547/001/cluster-template.json
+[INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
+--- PASS: TestClusterCreate_Template_NameFromPositionalArg (0.00s)
+=== RUN   TestClusterCreate_FileFlag
+[INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
+--- PASS: TestClusterCreate_FileFlag (0.00s)
+=== RUN   TestClusterCreate_MalformedTemplate
+--- PASS: TestClusterCreate_MalformedTemplate (0.00s)
+=== RUN   TestClusterListWatchFlagRegistered
+--- PASS: TestClusterListWatchFlagRegistered (0.00s)
+=== RUN   TestClusterListSecondsFlagRegistered
+--- PASS: TestClusterListSecondsFlagRegistered (0.00s)
+=== RUN   TestClusterID
+=== RUN   TestClusterID/prints_ID_when_set
+=== RUN   TestClusterID/errors_when_not_set
+--- PASS: TestClusterID (0.00s)
+    --- PASS: TestClusterID/prints_ID_when_set (0.00s)
+    --- PASS: TestClusterID/errors_when_not_set (0.00s)
+=== RUN   TestClusterIDInteractive_Select
+--- PASS: TestClusterIDInteractive_Select (0.00s)
+=== RUN   TestClusterIDInteractive_Abort
+--- PASS: TestClusterIDInteractive_Abort (0.00s)
+=== RUN   TestPickClusterInteractive_Select
+[INFO] cluster context set to: second-cluster (aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee)
+--- PASS: TestPickClusterInteractive_Select (0.00s)
+=== RUN   TestPickClusterInteractive_Abort
+--- PASS: TestPickClusterInteractive_Abort (0.00s)
+=== RUN   TestClusterGetInteractive
+[INFO] cluster context set to: test-cluster (019dc049-43a8-7a42-b44a-8d7f89e9e10f)
+--- PASS: TestClusterGetInteractive (0.00s)
+=== RUN   TestClusterDeleteInteractive
+[INFO] cluster context set to: test-cluster (019dc049-43a8-7a42-b44a-8d7f89e9e10f)
+--- PASS: TestClusterDeleteInteractive (0.00s)
+=== RUN   TestClusterIDInteractive_Empty
+--- PASS: TestClusterIDInteractive_Empty (0.00s)
+=== RUN   TestClusterDelete_Force
+[INFO] Cluster '019dc049-43a8-7a42-b44a-8d7f89e9e10f' force-deleted
+--- PASS: TestClusterDelete_Force (0.00s)
+=== RUN   TestClusterDelete_Force_WithReason
+[INFO] Cluster '019dc049-43a8-7a42-b44a-8d7f89e9e10f' force-deleted
+--- PASS: TestClusterDelete_Force_WithReason (0.00s)
+=== RUN   TestClusterDelete_NoForce_StillCallsDelete
+--- PASS: TestClusterDelete_NoForce_StillCallsDelete (0.00s)
+=== RUN   TestCompletionBash
+--- PASS: TestCompletionBash (0.00s)
+=== RUN   TestCompletionZsh
+--- PASS: TestCompletionZsh (0.00s)
+=== RUN   TestCompletionFish
+--- PASS: TestCompletionFish (0.00s)
+=== RUN   TestCompletionPowerShell
+--- PASS: TestCompletionPowerShell (0.00s)
+=== RUN   TestConfigNoArgs_ShowsActiveConfig
+--- PASS: TestConfigNoArgs_ShowsActiveConfig (0.00s)
+=== RUN   TestConfigNoArgs_NoActiveEnv_Errors
+--- PASS: TestConfigNoArgs_NoActiveEnv_Errors (0.00s)
+=== RUN   TestActiveEnvGuard_BlocksConfigShow
+--- PASS: TestActiveEnvGuard_BlocksConfigShow (0.00s)
+=== RUN   TestActiveEnvGuard_BlocksConfigSet
+--- PASS: TestActiveEnvGuard_BlocksConfigSet (0.00s)
+=== RUN   TestActiveEnvGuard_BypassEnvList
+--- PASS: TestActiveEnvGuard_BypassEnvList (0.00s)
+=== RUN   TestActiveEnvGuard_BypassEnvCreate
+--- PASS: TestActiveEnvGuard_BypassEnvCreate (0.00s)
+=== RUN   TestActiveEnvGuard_BypassEnvActivate
+--- PASS: TestActiveEnvGuard_BypassEnvActivate (0.00s)
+=== RUN   TestActiveEnvGuard_BypassVersion
+dev (built unknown)
+--- PASS: TestActiveEnvGuard_BypassVersion (0.00s)
+=== RUN   TestConfigShow
+--- PASS: TestConfigShow (0.00s)
+=== RUN   TestConfigShow_StateVariables
+--- PASS: TestConfigShow_StateVariables (0.00s)
+=== RUN   TestConfigShow_EnvFilePath
+--- PASS: TestConfigShow_EnvFilePath (0.00s)
+=== RUN   TestConfigShow_NoActiveEnv_Error
+--- PASS: TestConfigShow_NoActiveEnv_Error (0.00s)
+=== RUN   TestConfigGet_Found
+--- PASS: TestConfigGet_Found (0.00s)
+=== RUN   TestConfigGet_NotFound
+--- PASS: TestConfigGet_NotFound (0.00s)
+=== RUN   TestConfigGet_StateKey
+--- PASS: TestConfigGet_StateKey (0.00s)
+=== RUN   TestConfigGet_NoArgs_ShowsHelp
+--- PASS: TestConfigGet_NoArgs_ShowsHelp (0.00s)
+=== RUN   TestConfigSet_DottedNotation
+--- PASS: TestConfigSet_DottedNotation (0.00s)
+=== RUN   TestConfigSet_WritesToEnvFile
+--- PASS: TestConfigSet_WritesToEnvFile (0.00s)
+=== RUN   TestConfigSet_InvalidKeyFormat
+--- PASS: TestConfigSet_InvalidKeyFormat (0.00s)
+=== RUN   TestConfigSet_InvalidSection
+--- PASS: TestConfigSet_InvalidSection (0.00s)
+=== RUN   TestConfigEnvList
+--- PASS: TestConfigEnvList (0.00s)
+=== RUN   TestConfigEnvList_Empty
+--- PASS: TestConfigEnvList_Empty (0.00s)
+=== RUN   TestConfigEnvList_Alias
+--- PASS: TestConfigEnvList_Alias (0.00s)
+=== RUN   TestConfigEnvCreate_CreatesFileAndActivates
+--- PASS: TestConfigEnvCreate_CreatesFileAndActivates (0.00s)
+=== RUN   TestConfigEnvCreate_PrintsFilePath
+--- PASS: TestConfigEnvCreate_PrintsFilePath (0.00s)
+=== RUN   TestConfigEnvCreate_SeedsFromTemplate
+--- PASS: TestConfigEnvCreate_SeedsFromTemplate (0.00s)
+=== RUN   TestConfigEnvCreate_Duplicate
+--- PASS: TestConfigEnvCreate_Duplicate (0.00s)
+=== RUN   TestConfigEnvCreate_NoArg_ShowsHelp
+--- PASS: TestConfigEnvCreate_NoArg_ShowsHelp (0.00s)
+=== RUN   TestConfigEnvActivate
+--- PASS: TestConfigEnvActivate (0.00s)
+=== RUN   TestConfigEnvActivate_NotFound
+--- PASS: TestConfigEnvActivate_NotFound (0.00s)
+=== RUN   TestConfigEnvDelete
+--- PASS: TestConfigEnvDelete (0.00s)
+=== RUN   TestConfigEnvDelete_ClearsActiveEnv
+--- PASS: TestConfigEnvDelete_ClearsActiveEnv (0.00s)
+=== RUN   TestConfigEnvDelete_Alias
+--- PASS: TestConfigEnvDelete_Alias (0.00s)
+=== RUN   TestConfigEnvDelete_NotFound
+--- PASS: TestConfigEnvDelete_NotFound (0.00s)
+=== RUN   TestConfigEnvShow
+--- PASS: TestConfigEnvShow (0.00s)
+=== RUN   TestConfigEnvShow_ActivePrefix
+--- PASS: TestConfigEnvShow_ActivePrefix (0.00s)
+=== RUN   TestConfigEnvShow_NotFound
+--- PASS: TestConfigEnvShow_NotFound (0.00s)
+=== RUN   TestDBQuery_TableOutput
+--- PASS: TestDBQuery_TableOutput (0.00s)
+=== RUN   TestDBQuery_JSONOutput
+--- PASS: TestDBQuery_JSONOutput (0.00s)
+=== RUN   TestDBQuery_NoRows
+--- PASS: TestDBQuery_NoRows (0.00s)
+=== RUN   TestDBQuery_FileReadError
+--- PASS: TestDBQuery_FileReadError (0.00s)
+=== RUN   TestDBExec_RowsAffected
+--- PASS: TestDBExec_RowsAffected (0.00s)
+=== RUN   TestDBDelete_UnknownTarget
+--- PASS: TestDBDelete_UnknownTarget (0.00s)
+=== RUN   TestDBDelete_ConfirmationDenied
+--- PASS: TestDBDelete_ConfirmationDenied (0.00s)
+=== RUN   TestDBConfig_MasksPassword
+--- PASS: TestDBConfig_MasksPassword (0.00s)
+=== RUN   TestDBConfig_EmptyPassword
+--- PASS: TestDBConfig_EmptyPassword (0.00s)
+=== RUN   TestMaestroList
+--- PASS: TestMaestroList (0.00s)
+=== RUN   TestMaestroListTable_WithManifests
+--- PASS: TestMaestroListTable_WithManifests (0.00s)
+=== RUN   TestMaestroListTable_Empty
+--- PASS: TestMaestroListTable_Empty (0.00s)
+=== RUN   TestMaestroBundles
+--- PASS: TestMaestroBundles (0.00s)
+=== RUN   TestMaestroConsumers
+--- PASS: TestMaestroConsumers (0.00s)
+=== RUN   TestMaestroGet_ByName
+--- PASS: TestMaestroGet_ByName (0.00s)
+=== RUN   TestMaestroGet_NotFound
+[WARN] No resource bundle found matching 'nonexistent'
+--- PASS: TestMaestroGet_NotFound (0.00s)
+=== RUN   TestMaestroDelete_ByName
+[INFO] Deleted resource bundle 'mw-cluster1' (b1d2c3e4-0000-0000-0000-000000000001)
+--- PASS: TestMaestroDelete_ByName (0.00s)
+=== RUN   TestMaestroDelete_NotFound
+[WARN] No resource bundle found matching 'nonexistent'
+--- PASS: TestMaestroDelete_NotFound (0.00s)
+=== RUN   TestMaestroDelete_All_Confirmed
+[INFO] Deleted resource bundle 'bundle-a' (id-1)
+[INFO] Deleted resource bundle 'bundle-b' (id-2)
+--- PASS: TestMaestroDelete_All_Confirmed (0.00s)
+=== RUN   TestMaestroDelete_All_Aborted
+--- PASS: TestMaestroDelete_All_Aborted (0.00s)
+=== RUN   TestMaestroDelete_All_MutuallyExclusiveWithName
+--- PASS: TestMaestroDelete_All_MutuallyExclusiveWithName (0.00s)
+=== RUN   TestNodepoolList
+--- PASS: TestNodepoolList (0.00s)
+=== RUN   TestNodepoolList_Table
+--- PASS: TestNodepoolList_Table (0.00s)
+=== RUN   TestNodepoolTable
+--- PASS: TestNodepoolTable (0.00s)
+=== RUN   TestNodepoolList_Search_NoFlag
+--- PASS: TestNodepoolList_Search_NoFlag (0.00s)
+=== RUN   TestNodepoolList_Search_OwnerID
+--- PASS: TestNodepoolList_Search_OwnerID (0.00s)
+=== RUN   TestNodepoolList_Search_CompoundExpr
+--- PASS: TestNodepoolList_Search_CompoundExpr (0.00s)
+=== RUN   TestNodepoolList_Search_APIError400
+--- PASS: TestNodepoolList_Search_APIError400 (0.00s)
+=== RUN   TestNodepoolGet
+--- PASS: TestNodepoolGet (0.00s)
+=== RUN   TestNodepoolGet_FromState
+--- PASS: TestNodepoolGet_FromState (0.00s)
+=== RUN   TestNodepoolGet_NotFound
+--- PASS: TestNodepoolGet_NotFound (0.00s)
+=== RUN   TestNodepoolCreate
+[INFO] Created default nodepool template at /tmp/TestNodepoolCreate2988304424/001/nodepool-template.json
+[INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
+--- PASS: TestNodepoolCreate (0.00s)
+=== RUN   TestNodepoolCreate_DuplicateGuard
+[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_DuplicateGuard3424593132/001/nodepool-template.json
+[WARN] NodePool 'test-nodepool' already exists, skipping creation
+--- PASS: TestNodepoolCreate_DuplicateGuard (0.00s)
+=== RUN   TestNodepoolCreate_Defaults
+[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_Defaults1061560644/001/nodepool-template.json
+[INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
+--- PASS: TestNodepoolCreate_Defaults (0.00s)
+=== RUN   TestNodepoolUpdate
+--- PASS: TestNodepoolUpdate (0.00s)
+=== RUN   TestNodepoolDelete
+--- PASS: TestNodepoolDelete (0.00s)
+=== RUN   TestNodepoolDelete_NotFound
+--- PASS: TestNodepoolDelete_NotFound (0.00s)
+=== RUN   TestNodepoolConditions
+--- PASS: TestNodepoolConditions (0.00s)
+=== RUN   TestNodepoolConditions_FromState
+--- PASS: TestNodepoolConditions_FromState (0.00s)
+=== RUN   TestNodepoolConditions_Table
+--- PASS: TestNodepoolConditions_Table (0.00s)
+=== RUN   TestNodepoolStatuses
+--- PASS: TestNodepoolStatuses (0.00s)
+=== RUN   TestNodepoolStatuses_Table
+--- PASS: TestNodepoolStatuses_Table (0.00s)
+=== RUN   TestNodepoolStatuses_ExplicitID
+--- PASS: TestNodepoolStatuses_ExplicitID (0.00s)
+=== RUN   TestNodepoolSearch_ByName_Found
+[INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
+--- PASS: TestNodepoolSearch_ByName_Found (0.00s)
+=== RUN   TestNodepoolSearch_ByName_NotFound
+[WARN] No nodepools found matching 'nonexistent'
+--- PASS: TestNodepoolSearch_ByName_NotFound (0.00s)
+=== RUN   TestNodepoolSearch_NoArgs_WithState
+--- PASS: TestNodepoolSearch_NoArgs_WithState (0.00s)
+=== RUN   TestNodepoolSearch_NoArgs_WithoutState
+--- PASS: TestNodepoolSearch_NoArgs_WithoutState (0.00s)
+=== RUN   TestNodepoolPatch_Spec
+[INFO] Incrementing spec.counter: 1 -> 2
+--- PASS: TestNodepoolPatch_Spec (0.00s)
+=== RUN   TestNodepoolPatch_Labels
+[INFO] Incrementing labels.counter: 1 -> 2
+--- PASS: TestNodepoolPatch_Labels (0.00s)
+=== RUN   TestNodepoolPatch_NoArgs
+--- PASS: TestNodepoolPatch_NoArgs (0.00s)
+=== RUN   TestNodePoolAdapterPostStatus
+[INFO] Posted adapter status for np-configmap on nodepool 019dc049-e76c-7be1-b201-0db50e2c8ecb
+--- PASS: TestNodePoolAdapterPostStatus (0.00s)
+=== RUN   TestNodepoolCreate_Template_NameFromPositionalArg
+[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_Template_NameFromPositionalArg3476784235/001/nodepool-template.json
+[INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
+--- PASS: TestNodepoolCreate_Template_NameFromPositionalArg (0.01s)
+=== RUN   TestNodepoolCreate_FileFlag
+[INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
+--- PASS: TestNodepoolCreate_FileFlag (0.00s)
+=== RUN   TestNodepoolCreate_MalformedTemplate
+--- PASS: TestNodepoolCreate_MalformedTemplate (0.00s)
+=== RUN   TestNodepoolListWatchFlagRegistered
+--- PASS: TestNodepoolListWatchFlagRegistered (0.00s)
+=== RUN   TestNodepoolListSecondsFlagRegistered
+--- PASS: TestNodepoolListSecondsFlagRegistered (0.00s)
+=== RUN   TestNodepoolID
+=== RUN   TestNodepoolID/prints_ID_when_set
+=== RUN   TestNodepoolID/errors_when_not_set
+--- PASS: TestNodepoolID (0.00s)
+    --- PASS: TestNodepoolID/prints_ID_when_set (0.00s)
+    --- PASS: TestNodepoolID/errors_when_not_set (0.00s)
+=== RUN   TestPickNodepoolInteractive_Select
+[INFO] nodepool context set to: second-nodepool (bbbbbbbb-cccc-dddd-eeee-ffffffffffff)
+--- PASS: TestPickNodepoolInteractive_Select (0.00s)
+=== RUN   TestPickNodepoolInteractive_Abort
+--- PASS: TestPickNodepoolInteractive_Abort (0.00s)
+=== RUN   TestNodepoolGetInteractive
+[INFO] nodepool context set to: test-nodepool (019dc049-e76c-7be1-b201-0db50e2c8ecb)
+--- PASS: TestNodepoolGetInteractive (0.00s)
+=== RUN   TestNodepoolDeleteInteractive
+[INFO] nodepool context set to: test-nodepool (019dc049-e76c-7be1-b201-0db50e2c8ecb)
+--- PASS: TestNodepoolDeleteInteractive (0.00s)
+=== RUN   TestNodepoolIDInteractive_Select
+--- PASS: TestNodepoolIDInteractive_Select (0.00s)
+=== RUN   TestNodepoolIDInteractive_Abort
+--- PASS: TestNodepoolIDInteractive_Abort (0.00s)
+=== RUN   TestNodepoolIDInteractive_NoCluster
+--- PASS: TestNodepoolIDInteractive_NoCluster (0.00s)
+=== RUN   TestNodepoolDelete_FromState
+--- PASS: TestNodepoolDelete_FromState (0.00s)
+=== RUN   TestNodepoolDelete_NoID_NoState_Errors
+--- PASS: TestNodepoolDelete_NoID_NoState_Errors (0.00s)
+=== RUN   TestNodepoolDelete_Force
+[INFO] NodePool '019dc049-e76c-7be1-b201-0db50e2c8ecb' force-deleted
+--- PASS: TestNodepoolDelete_Force (0.00s)
+=== RUN   TestNodepoolDelete_Force_WithReason
+[INFO] NodePool '019dc049-e76c-7be1-b201-0db50e2c8ecb' force-deleted
+--- PASS: TestNodepoolDelete_Force_WithReason (0.00s)
+=== RUN   TestNodepoolDelete_NoForce_StillCallsDelete
+--- PASS: TestNodepoolDelete_NoForce_StillCallsDelete (0.00s)
+=== RUN   TestPubSubList_NoTopics
+--- PASS: TestPubSubList_NoTopics (0.00s)
+=== RUN   TestPubSubList_WithTopics
+--- PASS: TestPubSubList_WithTopics (0.00s)
+=== RUN   TestPubSubList_Filter
+--- PASS: TestPubSubList_Filter (0.00s)
+=== RUN   TestPubSubPublishCluster_MissingClusterID
+--- PASS: TestPubSubPublishCluster_MissingClusterID (0.00s)
+=== RUN   TestPubSubPublishCluster_Success
+--- PASS: TestPubSubPublishCluster_Success (0.00s)
+=== RUN   TestPubSubPublishNodePool_MissingClusterID
+--- PASS: TestPubSubPublishNodePool_MissingClusterID (0.00s)
+=== RUN   TestPubSubPublishNodePool_MissingNodePoolID
+--- PASS: TestPubSubPublishNodePool_MissingNodePoolID (0.00s)
+=== RUN   TestPubSubPublishNodePool_Success
+--- PASS: TestPubSubPublishNodePool_Success (0.00s)
+=== RUN   TestPubSubList_NoCredentials
+--- PASS: TestPubSubList_NoCredentials (0.00s)
+=== RUN   TestRabbitPublishCluster_MissingClusterID
+--- PASS: TestRabbitPublishCluster_MissingClusterID (0.00s)
+=== RUN   TestRabbitPublishCluster_Success
+--- PASS: TestRabbitPublishCluster_Success (0.00s)
+=== RUN   TestRabbitPublishCluster_DefaultRoutingKey
+--- PASS: TestRabbitPublishCluster_DefaultRoutingKey (0.00s)
+=== RUN   TestRabbitPublishNodePool_MissingClusterID
+--- PASS: TestRabbitPublishNodePool_MissingClusterID (0.00s)
+=== RUN   TestRabbitPublishNodePool_MissingNodePoolID
+--- PASS: TestRabbitPublishNodePool_MissingNodePoolID (0.00s)
+=== RUN   TestRabbitPublishNodePool_Success
+--- PASS: TestRabbitPublishNodePool_Success (0.00s)
+=== RUN   TestRabbitPublishCluster_PublishError
+--- PASS: TestRabbitPublishCluster_PublishError (0.00s)
+=== RUN   TestResourcesTable
+--- PASS: TestResourcesTable (0.00s)
+=== RUN   TestResourcesTable_ViaAlias
+--- PASS: TestResourcesTable_ViaAlias (0.00s)
+=== RUN   TestResourcesJSON
+--- PASS: TestResourcesJSON (0.00s)
+=== RUN   TestResourcesDefaultsToTable
+--- PASS: TestResourcesDefaultsToTable (0.00s)
+=== RUN   TestTableDefaultsToTable
+--- PASS: TestTableDefaultsToTable (0.00s)
+=== RUN   TestResourcesOutputJSON
+--- PASS: TestResourcesOutputJSON (0.00s)
+=== RUN   TestResourcesWatchFlagRegistered
+--- PASS: TestResourcesWatchFlagRegistered (0.00s)
+=== RUN   TestResourcesSecondsFlagRegistered
+--- PASS: TestResourcesSecondsFlagRegistered (0.00s)
+=== RUN   TestTableWatchFlagRegistered
+--- PASS: TestTableWatchFlagRegistered (0.00s)
+=== RUN   TestResourcesSpinnerForActiveAdapter
+--- PASS: TestResourcesSpinnerForActiveAdapter (0.00s)
+=== RUN   TestExecuteHelp
+--- PASS: TestExecuteHelp (0.00s)
+=== RUN   TestGlobalFlagsRegistered
+--- PASS: TestGlobalFlagsRegistered (0.00s)
+=== RUN   TestLoadTemplate_AutoCreatesDefault
+--- PASS: TestLoadTemplate_AutoCreatesDefault (0.00s)
+=== RUN   TestLoadTemplate_ExistingFile
+--- PASS: TestLoadTemplate_ExistingFile (0.00s)
+=== RUN   TestLoadTemplate_FlagFileOverride
+--- PASS: TestLoadTemplate_FlagFileOverride (0.00s)
+=== RUN   TestLoadTemplate_MalformedJSON
+--- PASS: TestLoadTemplate_MalformedJSON (0.00s)
+=== RUN   TestLoadTemplate_FlagFileMissing
+--- PASS: TestLoadTemplate_FlagFileMissing (0.00s)
+=== RUN   TestLoadTemplate_NodepoolDefault
+--- PASS: TestLoadTemplate_NodepoolDefault (0.00s)
+=== RUN   TestRunWatch_CallsFnImmediately
+--- PASS: TestRunWatch_CallsFnImmediately (0.00s)
+=== RUN   TestRunWatch_StopsOnContextCancel
+--- PASS: TestRunWatch_StopsOnContextCancel (0.00s)
+=== RUN   TestRunWatch_StopsOnFnError
+--- PASS: TestRunWatch_StopsOnFnError (0.00s)
+=== RUN   TestRunWatch_UsesAltScreenAndClearsOnRender
+--- PASS: TestRunWatch_UsesAltScreenAndClearsOnRender (0.00s)
+=== RUN   TestRunWatchFast_CallsFnImmediatelyWithRefresh
+--- PASS: TestRunWatchFast_CallsFnImmediatelyWithRefresh (0.00s)
+=== RUN   TestRunWatchFast_SpinnerTicksHaveRefreshFalse
+--- PASS: TestRunWatchFast_SpinnerTicksHaveRefreshFalse (0.50s)
+=== RUN   TestRunWatchFast_StopsOnContextCancel
+--- PASS: TestRunWatchFast_StopsOnContextCancel (0.00s)
+=== RUN   TestRunWatchFast_StopsOnFnError
+--- PASS: TestRunWatchFast_StopsOnFnError (0.00s)
+=== RUN   TestRunWatchFast_UsesAltScreenAndClearsOnRender
+--- PASS: TestRunWatchFast_UsesAltScreenAndClearsOnRender (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/cmd	0.840s

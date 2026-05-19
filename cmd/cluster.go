@@ -39,6 +39,8 @@ var (
 	clusterListWatch      bool
 	clusterListWatchSecs  int
 	clusterListSearch     string
+	clusterDeleteForce    bool
+	clusterDeleteReason   string
 )
 
 // ---- helpers ----
@@ -474,6 +476,22 @@ var clusterDeleteCmd = &cobra.Command{
 		client := newAPIClient(s)
 		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
+		if clusterDeleteForce {
+			_, err = api.Post[resource.Cluster](context.Background(), client,
+				"clusters/"+id+"/force-delete",
+				map[string]string{"reason": clusterDeleteReason},
+			)
+			if err != nil {
+				var apiErr *api.APIError
+				if errors.As(err, &apiErr) && apiErr.Status == 404 {
+					return fmt.Errorf("[ERROR] Cluster '%s' not found", id)
+				}
+				return handleAPIError(p, err)
+			}
+			p.Info(fmt.Sprintf("Cluster '%s' force-deleted", id))
+			return nil
+		}
+
 		deleted, err := api.Delete[resource.Cluster](context.Background(), client, "clusters/"+id)
 		if err != nil {
 			var apiErr *api.APIError
@@ -802,6 +820,9 @@ func init() {
 	clusterListCmd.Flags().StringVar(&clusterListSearch, "search", "", "TSL filter expression (e.g. \"labels.environment='prod'\")")
 
 	clusterIDCmd.Flags().BoolVarP(&clusterIDInteractive, "interactive", "i", false, "interactively select and set the active cluster")
+
+	clusterDeleteCmd.Flags().BoolVar(&clusterDeleteForce, "force", false, "force-delete the cluster via POST .../force-delete")
+	clusterDeleteCmd.Flags().StringVar(&clusterDeleteReason, "reason", "", "reason for force-deleting (used with --force)")
 
 	for _, c := range []*cobra.Command{
 		clusterGetCmd, clusterPatchCmd, clusterDeleteCmd,

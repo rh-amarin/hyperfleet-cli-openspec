@@ -109,6 +109,8 @@ func resetNodepoolFlags() {
 	nodepoolInteractive = false
 	nodepoolListSearch = ""
 	nodepoolIDInteractive = false
+	nodepoolDeleteForce = false
+	nodepoolDeleteReason = ""
 }
 
 // runNodepoolCmd wraps runCmd and resets all nodepool flag state before each invocation.
@@ -1288,5 +1290,139 @@ func TestNodepoolIDInteractive_NoCluster(t *testing.T) {
 	}
 	if apiCalled {
 		t.Error("API should not be called when cluster-id is missing")
+	}
+}
+
+// ---- nodepool delete --force and state fallback ----
+
+func TestNodepoolDelete_FromState(t *testing.T) {
+	var gotMethod, gotPath string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		gotPath = r.URL.Path
+		if r.Method == http.MethodDelete && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, nodepoolJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
+
+	_, err := runNodepoolCmd(t, dir, "nodepool", "delete")
+	if err != nil {
+		t.Fatalf("nodepool delete (from state): %v", err)
+	}
+	if gotMethod != http.MethodDelete {
+		t.Errorf("expected DELETE, got %s", gotMethod)
+	}
+	if gotPath != apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID {
+		t.Errorf("unexpected path: %s", gotPath)
+	}
+}
+
+func TestNodepoolDelete_NoID_NoState_Errors(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	// state has cluster-id but no nodepool-id
+
+	_, err := runNodepoolCmd(t, dir, "nodepool", "delete")
+	if err == nil {
+		t.Fatal("expected error when no nodepool-id in state and no arg")
+	}
+	if !strings.Contains(err.Error(), "no active nodepool") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestNodepoolDelete_Force(t *testing.T) {
+	var gotMethod, gotPath string
+	var gotBody map[string]string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		gotPath = r.URL.Path
+		if r.Method == http.MethodPost && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID+"/force-delete" {
+			if err := json.NewDecoder(r.Body).Decode(&gotBody); err != nil {
+				http.Error(w, "bad body", http.StatusBadRequest)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
+
+	_, err := runNodepoolCmd(t, dir, "nodepool", "delete", "--force")
+	if err != nil {
+		t.Fatalf("nodepool delete --force: %v", err)
+	}
+	if gotMethod != http.MethodPost {
+		t.Errorf("expected POST, got %s", gotMethod)
+	}
+	if gotPath != apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID+"/force-delete" {
+		t.Errorf("unexpected path: %s", gotPath)
+	}
+}
+
+func TestNodepoolDelete_Force_WithReason(t *testing.T) {
+	var gotBody map[string]string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID+"/force-delete" {
+			if err := json.NewDecoder(r.Body).Decode(&gotBody); err != nil {
+				http.Error(w, "bad body", http.StatusBadRequest)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
+
+	_, err := runNodepoolCmd(t, dir, "nodepool", "delete", "--force", "--reason", "stuck in finalizing")
+	if err != nil {
+		t.Fatalf("nodepool delete --force --reason: %v", err)
+	}
+	if gotBody["reason"] != "stuck in finalizing" {
+		t.Errorf("expected reason 'stuck in finalizing', got %q", gotBody["reason"])
+	}
+}
+
+func TestNodepoolDelete_NoForce_StillCallsDelete(t *testing.T) {
+	var gotMethod string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		if r.Method == http.MethodDelete && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, nodepoolJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupNodepoolEnv(t, ts)
+	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
+
+	_, err := runNodepoolCmd(t, dir, "nodepool", "delete")
+	if err != nil {
+		t.Fatalf("nodepool delete (no force): %v", err)
+	}
+	if gotMethod != http.MethodDelete {
+		t.Errorf("expected DELETE, got %s", gotMethod)
 	}
 }

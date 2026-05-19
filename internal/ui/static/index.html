@@ -738,6 +738,7 @@ let state = {
   spinnerTick:           0,
   polling:               false,
   npByCluster:           {},    // clusterID → NodePool[]
+  npStatuses:            {},    // npID → AdapterStatus[]
   currentAdapterStatuses: [],   // adapter statuses of currently selected cluster
   deleteConfirm:         false,
   forceDeleteConfirm:    false,
@@ -824,14 +825,19 @@ function relTime(ts) {
 }
 
 // Collect unique adapter names sorted by earliest created_time.
+// Mirrors CLI collectAdapterCols: includes adapters from both cluster and nodepool statuses.
 function collectAdapterCols(clusters) {
   const adapterMap = {}; // name → earliest created_time
-  for (const c of clusters) {
-    for (const s of (c.adapter_statuses || [])) {
-      if (!adapterMap[s.adapter] || s.created_time < adapterMap[s.adapter]) {
-        adapterMap[s.adapter] = s.created_time || '';
-      }
+  const consider = (s) => {
+    if (!adapterMap[s.adapter] || (s.created_time && s.created_time < adapterMap[s.adapter])) {
+      adapterMap[s.adapter] = s.created_time || '';
     }
+  };
+  for (const c of clusters) {
+    for (const s of (c.adapter_statuses || [])) consider(s);
+  }
+  for (const statuses of Object.values(state.npStatuses || {})) {
+    for (const s of statuses) consider(s);
   }
   return Object.keys(adapterMap).sort((a, b) =>
     (adapterMap[a] || '').localeCompare(adapterMap[b] || ''));
@@ -956,7 +962,26 @@ function buildNPRow(np, clusterID, adapterCols) {
     const gen = cond.observed_generation != null ? `<span class="gen-num">${cond.observed_generation}</span>` : '';
     return `<td class="col-cond">${statusDot(status, type, cond)}${gen}</td>`;
   });
-  const adapterCells = adapterCols.map(() => `<td class="col-cond" style="color:var(--border2)">·</td>`);
+  const isDeleted = !!np.deleted_time;
+  const npAdStatuses = state.npStatuses?.[np.id] || [];
+  const adapterCells = adapterCols.map(name => {
+    const s = npAdStatuses.find(a => a.adapter === name);
+    if (!s) return `<td class="col-cond"><span style="color:var(--border2)">·</span></td>`;
+    const relevant = (s.conditions || []).filter(c =>
+      isDeleted ? c.type === 'Finalized' : c.type !== 'Finalized'
+    );
+    let overall = relevant.length ? 'True' : '';
+    for (const c of relevant) {
+      if (c.status === 'False') { overall = 'False'; break; }
+      if (c.status === 'Unknown') overall = 'Unknown';
+    }
+    const tip = s.conditions.map(c => buildTip(`${name}/${c.type}`, c)).join('\n─\n');
+    const color = dotColor(overall);
+    const active = isAdapterActive(s.last_report_time);
+    const spin = `<span class="act-spin"${active ? '' : ' style="visibility:hidden"'}></span>`;
+    const gen = s.observed_generation != null ? `<span class="gen-num">${s.observed_generation}</span>` : '';
+    return `<td class="col-cond">${spin}<span class="dot" style="color:${color}" data-tip="${esc(tip)}">●</span>${gen}</td>`;
+  });
 
   const npDelMark = np.deleted_time ? ' ❌' : '';
   return `<tr class="np-row" data-np-id="${esc(np.id)}" data-np-parent="${esc(clusterID)}"
@@ -1368,6 +1393,21 @@ async function poll() {
     state.npByCluster = npByCluster;
     // Keep _npLists in sync for the detail panel's NP expand logic
     state._npLists = npByCluster;
+
+    // Concurrently fetch nodepool statuses so adapter columns match CLI output
+    const allNPs = state.clusters.flatMap(c =>
+      (npByCluster[c.id] || []).map(np => ({ clusterID: c.id, npID: np.id }))
+    );
+    const npStatusResults = await Promise.allSettled(
+      allNPs.map(({ clusterID, npID }) =>
+        api.nodepoolStatuses(clusterID, npID).then(r => ({ npID, items: r.items || [] }))
+      )
+    );
+    const npStatuses = {};
+    for (const r of npStatusResults) {
+      if (r.status === 'fulfilled') npStatuses[r.value.npID] = r.value.items;
+    }
+    state.npStatuses = npStatuses;
 
     renderTable(state.clusters);
 

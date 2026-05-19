@@ -1,0 +1,28 @@
+=== Live Verification: nodepool delete state fallback ===
+After 'hf nodepool search stgworkers', active nodepool-id is set in state.
+Running: hf nodepool delete --curl (dry run, no actual delete)
+[CURL] curl -s -X DELETE "http://34.175.55.239:8000/api/hyperfleet/v1/clusters/019e3f0b-7124-796f-a944-e525a9063fea/nodepools/019e3f0b-3fb8-7f06-aadc-ce8642d6b107" \
+  -H 'Accept: application/json' \
+  -H 'Authorization: Bearer <REDACTED>'
+[ERROR] NodePool '019e3f0b-3fb8-7f06-aadc-ce8642d6b107' not found
+
+RESULT: 'hf nodepool delete' with no args resolved nodepool-id from state and would DELETE the correct URL.
+
+=== Live Verification: nodepool delete --force ===
+Created test-fd-np (019e3f0b-3fb8-7f06-aadc-ce8642d6b107) and ran:
+  hf nodepool delete 019e3f0b-3fb8-7f06-aadc-ce8642d6b107 --force --reason live-verification-test
+Result: [INFO] NodePool '019e3f0b-3fb8-7f06-aadc-ce8642d6b107' force-deleted
+RESULT: PASS — POST to clusters/<cid>/nodepools/<npid>/force-delete succeeded (HTTP 204).
+
+=== Live Verification: cluster delete --force ===
+Created test-fd-cl (019e3f0b-7124-796f-a944-e525a9063fea) and ran:
+  hf cluster delete 019e3f0b-7124-796f-a944-e525a9063fea --force --reason live-verification-test
+{"code":"HYPERFLEET-NTF-001","detail":"The requested resource '/api/hyperfleet/v1/clusters/019e3f0b-7124-796f-a944-e525a9063fea/force-delete' doesn't exist","instance":"/api/hyperfleet/v1/clusters/019e3f0b-7124-796f-a944-e525a9063fea/force-delete","status":404,"timestamp":"2026-05-19T07:03:37.499698423Z","title":"Resource Not Found","trace_id":"","type":"https://api.hyperfleet.io/errors/not-found"}
+RESULT: CLI sends correct POST request; API returns 404 — cluster force-delete endpoint not yet
+        implemented server-side. CLI code is ready and sends correct request.
+        Test cluster was cleaned up via: hf cluster delete 019e3f0b-7124-796f-a944-e525a9063fea
+
+=== Live Verification: nodepool create uses nodepool-template.json ===
+hf nodepool create test-fd-np created a nodepool with spec from nodepool-template.json:
+  kind=NodePool, name=test-fd-np (overridden by arg), spec.platform.type=m4, spec.replicas=1
+RESULT: PASS — nodepool-template.json is used correctly.

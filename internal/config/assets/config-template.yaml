@@ -4,6 +4,7 @@ hyperfleet:
   token: ""
   gcp-project: "hcm-hyperfleet"
   namespace: "hyperfleet"
+  auto-port-forward: "false"
 
 kubernetes:
   context: ""

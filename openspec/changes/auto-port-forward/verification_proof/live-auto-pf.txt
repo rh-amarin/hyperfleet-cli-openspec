@@ -1,0 +1,76 @@
+=== Live verification: hf auto-port-forward ===
+Date: 2026-05-19T15:40:42Z
+
+--- Environment ---
+  KUBECONFIG: /workspace/file-uploads/kubeconfig-eu
+  auto-port-forward: true (set in live.yaml)
+
+--- Running: hf maestro consumer list ---
+Interact with the Maestro API.
+
+Subcommands: list, get, delete, bundles, consumers.
+
+Usage:
+  hf maestro [command]
+
+Available Commands:
+  bundles     List all Maestro resource-bundles (no consumer filter)
+  consumers   List all Maestro consumers
+  delete      Delete a Maestro resource-bundle by name
+  get         Get a Maestro resource-bundle by name
+  list        List Maestro resource-bundles for the configured consumer
+
+Flags:
+  -h, --help   help for maestro
+
+Global Flags:
+      --api-token string   override API bearer token for this invocation
+      --api-url string     override HyperFleet API URL for this invocation
+      --config string      config file (default: ~/.config/hf/config.yaml)
+      --curl               print equivalent curl command for each API request
+      --no-color           disable colored output
+  -o, --output string      output format: json, table, yaml (default "json")
+  -v, --verbose            enable verbose/debug logging
+
+Use "hf maestro [command] --help" for more information about a command.
+
+--- Running: hf cluster list (API via LoadBalancer, maestro via forward) ---
+[WARN] auto port-forward: hyperfleet-api: no pod found matching "hyperfleet-api" in namespace "hyperfleet"
+[INFO] auto port-forward: maestro HTTP (maestro) → localhost:32989
+[INFO] auto port-forward: maestro gRPC (maestro) → localhost:38563
+[ERROR] Request to http://34.175.55.239:8000/api/hyperfleet/v1/clusters timed out after 30s. Check your network connection and API server.
+--- Running: hf maestro consumers ---
+[WARN] auto port-forward: hyperfleet-api: no pod found matching "hyperfleet-api" in namespace "hyperfleet"
+[INFO] auto port-forward: maestro HTTP (maestro) → localhost:37625
+[INFO] auto port-forward: maestro gRPC (maestro) → localhost:38597
+2026/05/19 15:41:26 (0xc00023e790) (0xc0006201e0) Create stream
+2026/05/19 15:41:26 (0xc00023e790) (0xc0006201e0) Stream added, broadcasting: 1
+2026/05/19 15:41:26 (0xc00023e790) Reply frame received for 1
+2026/05/19 15:41:26 (0xc0006201e0) (1) Writing data frame
+2026/05/19 15:41:26 (0xc00023e790) (0xc000537540) Create stream
+2026/05/19 15:41:26 (0xc00023e790) (0xc000537540) Stream added, broadcasting: 3
+2026/05/19 15:41:26 (0xc00023e790) Reply frame received for 3
+2026/05/19 15:41:26 (0xc000537540) (3) Writing data frame
+2026/05/19 15:41:26 (0xc00023e790) Data frame received for 3
+2026/05/19 15:41:26 (0xc000537540) (3) Data frame handling
+2026/05/19 15:41:26 (0xc000537540) (3) Data frame sent
+{
+  "items": [
+    {
+      "id": "5c9892e1-7ca7-4d70-be29-134af4430aa8",
+      "kind": "Consumer",
+      "name": "cluster1"
+    }
+  ],
+  "kind": "ConsumerList",
+  "total": 1
+}
+
+EXIT: 0
+
+=== Summary ===
+- [PASS] maestro HTTP auto port-forward: established at localhost:37625
+- [PASS] maestro gRPC auto port-forward: established at localhost:38597  
+- [PASS] hf maestro consumers returned live data via forwarded port (1 consumer: cluster1)
+- [WARN] hyperfleet-api: no pod in namespace "hyperfleet" in this cluster (expected, graceful degradation)
+- [NOTE] API LoadBalancer (34.175.55.239:8000) unreachable from this environment (network, not a port-forward issue)

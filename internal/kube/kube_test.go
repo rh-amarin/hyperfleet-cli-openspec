@@ -457,3 +457,59 @@ func freePort(t *testing.T) int {
 	l.Close()
 	return port
 }
+
+func TestEphemeralPortForward_PodNotFound(t *testing.T) {
+	const ns = "hyperfleet"
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/namespaces/"+ns+"/pods", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(corev1.PodList{})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	dir := t.TempDir()
+	kubeconfigContent := fmt.Sprintf(`apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    server: %s
+  name: test
+contexts:
+- context:
+    cluster: test
+    user: test
+  name: test
+current-context: test
+users:
+- name: test
+  user:
+    token: test-token
+`, srv.URL)
+	kubeconfigPath := filepath.Join(dir, "kubeconfig")
+	if err := os.WriteFile(kubeconfigPath, []byte(kubeconfigContent), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err := EphemeralPortForward(kubeconfigPath, ns, "hyperfleet-api", 8000, "")
+	if err == nil {
+		t.Fatal("expected error when pod not found")
+	}
+	if !strings.Contains(err.Error(), "no pod found") {
+		t.Errorf("expected 'no pod found' in error, got: %v", err)
+	}
+}
+
+func TestFindFreePort(t *testing.T) {
+	port, err := findFreePort()
+	if err != nil {
+		t.Fatalf("findFreePort error: %v", err)
+	}
+	if port < 1 || port > 65535 {
+		t.Errorf("findFreePort returned out-of-range port %d", port)
+	}
+	// Port should not be bound after findFreePort returns.
+	if IsPortListening(port) {
+		t.Errorf("port %d should not be listening after findFreePort", port)
+	}
+}

@@ -30,11 +30,13 @@ func init() {
 
 // envVarMap maps environment variable names to config paths.
 var envVarMap = map[string][2]string{
-	"HF_API_URL":     {"hyperfleet", "api-url"},
-	"HF_API_VERSION": {"hyperfleet", "api-version"},
-	"HF_TOKEN":       {"hyperfleet", "token"},
-	"HF_CONTEXT":     {"kubernetes", "context"},
-	"HF_NAMESPACE":   {"hyperfleet", "namespace"},
+	"HF_API_URL":      {"hyperfleet", "api-url"},
+	"HF_API_VERSION":  {"hyperfleet", "api-version"},
+	"HF_TOKEN":        {"hyperfleet", "token"},
+	"HF_CONTEXT":      {"kubernetes", "context"},
+	"HF_NAMESPACE":    {"hyperfleet", "namespace"},
+	"HF_MAESTRO_HTTP": {"maestro", "http-endpoint"},
+	"HF_MAESTRO_GRPC": {"maestro", "grpc-endpoint"},
 }
 
 // Store manages the HyperFleet CLI configuration.

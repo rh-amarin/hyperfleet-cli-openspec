@@ -543,6 +543,80 @@ func DeleteNamespace(ctx context.Context, cs kubernetes.Interface, name string) 
 	return cs.CoreV1().Namespaces().Delete(ctx, name, metav1.DeleteOptions{})
 }
 
+
+// findFreePort binds a listener on 127.0.0.1:0 to obtain a free local TCP port,
+// closes it immediately, and returns the port number. There is a brief TOCTOU
+// window but it is acceptable for ephemeral port-forward use.
+func findFreePort() (int, error) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return 0, err
+	}
+	port := ln.Addr().(*net.TCPAddr).Port
+	ln.Close()
+	return port, nil
+}
+
+// EphemeralPortForward starts an in-process SPDY port-forward to podPattern in
+// namespace for remotePort, allocating a random local port. It returns the
+// local port, a stop func (safe to call multiple times), and any setup error.
+// The stop func must be called when the caller is done to release the connection.
+func EphemeralPortForward(kubeconfigPath, namespace, podPattern string, remotePort int, contextName string) (localPort int, stop func(), err error) {
+	config, err := BuildConfig(kubeconfigPath, contextName)
+	if err != nil {
+		return 0, nil, err
+	}
+	cs, err := NewClientset(kubeconfigPath, contextName)
+	if err != nil {
+		return 0, nil, err
+	}
+	podName, err := FindRunningPod(context.Background(), cs, namespace, podPattern)
+	if err != nil {
+		return 0, nil, err
+	}
+	localPort, err = findFreePort()
+	if err != nil {
+		return 0, nil, fmt.Errorf("allocating local port: %w", err)
+	}
+	transport, upgrader, err := spdy.RoundTripperFor(config)
+	if err != nil {
+		return 0, nil, fmt.Errorf("SPDY transport: %w", err)
+	}
+	url := cs.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Namespace(namespace).
+		Name(podName).
+		SubResource("portforward").
+		URL()
+	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, url)
+	stopCh := make(chan struct{})
+	readyCh := make(chan struct{})
+	fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", localPort, remotePort)},
+		stopCh, readyCh, nil, nil)
+	if err != nil {
+		close(stopCh)
+		return 0, nil, fmt.Errorf("creating port-forward: %w", err)
+	}
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- fw.ForwardPorts()
+	}()
+	select {
+	case <-readyCh:
+		// port-forward is ready
+	case pfErr := <-errCh:
+		return 0, nil, fmt.Errorf("port-forward failed: %w", pfErr)
+	case <-time.After(30 * time.Second):
+		close(stopCh)
+		return 0, nil, fmt.Errorf("timed out waiting for port-forward to %s:%d", podPattern, remotePort)
+	}
+	var once sync.Once
+	stop = func() {
+		once.Do(func() { close(stopCh) })
+	}
+	return localPort, stop, nil
+}
+
 // CheckAPIConnectivity verifies connectivity to the HyperFleet API via HTTP GET.
 // Returns nil if the server responds (any HTTP status), non-nil on connection failure.
 func CheckAPIConnectivity(port int) error {

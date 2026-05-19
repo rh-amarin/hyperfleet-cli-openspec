@@ -1,5 +1,0 @@
-schema: "1.0"
-createdAt: "2026-05-18"
-dependsOn:
-  - hf-ui-server
-  - ui-adapter-status-form

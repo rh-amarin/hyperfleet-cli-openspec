@@ -1,0 +1,29 @@
+=== Live Verification: hf kube namespace-clean ===
+
+Attempted live verification against GKE cluster (https://34.175.77.98).
+
+RESULT: GCP OAuth2 access token expired — Kubernetes API returned 401 Unauthorized.
+The HyperFleet REST API token is still valid (confirmed via curl to http://34.175.55.239:8000).
+No gcloud CLI is available in this environment to refresh the token.
+
+Command logic is fully verified via unit tests (see unit-tests.txt):
+  - TestNamespaceClean_Empty             PASS
+  - TestNamespaceClean_Abort             PASS
+  - TestNamespaceClean_Success           PASS
+  - TestNamespaceClean_PartialFailure    PASS
+  - TestNamespaceClean_LabelValueMatch   PASS
+  - TestNamespaceClean_NonHyperfleetNamespacesSkipped   PASS
+
+Each test spins up a real httptest.Server that mimics the Kubernetes namespace API
+(GET /api/v1/namespaces, DELETE /api/v1/namespaces/<name>) and exercises the full
+command path including confirmation prompt, parallel deletion, and error handling.
+
+=== Command help output ===
+Usage:
+  hf kube namespace-clean [flags]
+
+Description:
+  List and delete all Kubernetes namespaces that have at least one label
+  whose key or value contains the string "hyperfleet".
+  Prints list + count, requires explicit "y" confirmation, then deletes
+  in parallel with per-namespace [DELETING] / [DELETED] / [ERROR] progress.

@@ -1,3 +1,4 @@
+?   	github.com/rh-amarin/hyperfleet-cli	[no test files]
 === RUN   TestClusterList
 --- PASS: TestClusterList (0.00s)
 === RUN   TestClusterList_Table
@@ -19,15 +20,15 @@
 === RUN   TestClusterGet_NotFound
 --- PASS: TestClusterGet_NotFound (0.00s)
 === RUN   TestClusterCreate
-[INFO] Created default cluster template at /tmp/TestClusterCreate2155894590/001/cluster-template.json
+[INFO] Created default cluster template at /tmp/TestClusterCreate1672839037/001/cluster-template.json
 [INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
 --- PASS: TestClusterCreate (0.00s)
 === RUN   TestClusterCreate_DuplicateGuard
-[INFO] Created default cluster template at /tmp/TestClusterCreate_DuplicateGuard255192630/001/cluster-template.json
+[INFO] Created default cluster template at /tmp/TestClusterCreate_DuplicateGuard428085248/001/cluster-template.json
 [WARN] Cluster 'test-cluster' already exists, skipping creation
 --- PASS: TestClusterCreate_DuplicateGuard (0.00s)
 === RUN   TestClusterCreate_Defaults
-[INFO] Created default cluster template at /tmp/TestClusterCreate_Defaults4241629736/001/cluster-template.json
+[INFO] Created default cluster template at /tmp/TestClusterCreate_Defaults2913976014/001/cluster-template.json
 [INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
 --- PASS: TestClusterCreate_Defaults (0.00s)
 === RUN   TestClusterUpdate
@@ -62,14 +63,14 @@
 --- PASS: TestClusterSearch_NoArgs_WithoutState (0.00s)
 === RUN   TestClusterPatch_Spec
 [INFO] Incrementing spec.counter: 0 -> 1
---- PASS: TestClusterPatch_Spec (0.01s)
+--- PASS: TestClusterPatch_Spec (0.00s)
 === RUN   TestClusterPatch_Labels
 [INFO] Incrementing labels.counter: 1 -> 2
 --- PASS: TestClusterPatch_Labels (0.00s)
 === RUN   TestClusterPatch_NoArgs
 --- PASS: TestClusterPatch_NoArgs (0.00s)
 === RUN   TestClusterCreate_PositionalArgs
-[INFO] Created default cluster template at /tmp/TestClusterCreate_PositionalArgs523622826/001/cluster-template.json
+[INFO] Created default cluster template at /tmp/TestClusterCreate_PositionalArgs2681349638/001/cluster-template.json
 [INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
 --- PASS: TestClusterCreate_PositionalArgs (0.00s)
 === RUN   TestClusterAdapterPostStatus
@@ -78,7 +79,7 @@
 === RUN   TestClusterAdapterPostStatus_InvalidStatus
 --- PASS: TestClusterAdapterPostStatus_InvalidStatus (0.00s)
 === RUN   TestClusterCreate_Template_NameFromPositionalArg
-[INFO] Created default cluster template at /tmp/TestClusterCreate_Template_NameFromPositionalArg2837959547/001/cluster-template.json
+[INFO] Created default cluster template at /tmp/TestClusterCreate_Template_NameFromPositionalArg2858390977/001/cluster-template.json
 [INFO] Cluster context set to '019dc049-43a8-7a42-b44a-8d7f89e9e10f'
 --- PASS: TestClusterCreate_Template_NameFromPositionalArg (0.00s)
 === RUN   TestClusterCreate_FileFlag
@@ -222,6 +223,19 @@ dev (built unknown)
 --- PASS: TestDBConfig_MasksPassword (0.00s)
 === RUN   TestDBConfig_EmptyPassword
 --- PASS: TestDBConfig_EmptyPassword (0.00s)
+=== RUN   TestNamespaceClean_Empty
+--- PASS: TestNamespaceClean_Empty (0.00s)
+=== RUN   TestNamespaceClean_Abort
+--- PASS: TestNamespaceClean_Abort (0.00s)
+=== RUN   TestNamespaceClean_Success
+--- PASS: TestNamespaceClean_Success (0.00s)
+=== RUN   TestNamespaceClean_PartialFailure
+[ERROR]    hyperfleet-bad: the server could not find the requested resource (delete namespaces hyperfleet-bad)
+--- PASS: TestNamespaceClean_PartialFailure (0.00s)
+=== RUN   TestNamespaceClean_LabelValueMatch
+--- PASS: TestNamespaceClean_LabelValueMatch (0.00s)
+=== RUN   TestNamespaceClean_NonHyperfleetNamespacesSkipped
+--- PASS: TestNamespaceClean_NonHyperfleetNamespacesSkipped (0.00s)
 === RUN   TestMaestroList
 --- PASS: TestMaestroList (0.00s)
 === RUN   TestMaestroListTable_WithManifests
@@ -254,7 +268,7 @@ dev (built unknown)
 === RUN   TestNodepoolList
 --- PASS: TestNodepoolList (0.00s)
 === RUN   TestNodepoolList_Table
---- PASS: TestNodepoolList_Table (0.00s)
+--- PASS: TestNodepoolList_Table (0.01s)
 === RUN   TestNodepoolTable
 --- PASS: TestNodepoolTable (0.00s)
 === RUN   TestNodepoolList_Search_NoFlag
@@ -272,15 +286,15 @@ dev (built unknown)
 === RUN   TestNodepoolGet_NotFound
 --- PASS: TestNodepoolGet_NotFound (0.00s)
 === RUN   TestNodepoolCreate
-[INFO] Created default nodepool template at /tmp/TestNodepoolCreate2988304424/001/nodepool-template.json
+[INFO] Created default nodepool template at /tmp/TestNodepoolCreate2648074361/001/nodepool-template.json
 [INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
 --- PASS: TestNodepoolCreate (0.00s)
 === RUN   TestNodepoolCreate_DuplicateGuard
-[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_DuplicateGuard3424593132/001/nodepool-template.json
+[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_DuplicateGuard3843615455/001/nodepool-template.json
 [WARN] NodePool 'test-nodepool' already exists, skipping creation
 --- PASS: TestNodepoolCreate_DuplicateGuard (0.00s)
 === RUN   TestNodepoolCreate_Defaults
-[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_Defaults1061560644/001/nodepool-template.json
+[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_Defaults1991740963/001/nodepool-template.json
 [INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
 --- PASS: TestNodepoolCreate_Defaults (0.00s)
 === RUN   TestNodepoolUpdate
@@ -323,9 +337,9 @@ dev (built unknown)
 [INFO] Posted adapter status for np-configmap on nodepool 019dc049-e76c-7be1-b201-0db50e2c8ecb
 --- PASS: TestNodePoolAdapterPostStatus (0.00s)
 === RUN   TestNodepoolCreate_Template_NameFromPositionalArg
-[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_Template_NameFromPositionalArg3476784235/001/nodepool-template.json
+[INFO] Created default nodepool template at /tmp/TestNodepoolCreate_Template_NameFromPositionalArg3367203117/001/nodepool-template.json
 [INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
---- PASS: TestNodepoolCreate_Template_NameFromPositionalArg (0.01s)
+--- PASS: TestNodepoolCreate_Template_NameFromPositionalArg (0.00s)
 === RUN   TestNodepoolCreate_FileFlag
 [INFO] NodePool context set to '019dc049-e76c-7be1-b201-0db50e2c8ecb'
 --- PASS: TestNodepoolCreate_FileFlag (0.00s)
@@ -457,4 +471,347 @@ dev (built unknown)
 === RUN   TestRunWatchFast_UsesAltScreenAndClearsOnRender
 --- PASS: TestRunWatchFast_UsesAltScreenAndClearsOnRender (0.00s)
 PASS
-ok  	github.com/rh-amarin/hyperfleet-cli/cmd	0.840s
+ok  	github.com/rh-amarin/hyperfleet-cli/cmd	0.835s
+=== RUN   TestGetHappyPath
+--- PASS: TestGetHappyPath (0.00s)
+=== RUN   TestPostHappyPath
+--- PASS: TestPostHappyPath (0.00s)
+=== RUN   TestPatchHappyPath
+--- PASS: TestPatchHappyPath (0.00s)
+=== RUN   TestDeleteHappyPath
+--- PASS: TestDeleteHappyPath (0.00s)
+=== RUN   TestRFC7807ErrorParsing404
+--- PASS: TestRFC7807ErrorParsing404 (0.00s)
+=== RUN   TestRFC7807ValidationErrors
+--- PASS: TestRFC7807ValidationErrors (0.00s)
+=== RUN   TestNonJSONErrorBody
+--- PASS: TestNonJSONErrorBody (0.00s)
+=== RUN   TestHTMLErrorBody
+--- PASS: TestHTMLErrorBody (0.00s)
+=== RUN   TestBearerTokenHeader
+--- PASS: TestBearerTokenHeader (0.00s)
+=== RUN   TestNoTokenNoAuthHeader
+--- PASS: TestNoTokenNoAuthHeader (0.00s)
+=== RUN   TestVerboseLogging
+[DEBUG] GET http://127.0.0.1:34705/api/hyperfleet/v1/resources/1 → 200 (0ms)
+--- PASS: TestVerboseLogging (0.00s)
+=== RUN   TestResourceHref
+--- PASS: TestResourceHref (0.00s)
+=== RUN   TestTimeoutErrorFormat
+--- PASS: TestTimeoutErrorFormat (0.01s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/api	0.014s
+=== RUN   TestLoad_NoConfigYAMLCreated
+--- PASS: TestLoad_NoConfigYAMLCreated (0.00s)
+=== RUN   TestLoad_StateYAMLCreated
+--- PASS: TestLoad_StateYAMLCreated (0.00s)
+=== RUN   TestLoad_EnvironmentsDirCreated
+--- PASS: TestLoad_EnvironmentsDirCreated (0.00s)
+=== RUN   TestGet_Defaults
+--- PASS: TestGet_Defaults (0.00s)
+=== RUN   TestGet_EnvVarOverridesDefault
+--- PASS: TestGet_EnvVarOverridesDefault (0.00s)
+=== RUN   TestGet_ActiveEnvFileOverridesDefault
+--- PASS: TestGet_ActiveEnvFileOverridesDefault (0.00s)
+=== RUN   TestGet_EnvVarOverridesActiveEnvFile
+--- PASS: TestGet_EnvVarOverridesActiveEnvFile (0.00s)
+=== RUN   TestSet_WritesToActiveEnvFile
+--- PASS: TestSet_WritesToActiveEnvFile (0.00s)
+=== RUN   TestSet_ErrorWhenNoActiveEnv
+--- PASS: TestSet_ErrorWhenNoActiveEnv (0.00s)
+=== RUN   TestAtomicStateWrite
+--- PASS: TestAtomicStateWrite (0.00s)
+=== RUN   TestRequireActiveEnvironment
+--- PASS: TestRequireActiveEnvironment (0.00s)
+=== RUN   TestClusterIDResolution
+--- PASS: TestClusterIDResolution (0.00s)
+=== RUN   TestConfigTemplateYAML_NonEmptyAndParses
+--- PASS: TestConfigTemplateYAML_NonEmptyAndParses (0.00s)
+=== RUN   TestHFNamespace_EnvVar
+--- PASS: TestHFNamespace_EnvVar (0.00s)
+=== RUN   TestHFNamespace_Profile
+--- PASS: TestHFNamespace_Profile (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/config	0.009s
+=== RUN   TestDSN
+--- PASS: TestDSN (0.00s)
+=== RUN   TestDSNDefaults
+--- PASS: TestDSNDefaults (0.00s)
+=== RUN   TestCellStringNull
+--- PASS: TestCellStringNull (0.00s)
+=== RUN   TestCellStringBytes
+--- PASS: TestCellStringBytes (0.00s)
+=== RUN   TestCellStringTruncation
+--- PASS: TestCellStringTruncation (0.00s)
+=== RUN   TestCellStringNoTruncationAt80
+--- PASS: TestCellStringNoTruncationAt80 (0.00s)
+=== RUN   TestDeleteTargetTable
+--- PASS: TestDeleteTargetTable (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/db	0.004s
+=== RUN   TestParseAPILogs_Normal
+--- PASS: TestParseAPILogs_Normal (0.00s)
+=== RUN   TestParseAPILogs_Empty
+--- PASS: TestParseAPILogs_Empty (0.00s)
+=== RUN   TestParseAPILogs_SkipsNonJSON
+--- PASS: TestParseAPILogs_SkipsNonJSON (0.00s)
+=== RUN   TestParseSentinelLogs_Normal
+--- PASS: TestParseSentinelLogs_Normal (0.00s)
+=== RUN   TestParseSentinelLogs_Empty
+--- PASS: TestParseSentinelLogs_Empty (0.00s)
+=== RUN   TestExtractInt
+--- PASS: TestExtractInt (0.00s)
+=== RUN   TestParseAdapterLogs_Normal
+--- PASS: TestParseAdapterLogs_Normal (0.00s)
+=== RUN   TestParseAdapterLogs_Empty
+--- PASS: TestParseAdapterLogs_Empty (0.00s)
+=== RUN   TestParseAdapterLogs_SkipsJSONSpans
+--- PASS: TestParseAdapterLogs_SkipsJSONSpans (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/insights	0.012s
+=== RUN   TestBuildConfig_ValidFile
+--- PASS: TestBuildConfig_ValidFile (0.00s)
+=== RUN   TestBuildConfig_MissingFile
+--- PASS: TestBuildConfig_MissingFile (0.00s)
+=== RUN   TestBuildConfig_HFKubeTokenOverride
+--- PASS: TestBuildConfig_HFKubeTokenOverride (0.00s)
+=== RUN   TestResolvedContext_CurrentContext
+--- PASS: TestResolvedContext_CurrentContext (0.00s)
+=== RUN   TestResolvedContext_Override
+--- PASS: TestResolvedContext_Override (0.00s)
+=== RUN   TestResolvedContext_NonexistentContext
+--- PASS: TestResolvedContext_NonexistentContext (0.00s)
+=== RUN   TestIsPortListening_NotListening
+--- PASS: TestIsPortListening_NotListening (0.00s)
+=== RUN   TestIsPortListening_Listening
+--- PASS: TestIsPortListening_Listening (0.00s)
+=== RUN   TestPIDForPort_Listening
+    kube_test.go:168: lsof unavailable or failed (port 41837): lsof: exec: "lsof": executable file not found in $PATH
+--- SKIP: TestPIDForPort_Listening (0.00s)
+=== RUN   TestPIDForPort_NotListening
+--- PASS: TestPIDForPort_NotListening (0.00s)
+=== RUN   TestIsProcessAlive_CurrentProcess
+--- PASS: TestIsProcessAlive_CurrentProcess (0.00s)
+=== RUN   TestIsProcessAlive_InvalidPID
+--- PASS: TestIsProcessAlive_InvalidPID (0.00s)
+=== RUN   TestFindRunningPod_Found
+--- PASS: TestFindRunningPod_Found (0.00s)
+=== RUN   TestFindRunningPod_NotRunning
+--- PASS: TestFindRunningPod_NotRunning (0.00s)
+=== RUN   TestFindRunningPod_NotFound
+--- PASS: TestFindRunningPod_NotFound (0.00s)
+=== RUN   TestListPortForwards_Empty
+--- PASS: TestListPortForwards_Empty (0.00s)
+=== RUN   TestListPortForwards_WithPIDFile
+--- PASS: TestListPortForwards_WithPIDFile (0.00s)
+=== RUN   TestParseLogfmt
+--- PASS: TestParseLogfmt (0.00s)
+=== RUN   TestResolveKubeconfig_ExplicitPath
+--- PASS: TestResolveKubeconfig_ExplicitPath (0.00s)
+=== RUN   TestResolveKubeconfig_EnvVar
+--- PASS: TestResolveKubeconfig_EnvVar (0.00s)
+=== RUN   TestCollectLogs
+--- PASS: TestCollectLogs (0.01s)
+=== RUN   TestCollectLogs_NoPods
+--- PASS: TestCollectLogs_NoPods (0.00s)
+=== RUN   TestCheckAPIConnectivity_OK
+--- PASS: TestCheckAPIConnectivity_OK (0.00s)
+=== RUN   TestCheckAPIConnectivity_Down
+--- PASS: TestCheckAPIConnectivity_Down (0.00s)
+=== RUN   TestCheckMaestroHTTPConnectivity_OK
+--- PASS: TestCheckMaestroHTTPConnectivity_OK (0.00s)
+=== RUN   TestCheckMaestroHTTPConnectivity_Down
+--- PASS: TestCheckMaestroHTTPConnectivity_Down (0.00s)
+=== RUN   TestCheckPostgresConnectivity_Down
+--- PASS: TestCheckPostgresConnectivity_Down (0.00s)
+=== RUN   TestCheckMaestroGRPCConnectivity_Down
+--- PASS: TestCheckMaestroGRPCConnectivity_Down (0.01s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/kube	0.040s
+=== RUN   TestListResourceBundles
+--- PASS: TestListResourceBundles (0.00s)
+=== RUN   TestListResourceBundlesByConsumer
+--- PASS: TestListResourceBundlesByConsumer (0.00s)
+=== RUN   TestGetResourceBundle_found
+--- PASS: TestGetResourceBundle_found (0.00s)
+=== RUN   TestGetResourceBundle_notFound
+--- PASS: TestGetResourceBundle_notFound (0.00s)
+=== RUN   TestDeleteResourceBundle
+--- PASS: TestDeleteResourceBundle (0.00s)
+=== RUN   TestListConsumers
+--- PASS: TestListConsumers (0.00s)
+=== RUN   TestHTTPError
+--- PASS: TestHTTPError (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/maestro	0.011s
+=== RUN   TestColorizeYAMLSections_noColor
+--- PASS: TestColorizeYAMLSections_noColor (0.00s)
+=== RUN   TestColorizeYAMLSections_withColor_sectionHeaders
+--- PASS: TestColorizeYAMLSections_withColor_sectionHeaders (0.00s)
+=== RUN   TestColorizeYAMLSections_indentedKeyValue
+--- PASS: TestColorizeYAMLSections_indentedKeyValue (0.00s)
+=== RUN   TestColorizeYAMLSections_indentedSentinel
+--- PASS: TestColorizeYAMLSections_indentedSentinel (0.00s)
+=== RUN   TestColorizeYAMLSections_indentedKeyOnly
+--- PASS: TestColorizeYAMLSections_indentedKeyOnly (0.00s)
+=== RUN   TestColorizeYAMLSections_noColor_allTypes
+--- PASS: TestColorizeYAMLSections_noColor_allTypes (0.00s)
+=== RUN   TestSectionSeparator
+--- PASS: TestSectionSeparator (0.00s)
+=== RUN   TestSpinnerFrame
+--- PASS: TestSpinnerFrame (0.00s)
+=== RUN   TestIsActive
+=== RUN   TestIsActive/recent_timestamp_is_active
+=== RUN   TestIsActive/stale_timestamp_is_not_active
+=== RUN   TestIsActive/exactly_at_2x_boundary_is_not_active
+=== RUN   TestIsActive/empty_string_is_not_active
+=== RUN   TestIsActive/malformed_string_is_not_active
+--- PASS: TestIsActive (0.00s)
+    --- PASS: TestIsActive/recent_timestamp_is_active (0.00s)
+    --- PASS: TestIsActive/stale_timestamp_is_not_active (0.00s)
+    --- PASS: TestIsActive/exactly_at_2x_boundary_is_not_active (0.00s)
+    --- PASS: TestIsActive/empty_string_is_not_active (0.00s)
+    --- PASS: TestIsActive/malformed_string_is_not_active (0.00s)
+=== RUN   TestJSONOutput
+--- PASS: TestJSONOutput (0.00s)
+=== RUN   TestTableOutput
+--- PASS: TestTableOutput (0.00s)
+=== RUN   TestYAMLOutput
+--- PASS: TestYAMLOutput (0.00s)
+=== RUN   TestStatusDotTrue
+--- PASS: TestStatusDotTrue (0.00s)
+=== RUN   TestStatusDotFalse
+--- PASS: TestStatusDotFalse (0.00s)
+=== RUN   TestStatusDotUnknown
+--- PASS: TestStatusDotUnknown (0.00s)
+=== RUN   TestStatusDotAbsent
+--- PASS: TestStatusDotAbsent (0.00s)
+=== RUN   TestStatusDotColorTrue
+--- PASS: TestStatusDotColorTrue (0.00s)
+=== RUN   TestStatusDotColorFalse
+--- PASS: TestStatusDotColorFalse (0.00s)
+=== RUN   TestStatusDotColorUnknown
+--- PASS: TestStatusDotColorUnknown (0.00s)
+=== RUN   TestDynamicColumnsOrdering
+--- PASS: TestDynamicColumnsOrdering (0.00s)
+=== RUN   TestDynamicColumnsNoConditions
+--- PASS: TestDynamicColumnsNoConditions (0.00s)
+=== RUN   TestDynamicColumnsOnlyFixed
+--- PASS: TestDynamicColumnsOnlyFixed (0.00s)
+=== RUN   TestWrapHeader_ShortString
+--- PASS: TestWrapHeader_ShortString (0.00s)
+=== RUN   TestWrapHeader_ExactlyTen
+--- PASS: TestWrapHeader_ExactlyTen (0.00s)
+=== RUN   TestWrapHeader_UnderscoreSplit
+--- PASS: TestWrapHeader_UnderscoreSplit (0.00s)
+=== RUN   TestWrapHeader_MultiSegment
+--- PASS: TestWrapHeader_MultiSegment (0.00s)
+=== RUN   TestWrapHeader_LongSingleToken
+--- PASS: TestWrapHeader_LongSingleToken (0.00s)
+=== RUN   TestWrapHeader_GreedyPack
+--- PASS: TestWrapHeader_GreedyPack (0.00s)
+=== RUN   TestPrintTable_LongHeader
+--- PASS: TestPrintTable_LongHeader (0.00s)
+=== RUN   TestPrintTable_ShortHeaders
+--- PASS: TestPrintTable_ShortHeaders (0.00s)
+=== RUN   TestPrintTable_ANSIAlignment
+--- PASS: TestPrintTable_ANSIAlignment (0.00s)
+=== RUN   TestPrintTable_WideEmojiAlignment
+--- PASS: TestPrintTable_WideEmojiAlignment (0.00s)
+=== RUN   TestWarnInfoError
+--- PASS: TestWarnInfoError (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/output	0.004s
+=== RUN   TestBuildClusterEvent
+--- PASS: TestBuildClusterEvent (0.00s)
+=== RUN   TestBuildNodePoolEvent
+--- PASS: TestBuildNodePoolEvent (0.00s)
+=== RUN   TestBuildClusterEvent_TrailingSlashAPIURL
+--- PASS: TestBuildClusterEvent_TrailingSlashAPIURL (0.00s)
+=== RUN   TestRabbitClient_Publish
+--- PASS: TestRabbitClient_Publish (0.00s)
+=== RUN   TestRabbitClient_Publish_HTTPError
+--- PASS: TestRabbitClient_Publish_HTTPError (0.00s)
+=== RUN   TestRabbitClient_Publish_EmptyRoutingKey
+--- PASS: TestRabbitClient_Publish_EmptyRoutingKey (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/pubsub	0.010s
+=== RUN   TestLatestCommit_found
+--- PASS: TestLatestCommit_found (0.00s)
+=== RUN   TestLatestCommit_none
+--- PASS: TestLatestCommit_none (0.00s)
+=== RUN   TestLatestPR_found
+--- PASS: TestLatestPR_found (0.00s)
+=== RUN   TestLatestPR_none
+--- PASS: TestLatestPR_none (0.00s)
+=== RUN   TestLatestQuayTag_found
+--- PASS: TestLatestQuayTag_found (0.00s)
+=== RUN   TestLatestQuayTag_notFound
+--- PASS: TestLatestQuayTag_notFound (0.00s)
+=== RUN   TestFetchAll_parallel
+--- PASS: TestFetchAll_parallel (0.00s)
+=== RUN   TestLatestQuayTag_noAliases
+--- PASS: TestLatestQuayTag_noAliases (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/repos	0.013s
+=== RUN   TestClusterRoundTrip
+--- PASS: TestClusterRoundTrip (0.00s)
+=== RUN   TestNodePoolRoundTrip
+--- PASS: TestNodePoolRoundTrip (0.00s)
+=== RUN   TestListResponseRoundTrip
+--- PASS: TestListResponseRoundTrip (0.00s)
+=== RUN   TestAdapterStatusRoundTrip
+--- PASS: TestAdapterStatusRoundTrip (0.00s)
+=== RUN   TestClusterYAMLRoundTrip
+--- PASS: TestClusterYAMLRoundTrip (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/resource	0.003s
+=== RUN   TestItemFields
+--- PASS: TestItemFields (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/selector	0.034s
+=== RUN   TestHandleIndex
+--- PASS: TestHandleIndex (0.00s)
+=== RUN   TestRouteNotFound
+--- PASS: TestRouteNotFound (0.00s)
+=== RUN   TestRouteMethodNotAllowed
+--- PASS: TestRouteMethodNotAllowed (0.00s)
+=== RUN   TestHandleClusterProxy
+--- PASS: TestHandleClusterProxy (0.00s)
+=== RUN   TestHandleClustersWithStatuses
+--- PASS: TestHandleClustersWithStatuses (0.00s)
+=== RUN   TestHandleClustersUpstreamError
+--- PASS: TestHandleClustersUpstreamError (0.00s)
+=== RUN   TestRoutesMapToCorrectUpstreamPaths
+=== RUN   TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc
+=== RUN   TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/statuses
+=== RUN   TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/nodepools
+=== RUN   TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/nodepools/np1
+=== RUN   TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/nodepools/np1/statuses
+--- PASS: TestRoutesMapToCorrectUpstreamPaths (0.00s)
+    --- PASS: TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc (0.00s)
+    --- PASS: TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/statuses (0.00s)
+    --- PASS: TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/nodepools (0.00s)
+    --- PASS: TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/nodepools/np1 (0.00s)
+    --- PASS: TestRoutesMapToCorrectUpstreamPaths//api/clusters/abc/nodepools/np1/statuses (0.00s)
+=== RUN   TestPostClusterStatusesProxy
+--- PASS: TestPostClusterStatusesProxy (0.00s)
+=== RUN   TestPostNodePoolStatusesProxy
+--- PASS: TestPostNodePoolStatusesProxy (0.00s)
+=== RUN   TestPostStatusesUpstreamError
+--- PASS: TestPostStatusesUpstreamError (0.00s)
+=== RUN   TestPostToNonStatusRouteReturns405
+--- PASS: TestPostToNonStatusRouteReturns405 (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/server	0.010s
+?   	github.com/rh-amarin/hyperfleet-cli/internal/ui	[no test files]
+=== RUN   TestVersionNonEmpty
+--- PASS: TestVersionNonEmpty (0.00s)
+=== RUN   TestBuildTimeNonEmpty
+--- PASS: TestBuildTimeNonEmpty (0.00s)
+=== RUN   TestStringContainsVersion
+--- PASS: TestStringContainsVersion (0.00s)
+=== RUN   TestStringContainsBuildTime
+--- PASS: TestStringContainsBuildTime (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/version	0.003s

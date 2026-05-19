@@ -2,12 +2,14 @@
 package cmd
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rh-amarin/hyperfleet-cli/internal/kube"
@@ -193,12 +195,90 @@ var kubeDebugCmd = &cobra.Command{
 	},
 }
 
+// kubeNamespaceCleanCmd deletes all namespaces whose labels contain "hyperfleet".
+var kubeNamespaceCleanCmd = &cobra.Command{
+	Use:   "namespace-clean",
+	Short: "Delete Kubernetes namespaces with a label containing 'hyperfleet'",
+	Long: `List and delete all Kubernetes namespaces that have at least one label
+whose key or value contains the string "hyperfleet".
+
+The command prints the full list and count, requires explicit confirmation,
+then deletes all matching namespaces in parallel with per-namespace progress.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		kubeconfig := resolvedKubeconfig(s)
+		kubeCtx := s.Get("kubernetes", "context")
+		cs, err := kube.NewClientset(kubeconfig, kubeCtx)
+		if err != nil {
+			return fmt.Errorf("[ERROR] %v", err)
+		}
+
+		ctx := context.Background()
+		names, err := kube.ListHyperfleetNamespaces(ctx, cs)
+		if err != nil {
+			return fmt.Errorf("[ERROR] listing namespaces: %v", err)
+		}
+		if len(names) == 0 {
+			fmt.Fprintln(cmd.OutOrStdout(), "[INFO] No namespaces with 'hyperfleet' labels found.")
+			return nil
+		}
+
+		fmt.Fprintf(cmd.OutOrStdout(), "Namespaces to delete (%d):\n", len(names))
+		for _, n := range names {
+			fmt.Fprintf(cmd.OutOrStdout(), "  - %s\n", n)
+		}
+		fmt.Fprintf(cmd.OutOrStdout(), "\nDelete these %d namespace(s)? [y/N]: ", len(names))
+
+		line, _ := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
+		if strings.TrimSpace(strings.ToLower(line)) != "y" {
+			fmt.Fprintln(cmd.OutOrStdout(), "[INFO] Aborted.")
+			return nil
+		}
+
+		var wg sync.WaitGroup
+		var mu sync.Mutex
+		failed := 0
+
+		for _, name := range names {
+			wg.Add(1)
+			go func(n string) {
+				defer wg.Done()
+				mu.Lock()
+				fmt.Fprintf(cmd.OutOrStdout(), "[DELETING] %s\n", n)
+				mu.Unlock()
+
+				if err := kube.DeleteNamespace(ctx, cs, n); err != nil {
+					mu.Lock()
+					fmt.Fprintf(cmd.ErrOrStderr(), "[ERROR]    %s: %v\n", n, err)
+					failed++
+					mu.Unlock()
+				} else {
+					mu.Lock()
+					fmt.Fprintf(cmd.OutOrStdout(), "[DELETED]  %s\n", n)
+					mu.Unlock()
+				}
+			}(name)
+		}
+		wg.Wait()
+
+		if failed > 0 {
+			fmt.Fprintf(cmd.OutOrStdout(), "[INFO] Done. Deleted %d namespace(s), %d error(s).\n", len(names)-failed, failed)
+			return fmt.Errorf("[ERROR] %d namespace(s) failed to delete", failed)
+		}
+		fmt.Fprintf(cmd.OutOrStdout(), "[INFO] Done. Deleted %d namespace(s).\n", len(names))
+		return nil
+	},
+}
+
 func init() {
 	kubeCmd.PersistentFlags().StringVar(&kubeConfigFlag, "kubeconfig", "",
 		"path to kubeconfig (default: KUBECONFIG env or ~/.kube/config)")
 
 	portForwardCmd.AddCommand(pfStartCmd, pfStopCmd, pfStatusCmd, pfDaemonCmd)
-	kubeCmd.AddCommand(portForwardCmd, kubeCurlCmd, kubeDebugCmd)
+	kubeCmd.AddCommand(portForwardCmd, kubeCurlCmd, kubeDebugCmd, kubeNamespaceCleanCmd)
 	rootCmd.AddCommand(kubeCmd)
 }
 

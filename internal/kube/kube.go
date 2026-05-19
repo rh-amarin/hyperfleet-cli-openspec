@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -515,6 +516,31 @@ func ExecShell(ctx context.Context, cs kubernetes.Interface, config *rest.Config
 		Tty:               true,
 		TerminalSizeQueue: tsq,
 	})
+}
+
+// ListHyperfleetNamespaces returns the names of all namespaces that have at least one
+// label whose key or value contains the substring "hyperfleet". Results are sorted.
+func ListHyperfleetNamespaces(ctx context.Context, cs kubernetes.Interface) ([]string, error) {
+	nsList, err := cs.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	for _, ns := range nsList.Items {
+		for k, v := range ns.Labels {
+			if strings.Contains(k, "hyperfleet") || strings.Contains(v, "hyperfleet") {
+				names = append(names, ns.Name)
+				break
+			}
+		}
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
+// DeleteNamespace deletes a Kubernetes namespace by name.
+func DeleteNamespace(ctx context.Context, cs kubernetes.Interface, name string) error {
+	return cs.CoreV1().Namespaces().Delete(ctx, name, metav1.DeleteOptions{})
 }
 
 // CheckAPIConnectivity verifies connectivity to the HyperFleet API via HTTP GET.

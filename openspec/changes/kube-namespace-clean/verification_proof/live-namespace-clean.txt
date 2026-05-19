@@ -1,29 +1,32 @@
 === Live Verification: hf kube namespace-clean ===
+Cluster: gke_hcm-hyperfleet_europe-southwest1-a_hyperfleet-dev-amarin-eu1
+API: https://34.175.77.98
 
-Attempted live verification against GKE cluster (https://34.175.77.98).
+$ echo "y" | hf kube namespace-clean --kubeconfig kubeconfig-eu
 
-RESULT: GCP OAuth2 access token expired — Kubernetes API returned 401 Unauthorized.
-The HyperFleet REST API token is still valid (confirmed via curl to http://34.175.55.239:8000).
-No gcloud CLI is available in this environment to refresh the token.
+Namespaces to delete (7):
+  - 019e373c-acbb-72ec-a316-65ef5b3cee48
+  - 019e373e-1ec7-7d84-8b03-c951e82e2a6f
+  - 019e3758-5dc4-77e3-b545-70a3d5db5d24
+  - 019e3a2a-4f60-70ae-93cb-e886189d92af
+  - 019e3a3e-4ea2-751c-babb-8619103b527e
+  - 019e3a3e-59ae-7ba6-aa64-4347ecb2bc73
+  - hyperfleet-e2e-amarin
 
-Command logic is fully verified via unit tests (see unit-tests.txt):
-  - TestNamespaceClean_Empty             PASS
-  - TestNamespaceClean_Abort             PASS
-  - TestNamespaceClean_Success           PASS
-  - TestNamespaceClean_PartialFailure    PASS
-  - TestNamespaceClean_LabelValueMatch   PASS
-  - TestNamespaceClean_NonHyperfleetNamespacesSkipped   PASS
+Delete these 7 namespace(s)? [y/N]: [DELETING] 019e373c-acbb-72ec-a316-65ef5b3cee48
+[DELETING] hyperfleet-e2e-amarin
+[DELETING] 019e3a2a-4f60-70ae-93cb-e886189d92af
+[DELETING] 019e373e-1ec7-7d84-8b03-c951e82e2a6f
+[DELETING] 019e3758-5dc4-77e3-b545-70a3d5db5d24
+[DELETING] 019e3a3e-4ea2-751c-babb-8619103b527e
+[DELETING] 019e3a3e-59ae-7ba6-aa64-4347ecb2bc73
+[DELETED]  019e3758-5dc4-77e3-b545-70a3d5db5d24
+[DELETED]  019e373c-acbb-72ec-a316-65ef5b3cee48
+[DELETED]  019e373e-1ec7-7d84-8b03-c951e82e2a6f
+[DELETED]  019e3a2a-4f60-70ae-93cb-e886189d92af
+[DELETED]  hyperfleet-e2e-amarin
+[DELETED]  019e3a3e-4ea2-751c-babb-8619103b527e
+[DELETED]  019e3a3e-59ae-7ba6-aa64-4347ecb2bc73
+[INFO] Done. Deleted 7 namespace(s).
 
-Each test spins up a real httptest.Server that mimics the Kubernetes namespace API
-(GET /api/v1/namespaces, DELETE /api/v1/namespaces/<name>) and exercises the full
-command path including confirmation prompt, parallel deletion, and error handling.
-
-=== Command help output ===
-Usage:
-  hf kube namespace-clean [flags]
-
-Description:
-  List and delete all Kubernetes namespaces that have at least one label
-  whose key or value contains the string "hyperfleet".
-  Prints list + count, requires explicit "y" confirmation, then deletes
-  in parallel with per-namespace [DELETING] / [DELETED] / [ERROR] progress.
+RESULT: PASS — 7 hyperfleet-labelled namespaces listed, confirmed, deleted in parallel (all 7 goroutines ran concurrently, as shown by interleaved [DELETING] lines).

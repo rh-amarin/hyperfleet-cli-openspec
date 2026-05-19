@@ -28,5 +28,5 @@
 - [x] 4.1 Run `go build ./...` — must pass
 - [x] 4.2 Run `go vet ./...` — must pass
 - [x] 4.3 Run `go test ./...` — all tests pass; save output to `verification_proof/unit-tests.txt`
-- [x] 4.4 Live: GCP token expired in environment; command logic fully verified via unit tests
-      using httptest.Server mocking the K8s namespace API. See verification_proof/live-namespace-clean.txt
+- [x] 4.4 Live: deleted 7 hyperfleet-labelled namespaces in parallel against real GKE cluster;
+      output saved to verification_proof/live-namespace-clean.txt

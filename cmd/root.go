@@ -113,7 +113,6 @@ func startAutoPortForwards(s *config.Store) {
 			fmt.Fprintf(os.Stderr, "[WARN] auto port-forward: %s: %v\n", svc.label, r.err)
 			continue
 		}
-		fmt.Fprintf(os.Stderr, "[INFO] auto port-forward: %s (%s) → localhost:%d\n", svc.label, svc.namespace, r.port)
 		os.Setenv(svc.envVar, fmt.Sprintf(svc.urlFmt, r.port)) //nolint:errcheck
 		stops = append(stops, r.stop)
 	}

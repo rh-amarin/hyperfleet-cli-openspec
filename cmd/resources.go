@@ -3,8 +3,10 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/rh-amarin/hyperfleet-cli/internal/api"
 	"github.com/rh-amarin/hyperfleet-cli/internal/output"
@@ -54,6 +56,7 @@ func runResources(cmd *cobra.Command, _ []string) error {
 		var (
 			cachedEntries []clusterEntry
 			cachedAdCols  []string
+			nextRefresh   time.Time
 		)
 		return runWatchFast(ctx, cmd.OutOrStdout(), resourcesWatchSecs, func(tick int, refresh bool) error {
 			if refresh || cachedEntries == nil {
@@ -63,8 +66,9 @@ func runResources(cmd *cobra.Command, _ []string) error {
 					return handleAPIError(p, err)
 				}
 				cachedEntries, cachedAdCols = entries, adCols
+				nextRefresh = time.Now().Add(time.Duration(resourcesWatchSecs) * time.Second)
 			}
-			return renderResourcesTable(cmd, cachedEntries, cachedAdCols, tick, resourcesWatchSecs)
+			return renderResourcesTable(cmd, cachedEntries, cachedAdCols, tick, resourcesWatchSecs, secsUntil(nextRefresh))
 		})
 	}
 
@@ -120,7 +124,11 @@ func fetchResourceEntries(cmd *cobra.Command) (entries []clusterEntry, adCols []
 }
 
 // renderResourcesTable renders the cluster+nodepool table from pre-fetched data.
-func renderResourcesTable(cmd *cobra.Command, entries []clusterEntry, adapterCols []string, tick, frequencySecs int) error {
+// In watch mode (frequencySecs > 0) a countdown line is printed above the table.
+func renderResourcesTable(cmd *cobra.Command, entries []clusterEntry, adapterCols []string, tick, frequencySecs, secsLeft int) error {
+	if frequencySecs > 0 {
+		fmt.Fprintf(cmd.OutOrStdout(), "↻ %ds  %s\n", secsLeft, output.SpinnerFrame(tick))
+	}
 	p := output.NewPrinter("table", noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
 	headers := make([]string, 0, 3+len(fixedCondCols)+len(adapterCols))
@@ -159,7 +167,7 @@ func fetchAndRenderResources(cmd *cobra.Command, effectiveFmt string, tick, freq
 		p := output.NewPrinter(effectiveFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 		return handleAPIError(p, err)
 	}
-	return renderResourcesTable(cmd, entries, adCols, tick, frequencySecs)
+	return renderResourcesTable(cmd, entries, adCols, tick, frequencySecs, 0)
 }
 
 // collectAdapterCols returns unique adapter names sorted by the earliest
@@ -280,6 +288,15 @@ func buildNodePoolRow(np resource.NodePool, statuses []resource.AdapterStatus, a
 		row = append(row, adapterDot(statuses, adName, condKey, tick, frequencySecs))
 	}
 	return row
+}
+
+// secsUntil returns the ceiling of the number of seconds until t, clamped to 0.
+func secsUntil(t time.Time) int {
+	d := time.Until(t)
+	if d <= 0 {
+		return 0
+	}
+	return int((d + time.Second - 1) / time.Second)
 }
 
 func init() {

@@ -1,12 +1,15 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/spf13/cobra"
 )
 
 // clusterBetaID is a second cluster used in combined table tests.
@@ -376,5 +379,35 @@ func TestResourcesSpinnerForActiveAdapter(t *testing.T) {
 		if strings.Contains(out, frame) {
 			t.Errorf("unexpected spinner frame %q in non-watch output", frame)
 		}
+	}
+}
+
+func TestRenderResourcesTable_CountdownLine(t *testing.T) {
+	var buf bytes.Buffer
+	cmd := &cobra.Command{}
+	cmd.SetOut(&buf)
+
+	err := renderResourcesTable(cmd, nil, nil, 3, 5, 3)
+	if err != nil {
+		t.Fatalf("renderResourcesTable: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "↻ 3s") {
+		t.Errorf("expected countdown line with '↻ 3s' in watch mode output, got: %q", out)
+	}
+}
+
+func TestRenderResourcesTable_NoCountdownInNonWatchMode(t *testing.T) {
+	var buf bytes.Buffer
+	cmd := &cobra.Command{}
+	cmd.SetOut(&buf)
+
+	err := renderResourcesTable(cmd, nil, nil, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("renderResourcesTable: %v", err)
+	}
+	out := buf.String()
+	if strings.Contains(out, "↻") {
+		t.Errorf("expected no countdown line in non-watch mode, got: %q", out)
 	}
 }

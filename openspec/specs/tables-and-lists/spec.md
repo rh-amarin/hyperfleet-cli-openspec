@@ -176,48 +176,31 @@ The CLI SHALL display a combined table of all clusters and their nested nodepool
 
 ### Requirement: Watch Mode for Table Commands
 
-The CLI SHALL support a `--watch` flag on `hf cluster list`, `hf nodepool list`, `hf table`, and `hf resources` that causes the table to refresh continuously at a configurable interval.
+`hf table --watch`, `hf resources --watch`, `hf cluster list --watch`, and `hf nodepool list --watch` MUST continuously refresh the table output at the configured interval. The refresh interval MUST default to 5 seconds and MAY be changed with `--seconds / -s`.
 
-When `--watch` is active the CLI MUST:
-1. Clear the terminal screen using ANSI escape sequences before each render.
-2. Re-fetch all data from the API on every tick.
-3. Re-render the full table after each fetch.
-4. Continue until the user interrupts with SIGINT (Ctrl+C) or SIGTERM.
-5. Exit cleanly on interrupt with no partial-line output.
+For commands that use fast-tick rendering (500 ms spinner interval decoupled from the data-fetch interval), the CLI MUST additionally display a live countdown line above the table headers on every render tick, showing the number of seconds remaining until the next data fetch and an animated braille spinner.
 
-A `-s <seconds>` flag (default `5`) controls the refresh interval. The minimum accepted value is `1`.
+#### Scenario: Combined table watch mode — countdown line shown
 
-#### Scenario: Cluster list watch mode — basic refresh
+- GIVEN `hf table --watch` is running with a refresh interval of N seconds
+- WHEN the table is rendered (every 500 ms)
+- THEN the CLI MUST print a line of the form `↻ Xs  <spinner>` above the table headers
+- AND `X` MUST be the ceiling of the number of seconds remaining until the next data fetch (range: 1 to N)
+- AND `<spinner>` MUST be the current braille spinner frame, advancing every 500 ms
+- AND the line MUST appear flush left, directly above the `ID` column header
 
-- **WHEN** the user runs `hf cluster list --output table --watch`
-- **THEN** the CLI MUST render the cluster table immediately, then re-render every 5 seconds
-- **AND** each render MUST be preceded by a terminal clear
+#### Scenario: Combined table watch mode — countdown resets after data refresh
 
-#### Scenario: Cluster list watch mode — custom frequency
+- GIVEN `hf table --watch` is running with a refresh interval of N seconds
+- WHEN a data fetch completes successfully
+- THEN the countdown MUST reset to N on the next render tick
 
-- **WHEN** the user runs `hf cluster list --output table --watch -s 10`
-- **THEN** the CLI MUST refresh every 10 seconds
+#### Scenario: No countdown line in non-watch mode
 
-#### Scenario: Nodepool list watch mode
-
-- **WHEN** the user runs `hf nodepool list --output table --watch`
-- **THEN** the CLI MUST render the nodepool table immediately, then re-render every 5 seconds
-
-#### Scenario: Combined table watch mode
-
-- **WHEN** the user runs `hf table --watch`
-- **THEN** the CLI MUST render the combined cluster+nodepool table immediately, then re-render every 5 seconds
-- **AND** `--output table` MUST NOT be required (table is the default output for `hf table` / `hf resources`)
-
-#### Scenario: Watch mode — graceful exit
-
-- **WHEN** the user sends SIGINT (Ctrl+C) while `--watch` is active
-- **THEN** the CLI MUST exit with code 0 and leave the terminal in a clean state
-
-#### Scenario: Watch mode — API error during refresh
-
-- **WHEN** an API call fails during a watch refresh cycle
-- **THEN** the CLI MUST exit with a non-zero code and print the error message
+- GIVEN the user runs `hf table` without `--watch`
+- WHEN the table is rendered once and exits
+- THEN the CLI MUST NOT print any `↻` countdown line
+- AND the output MUST be byte-for-byte identical to the output before this change
 
 ### Requirement: Adapter Activity Indicator
 

@@ -2,6 +2,7 @@
 package cmd
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/rh-amarin/hyperfleet-cli/internal/config"
 	"github.com/rh-amarin/hyperfleet-cli/internal/output"
+	"github.com/rh-amarin/hyperfleet-cli/internal/selector"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 	"gopkg.in/yaml.v3"
@@ -35,6 +37,9 @@ var secretConfigKeys = map[string]bool{
 	"password": true,
 }
 
+// configSetSel is the selector used by hf config set interactive mode; swapped in tests.
+var configSetSel selector.Selector = selector.FuzzySelector{}
+
 // configCmd is the top-level group for configuration management.
 // With no subcommand it runs show.
 var configCmd = &cobra.Command{
@@ -44,6 +49,8 @@ var configCmd = &cobra.Command{
 
 Subcommands: show, get, set, env.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		_ = cmd.Help()
+		fmt.Fprintln(cmd.OutOrStdout())
 		return configShowCmd.RunE(cmd, args)
 	},
 }
@@ -164,11 +171,27 @@ var configGetCmd = &cobra.Command{
 
 // configSetCmd writes a config value to the active environment file.
 // Key format: "section.key" (e.g. hyperfleet.api-url).
+// With no arguments, launches an interactive fuzzy-finder to pick the parameter.
 var configSetCmd = &cobra.Command{
-	Use:   "set <section.key> <value>",
-	Short: "Set a configuration value in the active environment file",
-	Args:  helpOnNoArgs(2),
+	Use:   "set [section.key value]",
+	Short: "Set a configuration value (interactive when called with no arguments)",
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 || len(args) == 2 {
+			return nil
+		}
+		_ = cmd.Help()
+		return fmt.Errorf("")
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
+		s := config.NewFromEnv()
+		if err := s.Load(); err != nil {
+			return fmt.Errorf("[ERROR] loading config: %w", err)
+		}
+
+		if len(args) == 0 {
+			return configSetInteractive(cmd, s)
+		}
+
 		dotKey, value := args[0], args[1]
 		idx := strings.Index(dotKey, ".")
 		if idx <= 0 {
@@ -178,12 +201,57 @@ var configSetCmd = &cobra.Command{
 		if !validConfigSections[section] {
 			return fmt.Errorf("[ERROR] unknown config section '%s'", section)
 		}
-		s := config.NewFromEnv()
-		if err := s.Load(); err != nil {
-			return fmt.Errorf("[ERROR] loading config: %w", err)
+		if err := s.Set(section, key, value); err != nil {
+			return err
 		}
-		return s.Set(section, key, value)
+		return configShowCmd.RunE(cmd, nil)
 	},
+}
+
+// configSetInteractive runs the fuzzy-find → prompt → set → show flow for hf config set (no args).
+func configSetInteractive(cmd *cobra.Command, s *config.Store) error {
+	configSections := []string{"hyperfleet", "kubernetes", "maestro", "port-forward", "database", "rabbitmq", "registry"}
+	type param struct{ dotKey, value string }
+	var params []param
+	for _, sec := range configSections {
+		for _, k := range knownKeysForSection(sec) {
+			v := s.Get(sec, k)
+			if secretConfigKeys[k] {
+				if v != "" {
+					v = "<set>"
+				} else {
+					v = "<not set>"
+				}
+			}
+			params = append(params, param{sec + "." + k, v})
+		}
+	}
+
+	items := make([]selector.Item, len(params))
+	for i, p := range params {
+		items[i] = selector.Item{Name: p.dotKey, ID: p.value}
+	}
+
+	idx, err := configSetSel.Select(items)
+	if err != nil {
+		return err
+	}
+	if idx < 0 {
+		return nil
+	}
+
+	dotKey := params[idx].dotKey
+	fmt.Fprintf(cmd.OutOrStdout(), "Value for %s: ", dotKey)
+	scanner := bufio.NewScanner(cmd.InOrStdin())
+	scanner.Scan()
+	value := scanner.Text()
+
+	sep := strings.Index(dotKey, ".")
+	section, key := dotKey[:sep], dotKey[sep+1:]
+	if err := s.Set(section, key, value); err != nil {
+		return err
+	}
+	return configShowCmd.RunE(cmd, nil)
 }
 
 // ---- env subcommands ----

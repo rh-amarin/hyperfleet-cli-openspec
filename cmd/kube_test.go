@@ -272,3 +272,28 @@ func TestNamespaceClean_NonHyperfleetNamespacesSkipped(t *testing.T) {
 		t.Errorf("expected empty-list message, got: %q", out)
 	}
 }
+
+// ---- port-forward bare invocation ----
+
+func TestPortForwardNoArgs_NoForwards(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer ts.Close()
+
+	dir, kubeconfigPath := setupKubeEnv(t, ts.URL)
+	// Point XDG_CACHE_HOME to temp dir so ListPortForwards finds no PID files.
+	t.Setenv("XDG_CACHE_HOME", dir)
+	resetKubeFlags()
+
+	out, err := runCmd(t, dir, "kube", "--kubeconfig", kubeconfigPath, "port-forward")
+	if err != nil {
+		t.Fatalf("hf kube port-forward (no args): %v", err)
+	}
+	if !strings.Contains(out, "Usage:") {
+		t.Errorf("expected help block with 'Usage:' in output, got: %q", out)
+	}
+	if !strings.Contains(out, "No port-forwards tracked.") {
+		t.Errorf("expected 'No port-forwards tracked.' in output, got: %q", out)
+	}
+}

@@ -1,0 +1,1 @@
+ok  	github.com/rh-amarin/hyperfleet-cli/cmd	0.809s

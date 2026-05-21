@@ -28,9 +28,51 @@ Subcommands: port-forward, curl, debug.`,
 }
 
 // portForwardCmd groups port-forward subcommands.
+// With no subcommand it shows help, then port-forward status, and prompts to start if any are down.
 var portForwardCmd = &cobra.Command{
 	Use:   "port-forward",
 	Short: "Manage port-forwards to HyperFleet in-cluster services",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		_ = cmd.Help()
+		fmt.Fprintln(cmd.OutOrStdout())
+
+		s, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		kubeconfig := resolvedKubeconfig(s)
+		kubeCtx := s.Get("kubernetes", "context")
+		if ctxName, err := kube.ResolvedContext(kubeconfig, kubeCtx); err != nil {
+			fmt.Fprintf(cmd.OutOrStdout(), "[WARN] Could not resolve kubernetes context: %v\n", err)
+		} else {
+			fmt.Fprintf(cmd.OutOrStdout(), "[INFO] Kubernetes context: %s\n", ctxName)
+		}
+
+		pfs, _ := kube.ListPortForwards()
+		if len(pfs) == 0 {
+			fmt.Fprintln(cmd.OutOrStdout(), "No port-forwards tracked.")
+			return nil
+		}
+
+		anyDown := false
+		for _, pf := range pfs {
+			if err := checkPortForwardConnectivity(pf.Name, pf.LocalPort, s); err != nil {
+				anyDown = true
+				break
+			}
+		}
+		printPortForwardStatus(cmd.OutOrStdout(), s)
+
+		if anyDown {
+			fmt.Fprint(cmd.OutOrStdout(), "\nSome port-forwards are down. Run 'hf kube port-forward start'? [y/N]: ")
+			scanner := bufio.NewScanner(cmd.InOrStdin())
+			scanner.Scan()
+			if strings.TrimSpace(strings.ToLower(scanner.Text())) == "y" {
+				return pfStartCmd.RunE(cmd, nil)
+			}
+		}
+		return nil
+	},
 }
 
 // pfStartCmd starts one or all predefined port-forwards.

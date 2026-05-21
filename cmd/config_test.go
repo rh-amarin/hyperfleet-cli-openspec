@@ -567,3 +567,74 @@ func TestConfigEnvShow_NotFound(t *testing.T) {
 		t.Errorf("error message: got %q", err.Error())
 	}
 }
+
+// ---- new UX tests ----
+
+func TestConfigNoArgs_ShowsHelpBeforeConfig(t *testing.T) {
+	dir := t.TempDir()
+	makeEnv(t, dir, "dev", "http://dev:8000")
+	setActiveEnv(t, dir, "dev")
+
+	out, err := runCmd(t, dir, "config")
+	if err != nil {
+		t.Fatalf("hf config: %v", err)
+	}
+	usageIdx := strings.Index(out, "Usage:")
+	configIdx := strings.Index(out, "hyperfleet:")
+	if usageIdx < 0 {
+		t.Errorf("expected help block with 'Usage:' in output, got: %q", out)
+	}
+	if configIdx < 0 {
+		t.Errorf("expected config section 'hyperfleet:' in output, got: %q", out)
+	}
+	if usageIdx > configIdx {
+		t.Errorf("expected help block before config output: usageIdx=%d configIdx=%d", usageIdx, configIdx)
+	}
+}
+
+func TestConfigSet_ShowsConfigAfterSet(t *testing.T) {
+	dir := t.TempDir()
+	makeEnv(t, dir, "dev", "hyperfleet:\n  api-url: http://dev:8000\n  api-version: v1\n")
+	setActiveEnv(t, dir, "dev")
+
+	out, err := runCmd(t, dir, "config", "set", "hyperfleet.api-version", "v2")
+	if err != nil {
+		t.Fatalf("config set: %v", err)
+	}
+	if !strings.Contains(out, "hyperfleet:") {
+		t.Errorf("expected config sections in output after set, got: %q", out)
+	}
+	if !strings.Contains(out, "api-version") {
+		t.Errorf("expected api-version key in config output, got: %q", out)
+	}
+}
+
+func TestConfigSet_Interactive(t *testing.T) {
+	dir := t.TempDir()
+	makeEnvRaw(t, dir, "dev", "hyperfleet:\n  api-url: http://dev:8000\n  api-version: v1\n")
+	setActiveEnv(t, dir, "dev")
+
+	old := configSetSel
+	configSetSel = mockSel{idx: 0} // selects hyperfleet.api-url (first item)
+	defer func() { configSetSel = old }()
+
+	rootCmd.SetIn(strings.NewReader("http://new:9000\n"))
+	defer rootCmd.SetIn(nil)
+
+	out, err := runCmd(t, dir, "config", "set")
+	if err != nil {
+		t.Fatalf("config set interactive: %v", err)
+	}
+	if !strings.Contains(out, "hyperfleet:") {
+		t.Errorf("expected config output after interactive set, got: %q", out)
+	}
+
+	// Verify the value was actually persisted
+	out2, err := runCmd(t, dir, "config", "get", "hyperfleet.api-url")
+	if err != nil {
+		t.Fatalf("config get after interactive set: %v", err)
+	}
+	if !strings.Contains(out2, "http://new:9000") {
+		t.Errorf("expected new value persisted, got: %q", out2)
+	}
+}

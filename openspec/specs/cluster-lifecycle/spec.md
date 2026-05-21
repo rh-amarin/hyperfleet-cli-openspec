@@ -6,53 +6,32 @@ Provide CLI commands for full CRUD lifecycle management of HyperFleet clusters, 
 ## Requirements
 ### Requirement: Create Cluster
 
-`hf cluster create` SHALL load the request body from a JSON template file rather than hardcoded defaults. The binary embeds a built-in default template (`cmd/assets/cluster-template.json`) and auto-creates `<config-dir>/cluster-template.json` on first use.
+`hf cluster create` SHALL load the request body from a JSON template. The binary embeds a built-in default template (`cmd/assets/cluster-template.json`). When no `--file` flag is given, the CLI MUST use the embedded default bytes directly in memory — it MUST NOT read from or write to `<config-dir>`.
 
-#### Scenario: Create cluster with default template (no template file exists) (MODIFIED)
+#### Scenario: Create cluster with default template (no template file exists)
 
-- GIVEN no `cluster-template.json` exists in the config dir
+- GIVEN no `--file` flag is provided
 - WHEN the user runs `hf cluster create`
-- THEN the CLI MUST write the built-in default to `<config-dir>/cluster-template.json`
-- AND print `[INFO] Created default cluster template at <path>`
-- AND create the cluster using the default payload (`kind=Cluster`, `name=my-cluster`, default labels and spec)
+- THEN the CLI MUST use the built-in embedded template in memory
+- AND MUST NOT write any file to `<config-dir>`
+- AND MUST NOT print `[INFO] Created default cluster template at …`
+- AND MUST create the cluster using the default payload (`kind=Cluster`, `name=my-cluster`, default labels and spec)
 
-#### Scenario: Create cluster using existing config-dir template (MODIFIED)
+#### Scenario: Create cluster using existing config-dir template
 
-- GIVEN `<config-dir>/cluster-template.json` exists with a custom payload
+- GIVEN `<config-dir>/cluster-template.json` exists on disk
+- WHEN the user runs `hf cluster create` without `--file`
+- THEN the CLI MUST use the embedded default in memory
+- AND MUST NOT read the on-disk file
+- AND MUST NOT write any file to `<config-dir>`
+
+#### Scenario: Create cluster with no arguments
+
+- GIVEN no `--file` flag and no positional arguments
 - WHEN the user runs `hf cluster create`
-- THEN the CLI MUST use the custom payload as the request body
-
-#### Scenario: Create cluster with `-f` file override (ADDED)
-
-- GIVEN a file at `<path>` containing a valid JSON cluster payload
-- WHEN the user runs `hf cluster create -f <path>`
-- THEN the CLI MUST use that file's content as the request body
-- AND MUST NOT read or write the config-dir template
-
-#### Scenario: Create cluster with name positional argument (MODIFIED)
-
-- GIVEN a template (any source) with `"name": "<template-name>"`
-- WHEN the user runs `hf cluster create <name>`
-- THEN the CLI MUST set `name` to `<name>` in the request body, overriding the template value
-- AND positional arg takes precedence over `--name` flag
-
-#### Scenario: Create cluster with positional arguments (PRESERVED)
-
-- WHEN the user runs `hf cluster create <name> [region] [version]`
-- THEN positional args override the corresponding template fields (`name`, `spec.region`, `spec.version`)
-
-#### Scenario: Malformed template file (ADDED)
-
-- GIVEN a template file containing invalid JSON
-- WHEN the user runs `hf cluster create`
-- THEN the CLI MUST exit with `[ERROR] loading template: <reason>` and code 1
-
-#### Scenario: Create cluster with no arguments (MODIFIED)
-
-- GIVEN the config-dir template exists (or is auto-created on first use)
-- WHEN the user runs `hf cluster create` with no arguments
 - THEN the CLI MUST NOT show a usage message
-- AND MUST proceed with creation using the template payload
+- AND MUST proceed with creation using the embedded template payload
+- AND MUST NOT write any file to `<config-dir>`
 
 ### Requirement: Search Cluster
 

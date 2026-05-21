@@ -299,13 +299,9 @@ var nodepoolCreateCmd = &cobra.Command{
 			return err
 		}
 
-		body, created, err := loadTemplate(s.ConfigDir(), "nodepool", nodepoolCreateFile)
+		body, err := loadTemplate("nodepool", nodepoolCreateFile)
 		if err != nil {
 			return fmt.Errorf("[ERROR] %w", err)
-		}
-		if created {
-			p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
-			p.Info(fmt.Sprintf("Created default nodepool template at %s/nodepool-template.json", s.ConfigDir()))
 		}
 
 		// Name: positional arg > --name flag > template value.

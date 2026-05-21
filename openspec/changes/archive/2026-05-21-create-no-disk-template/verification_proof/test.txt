@@ -1,0 +1,2 @@
+ok  	github.com/rh-amarin/hyperfleet-cli/cmd	(cached)
+test exit: 0

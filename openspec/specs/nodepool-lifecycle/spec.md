@@ -17,35 +17,47 @@ AND exit with code 1 before making any API call.
 [ERROR] No nodepool-id set in state. Run 'hf nodepool create' or 'hf nodepool search <name>' first.
 ```
 AND exit with code 1.
+
 ## Requirements
+
 ### Requirement: Create NodePool
 
-`hf nodepool create` SHALL load the request body from a JSON template. The binary embeds a built-in default template (`cmd/assets/nodepool-template.json`). When no `--file` flag is given, the CLI MUST use the embedded default bytes directly in memory — it MUST NOT read from or write to `<config-dir>`.
+`hf nodepool create` SHALL load the request body from a JSON template. The binary embeds a built-in default template (`cmd/assets/nodepool-template.json`). When no `--file` flag is given, the CLI MUST use the embedded default bytes directly in memory — it MUST NOT read from or write to `<config-dir>`. The `--name` flag overrides only the `name` field in the template.
 
-#### Scenario: Create nodepool with default template (no template file exists)
+#### Scenario: Create nodepool with default template
 
 - GIVEN no `--file` flag is provided
 - WHEN the user runs `hf nodepool create`
 - THEN the CLI MUST use the built-in embedded template in memory
 - AND MUST NOT write any file to `<config-dir>`
-- AND MUST NOT print `[INFO] Created default nodepool template at …`
 - AND MUST create the nodepool using the default payload (`kind=NodePool`, `name=my-nodepool`, default labels and spec)
 
-#### Scenario: Create nodepool using existing config-dir template
+#### Scenario: Create nodepool with `--name` override
 
-- GIVEN `<config-dir>/nodepool-template.json` exists on disk
-- WHEN the user runs `hf nodepool create` without `--file`
-- THEN the CLI MUST use the embedded default in memory
-- AND MUST NOT read the on-disk file
-- AND MUST NOT write any file to `<config-dir>`
+- GIVEN a template (embedded or from `--file`) with `"name": "<template-name>"`
+- WHEN the user runs `hf nodepool create --name <name>`
+- THEN the CLI MUST set `name` to `<name>` in the request body, overriding the template value
+- AND all other template fields MUST remain unchanged
+
+#### Scenario: Create nodepool with `--file` override
+
+- GIVEN a file at `<path>` containing a valid JSON nodepool payload
+- WHEN the user runs `hf nodepool create --file <path>`
+- THEN the CLI MUST use that file's content as the request body
+- AND `--name` MAY still be used to override the name field from that file
 
 #### Scenario: Create nodepool with no arguments
 
-- GIVEN no `--file` flag and no positional arguments
+- GIVEN no flags and no arguments
 - WHEN the user runs `hf nodepool create`
 - THEN the CLI MUST NOT show a usage message
 - AND MUST proceed with creation using the embedded template payload
-- AND MUST NOT write any file to `<config-dir>`
+
+#### Scenario: Malformed template file
+
+- GIVEN a file provided via `--file` containing invalid JSON
+- WHEN the user runs `hf nodepool create --file <path>`
+- THEN the CLI MUST exit with `[ERROR] loading template: <reason>` and code 1
 
 ### Requirement: List NodePools
 
@@ -205,16 +217,16 @@ The CLI SHALL display the generation and status conditions of a nodepool.
 
 ### Requirement: Get NodePool Conditions Table
 
-The CLI SHALL display nodepool conditions in a formatted table via the `--table` flag.
+The CLI SHALL display nodepool conditions in a formatted table via `--output table`.
 
 #### Scenario: Display conditions table before adapters report
 
 - GIVEN a nodepool exists with no adapter statuses
-- WHEN the user runs `hf nodepool conditions --table`
+- WHEN the user runs `hf nodepool conditions --output table`
 - THEN the CLI MUST output a table with columns: TYPE, STATUS, LAST TRANSITION, REASON, MESSAGE
 - AND Reconciled and Available MUST show `False`
 
-**Example** — `hf nodepool conditions --table` before any adapters report:
+**Example** — `hf nodepool conditions --output table` before any adapters report:
 ```
 TYPE        STATUS  LAST TRANSITION      REASON                       MESSAGE
 ---         ---     ---                  ---                          ---
@@ -225,24 +237,24 @@ Reconciled  False   2026-04-24T16:05:00Z MissingRequiredAdapters      Required a
 #### Scenario: Display conditions table after all adapters report
 
 - GIVEN all required adapters have reported `Available=True` at the current generation
-- WHEN the user runs `hf nodepool conditions --table`
+- WHEN the user runs `hf nodepool conditions --output table`
 - THEN Reconciled and Available MUST show `True` (green)
 - AND per-adapter conditions (e.g., `NpConfigmapSuccessful`) MUST appear as additional rows
 
-**Example** — `hf nodepool conditions --table` after `np-configmap` reports `Available=True` at generation 2:
+**Example** — `hf nodepool conditions --output table` after `np-configmap` reports `Available=True` at generation 2:
 ```
 TYPE                   STATUS  LAST TRANSITION      REASON           MESSAGE
 ---                    ---     ---                  ---              ---
 Available              True    2026-04-24T16:06:00Z AllAdapters...   All required adapters reported Available=True at generation 2
 Reconciled             True    2026-04-24T16:06:00Z AllAdapters...   All required adapters report Available=True at generation 2
-NpConfigmapSuccessful  True    2026-04-24T16:06:00Z ManualStatusPost  Status posted via hf.nodepool.adapter.post.status.sh
+NpConfigmapSuccessful  True    2026-04-24T16:06:00Z ManualStatusPost  Status posted via hf adapter post-status
 ```
 
 ### Requirement: Get NodePool Adapter Statuses
 
 The statuses table SHALL include a FINALIZED column in addition to AVAILABLE.
 
-#### Scenario: Get statuses table (MODIFIED — add FINALIZED column)
+#### Scenario: Get statuses table
 
 - WHEN the user runs `hf nodepool statuses --output table`
 - THEN the CLI MUST output columns: ADAPTER, GEN, AVAILABLE, FINALIZED
@@ -250,12 +262,12 @@ The statuses table SHALL include a FINALIZED column in addition to AVAILABLE.
 
 ### Requirement: Display NodePool Table
 
-The CLI SHALL display nodepools in the current cluster as a formatted table when the `--table` flag is passed to `hf nodepool list`.
+The CLI SHALL display nodepools in the current cluster as a formatted table when `--output table` is passed to `hf nodepool list`.
 
 #### Scenario: Display nodepool table
 
 - GIVEN nodepools exist in the current cluster
-- WHEN the user runs `hf nodepool list --table`
+- WHEN the user runs `hf nodepool list --output table`
 - THEN the CLI MUST fetch adapter statuses for each nodepool and output a table with:
   - Fixed columns: `ID`, `NAME`, `REPLICAS`, `TYPE`, `GEN`
   - Dynamic condition columns (excluding `*Successful` types)
@@ -263,123 +275,10 @@ The CLI SHALL display nodepools in the current cluster as a formatted table when
 - AND status values MUST be displayed as colored dots with inline generation: `● N`
 - AND the deletion marker (`❌`) MUST appear on GEN for nodepools with `deleted_time` set
 
-**Example** — `hf nodepool list --table` with two nodepools: `workers-1` (gen 2, converged) and `workers-2` (gen 1, not yet converged). Colors shown in parentheses, `● N` = dot + generation number:
+**Example** — `hf nodepool list --output table` with two nodepools: `workers-1` (gen 2, converged) and `workers-2` (gen 1, not yet converged). Colors shown in parentheses, `● N` = dot + generation number:
 ```
 ID                                    NAME      REPLICAS  TYPE           GEN  Available  Reconciled  np-configmap
 ---                                   ---       ---       ---            ---  ---        ---         ---
 019dc049-e79e-72a9-94f8-0056a11193cd  workers-2  1        n2-standard-4  1    ● 1(red)   ● 1(red)    -
 019dc049-e76c-7be1-b201-0db50e2c8ecb  workers-1  1        n2-standard-4  2    ● 2(green) ● 2(green)  ● 2(green)
 ```
-
-### Requirement: CLI NodePool List Command
-
-The CLI SHALL implement `hf nodepool list` to list all nodepools via GET /nodepools.
-
-#### Scenario: List nodepools as JSON
-
-- GIVEN an active environment is configured
-- WHEN the user runs `hf nodepool list`
-- THEN the CLI MUST send GET to /nodepools and output ListResponse[NodePool] as JSON
-
-#### Scenario: List nodepools as table
-
-- GIVEN nodepools exist
-- WHEN the user runs `hf nodepool list --output table`
-- THEN the CLI MUST display columns: ID, NAME, TYPE, GEN, REPLICAS, STATUS
-
-### Requirement: CLI NodePool Get Command
-
-The CLI SHALL implement `hf nodepool get [id]` to retrieve a single nodepool.
-
-#### Scenario: Get nodepool by explicit ID
-
-- GIVEN a valid nodepool ID is provided
-- WHEN the user runs `hf nodepool get <id>`
-- THEN the CLI MUST send GET to /nodepools/<id> and output the NodePool JSON
-
-#### Scenario: Get nodepool from state
-
-- GIVEN nodepool-id is set in state and no argument is provided
-- WHEN the user runs `hf nodepool get`
-- THEN the CLI MUST use the state nodepool-id
-
-### Requirement: CLI NodePool Create Command
-
-The CLI SHALL implement `hf nodepool create` to create a new nodepool.
-
-#### Scenario: Create with defaults
-
-- GIVEN no flags are provided
-- WHEN the user runs `hf nodepool create`
-- THEN the CLI MUST POST with name="my-nodepool", type="m4", replicas=1
-
-#### Scenario: Create with explicit flags
-
-- GIVEN --name, --type, --replicas flags are provided
-- WHEN the user runs `hf nodepool create --name workers --type n2-standard-4 --replicas 3`
-- THEN the CLI MUST POST with the provided values and persist nodepool-id to state
-
-#### Scenario: Duplicate guard
-
-- GIVEN a nodepool with the same name already exists
-- WHEN the user runs `hf nodepool create --name existing`
-- THEN the CLI MUST warn and skip the POST
-
-### Requirement: CLI NodePool Update Command
-
-The CLI SHALL implement `hf nodepool update <id>` to update a nodepool via PATCH.
-
-#### Scenario: Update nodepool name
-
-- GIVEN a valid nodepool ID is provided
-- WHEN the user runs `hf nodepool update <id> --name new-name`
-- THEN the CLI MUST send PATCH to /nodepools/<id> with the new name and output the updated NodePool
-
-### Requirement: CLI NodePool Delete Command
-
-The CLI SHALL implement `hf nodepool delete <id>` to delete a nodepool.
-
-#### Scenario: Delete existing nodepool
-
-- GIVEN a nodepool exists
-- WHEN the user runs `hf nodepool delete <id>`
-- THEN the CLI MUST send DELETE to /nodepools/<id> with no output on success
-
-#### Scenario: Delete non-existent nodepool
-
-- GIVEN no nodepool exists with the given ID
-- WHEN the user runs `hf nodepool delete <id>`
-- THEN the CLI MUST display `[ERROR] NodePool '<id>' not found` and exit with code 1
-
-### Requirement: CLI NodePool Conditions Command
-
-The CLI SHALL implement `hf nodepool conditions [id]` to display status conditions.
-
-#### Scenario: Get conditions as JSON
-
-- GIVEN cluster-id and nodepool-id are set in state
-- WHEN the user runs `hf nodepool conditions`
-- THEN the CLI MUST output `{generation, status: {conditions: [...]}}` as JSON
-
-#### Scenario: Get conditions as table
-
-- GIVEN a nodepool exists
-- WHEN the user runs `hf nodepool conditions <id> --output table`
-- THEN the CLI MUST display columns: TYPE, STATUS, LAST TRANSITION, REASON, MESSAGE
-
-### Requirement: CLI NodePool Statuses Command
-
-The CLI SHALL implement `hf nodepool statuses [id]` to display adapter statuses.
-
-#### Scenario: Get statuses as JSON
-
-- GIVEN nodepool-id is set in state
-- WHEN the user runs `hf nodepool statuses`
-- THEN the CLI MUST send GET to /nodepools/<id>/statuses and output ListResponse[AdapterStatus] as JSON
-
-#### Scenario: Get statuses as table
-
-- GIVEN adapter statuses exist for the nodepool
-- WHEN the user runs `hf nodepool statuses --output table`
-- THEN the CLI MUST display columns: ADAPTER, GEN, AVAILABLE
-

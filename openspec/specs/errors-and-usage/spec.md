@@ -56,14 +56,14 @@ Commands that create resources SHALL use defaults rather than showing usage when
 
 - GIVEN no arguments are provided
 - WHEN the user runs `hf cluster create`
-- THEN the CLI MUST create a cluster using defaults (name=`my-cluster`, region=`us-east-1`, version=`4.15.0`)
+- THEN the CLI MUST create a cluster using the embedded default template
 - AND MUST NOT show a usage message
 
 #### Scenario: NodePool create with no arguments
 
 - GIVEN no arguments are provided
 - WHEN the user runs `hf nodepool create`
-- THEN the CLI MUST create 1 nodepool named `my-nodepool-1` with type `m4`
+- THEN the CLI MUST create a nodepool using the embedded default template
 - AND MUST NOT show a usage message
 
 ### Requirement: Usage Messages for Required Arguments
@@ -79,10 +79,10 @@ All user-facing commands with required positional arguments MUST display the ful
 - **AND** MUST NOT print the bare Cobra message "accepts N arg(s), received 0"
 
 This applies to all user-facing commands including but not limited to:
-`hf config get`, `hf config set`, `hf config env create`, `hf config env activate`,
-`hf config env delete`, `hf config env show`, `hf cluster update`, `hf cluster adapter post-status`,
-`hf nodepool update`, `hf nodepool delete`, `hf pubsub publish cluster`, `hf pubsub publish nodepool`,
-`hf kube debug`, `hf db exec`, `hf db delete`.
+`hf config set`, `hf env create`, `hf env activate`, `hf env delete`, `hf env show`,
+`hf cluster adapter post-status`, `hf nodepool delete`,
+`hf pubsub publish cluster`, `hf pubsub publish nodepool`,
+`hf kube debug`, `hf db delete`.
 
 Exception: commands that use defaults when no args are provided (e.g. `hf cluster create`, `hf nodepool create`) retain that behaviour and MUST NOT show usage.
 

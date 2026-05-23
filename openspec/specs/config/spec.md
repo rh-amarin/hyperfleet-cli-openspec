@@ -2,8 +2,10 @@
 
 ## Purpose
 
-Manage HyperFleet CLI configuration through environment profiles and runtime state. Provides commands to show, get, and set configuration values, manage named environment profiles, and display active resource IDs.
+Manage HyperFleet CLI configuration through environment profiles and runtime state. Provides commands to show and set configuration values, manage named environment profiles, and display active resource IDs.
+
 ## Requirements
+
 ### Requirement: Show Configuration
 
 `hf config` and `hf config show` MUST display the active environment's configuration sections followed by a `state:` block at the bottom listing all non-empty runtime state variables. When writing to an interactive terminal, section header keys MUST be rendered in bold cyan and a separator line MUST appear between the last configuration section and the `state:` block. Color output is suppressed when `--no-color` is set, the `NO_COLOR` environment variable is set, or stdout is not a TTY.
@@ -108,7 +110,7 @@ The CLI SHALL allow setting individual configuration properties using dotted sec
 - THEN the command MUST exit with code 1
 - AND MUST print the no-active-environment error with guidance
 
-### Requirement: hf-config-env-create
+### Requirement: hf-env
 
 Environment management commands MUST be accessible exclusively at the top level as `hf env <subcommand>`. The `hf config env` group is removed. `hf env` with no arguments MUST launch an interactive fuzzy picker with a split-screen layout: left panel lists environments; right panel MUST display the highlighted environment's full YAML. A header MUST be shown above the item list explaining the operation and keyboard shortcuts.
 
@@ -159,7 +161,20 @@ Environment management commands MUST be accessible exclusively at the top level 
 #### Scenario: Delete environment via hf env delete
 
 - GIVEN the user runs `hf env delete <name>` (or `hf env rm <name>`)
-- THEN the CLI MUST delete the environment file; if it was active, clear the active-environment state
+- AND the environment file exists
+- THEN the CLI MUST display: `Delete environment '<name>'? Type 'yes' to confirm:`
+- AND MUST read the user's response from stdin
+- AND if the user types exactly `yes`, the CLI MUST delete the environment file
+- AND if the deleted environment was active, MUST clear the `active-environment` key from `state.yaml`
+- AND MUST print `[INFO] Environment '<name>' deleted`
+- AND if the user types anything other than `yes`, the CLI MUST print `Aborted` and exit with code 0 without deleting
+
+#### Scenario: Delete non-existent environment
+
+- GIVEN no environment named `<name>` exists
+- WHEN the user runs `hf env delete <name>`
+- THEN the CLI MUST print `[ERROR] environment '<name>' not found`
+- AND exit with code 1
 
 #### Scenario: hf env bare — no environments
 
@@ -168,9 +183,9 @@ Environment management commands MUST be accessible exclusively at the top level 
 - THEN the CLI MUST print the command help block
 - AND MUST print a message directing the user to run `hf env create <name>`
 
-### Requirement: hf-config-env-show
+### Requirement: hf-env-show
 
-`hf env show <name>` MUST display the file location and values of a named environment profile without activating it. Behavior is identical to the former `hf config env show <name>`.
+`hf env show <name>` MUST display the file location and values of a named environment profile without activating it.
 
 #### Scenario: Show named environment
 
@@ -243,33 +258,3 @@ Commands that require a configured target MUST fail when no active environment i
 - GIVEN no active environment is configured
 - WHEN the user runs any of: `hf env`, `hf env list`, `hf env create`, `hf env activate`, `hf env show`
 - THEN the command MUST succeed normally
-
-### Requirement: Get Configuration Value
-
-`hf config get <key>` SHALL retrieve a single configuration or state value. Use `section.key` dot notation for config values or a plain key for state values.
-
-#### Scenario: Get a config value
-
-- **GIVEN** an active environment is set
-- **WHEN** the user runs `hf config get hyperfleet.api-url`
-- **THEN** the CLI MUST print the resolved value of `api-url` in the `hyperfleet` section
-
-#### Scenario: Get a state value
-
-- **GIVEN** an active environment is set and cluster-id is present in state.yaml
-- **WHEN** the user runs `hf config get cluster-id`
-- **THEN** the CLI MUST print the value of `cluster-id` from state.yaml
-
-#### Scenario: Key not found
-
-- **GIVEN** an active environment is set
-- **WHEN** the user runs `hf config get hyperfleet.nonexistent`
-- **THEN** the CLI MUST print `[ERROR] Config key 'hyperfleet.nonexistent' not found`
-- **AND** exit with code 1
-
-#### Scenario: No arguments provided
-
-- **GIVEN** the user runs `hf config get` with no arguments
-- **THEN** the CLI MUST display the command's full help text
-- **AND** exit with code 1
-

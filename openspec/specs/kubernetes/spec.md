@@ -2,27 +2,10 @@
 
 ## Purpose
 
-Provide CLI commands for Kubernetes-related operations including port-forwarding to HyperFleet services, in-cluster curl execution, debug pod creation, and log tailing for pods and adapters.
+Provide CLI commands for Kubernetes-related operations including port-forwarding to HyperFleet services, in-cluster curl execution, debug pod creation, and log tailing for pods and adapters. Implemented using `k8s.io/client-go` — no `kubectl` binary dependency.
 
-## Implementation
-
-Implemented in Go using `k8s.io/client-go` — no `kubectl` binary dependency.
-GKE auth plugin bypass: set `HF_KUBE_TOKEN` env var to override bearer token.
-
-Package `internal/kube` provides:
-- `BuildConfig(kubeconfigPath string) (*rest.Config, error)` — resolves: flag → `KUBECONFIG` env → `~/.kube/config`
-- `NewClientset(kubeconfigPath string) (kubernetes.Interface, error)`
-- `StartPortForward(kubeconfigPath, namespace, name, podPattern string, localPort, remotePort int) (*PortForward, error)`
-- `StopPortForward(service string) error`
-- `ListPortForwards() ([]PortForward, error)`
-- `IsProcessAlive(pid int) bool`
-- `FindRunningPod(ctx, cs, namespace, pattern string) (string, error)`
-- `RunPortForwardDaemon(kubeconfigPath, namespace, service string, localPort, remotePort int) error`
-- `StreamLogs(ctx, cs, namespace, podPattern string, w io.Writer) error`
-- `StreamLogsFiltered(ctx, cs, namespace, podPattern, clusterID string, w io.Writer) error`
-- `RunCurlPod(ctx, kubeconfigPath, namespace string, curlArgs []string, w io.Writer) error`
-- `CreateDebugPod(ctx, cs, namespace, pattern string) (string, error)`
 ## Requirements
+
 ### Requirement: Port Forward Management
 
 The CLI SHALL manage port forwards to HyperFleet services running in Kubernetes.
@@ -35,17 +18,16 @@ Predefined services:
 | maestro-http   | maestro        | `maestro.namespace`        | 8100       | 8000        |
 | maestro-grpc   | maestro        | `maestro.namespace`        | 8090       | 8090        |
 
-The HyperFleet application namespace is read from `hyperfleet.namespace` (previously `kubernetes.namespace`). Maestro namespace remains `maestro.namespace`.
+The HyperFleet application namespace is read from `hyperfleet.namespace`. Maestro namespace remains `maestro.namespace`.
 
-PID files stored at `~/.config/hf/pf-<name>.pid` — format: `<pid>\n<localPort>\n<remotePort>`.
-
-`StartPortForward` returns a `StartResult` struct with `Name`, `PID`, `LocalPort`, `RemotePort`, `Namespace`, and `PodName` fields.
+PID files stored at `~/.config/hf/pf-<name>.pid`.
 
 #### Scenario: Start port forwards — namespace shown in output
 
 - **GIVEN** kubeconfig is accessible
 - **WHEN** the user runs `hf kube port-forward start`
-- **THEN** the CLI MUST start background port-forward processes for all 4 predefined services
+- **THEN** the first line of output MUST be `[INFO] Kubernetes context: <contextName>`
+- **AND** the CLI MUST start background port-forward processes for all 4 predefined services
 - **AND** print `[INFO] Started <name> (<namespace>/<podName>): localhost:<localPort> → <remotePort> (pid <pid>)` for each service where the pod was found
 - **AND** print `[INFO] Started <name> (<namespace>): localhost:<localPort> → <remotePort> (pid <pid>)` for services where no pod name is available
 - **AND** wait 1 second after the last start line
@@ -73,6 +55,13 @@ PID files stored at `~/.config/hf/pf-<name>.pid` — format: `<pid>\n<localPort>
 - **WHEN** the user runs `hf kube port-forward stop <name>`
 - **THEN** the CLI MUST terminate the named port-forward only
 
+#### Scenario: Check port forward status — context header
+
+- **WHEN** the user runs `hf kube port-forward status`
+- **THEN** the first line of output MUST be `[INFO] Kubernetes context: <contextName>`
+- **AND** `<contextName>` MUST be the context that will actually be used (the `kubernetes.context` config override if set, otherwise the kubeconfig's current-context)
+- **AND** the port-forward status table MUST follow
+
 #### Scenario: Check port forward status — protocol-aware
 
 - **WHEN** the user runs `hf kube port-forward status`
@@ -90,6 +79,25 @@ PID files stored at `~/.config/hf/pf-<name>.pid` — format: `<pid>\n<localPort>
 - **GIVEN** a generic (non-predefined) port-forward PID file exists
 - **WHEN** the user runs `hf kube port-forward status`
 - **THEN** the CLI MUST use TCP dial as the connectivity check for that entry
+
+#### Scenario: Context resolved from config override
+
+- **GIVEN** `kubernetes.context` is set to a non-empty value in the active config (or via `HF_CONTEXT`)
+- **WHEN** the user runs `hf kube port-forward start` or `hf kube port-forward status`
+- **THEN** the context header MUST show the configured override value
+- **AND** all Kubernetes API calls MUST use that context
+
+#### Scenario: Context resolved from kubeconfig current-context
+
+- **GIVEN** `kubernetes.context` is empty (default)
+- **WHEN** the user runs `hf kube port-forward start` or `hf kube port-forward status`
+- **THEN** the context header MUST show the name of the kubeconfig's current-context
+
+#### Scenario: Context resolution failure
+
+- **GIVEN** the kubeconfig file is missing or the named context does not exist
+- **WHEN** the CLI attempts to resolve the context name
+- **THEN** the CLI MUST print `[WARN] Could not resolve kubernetes context: <reason>` and continue
 
 #### Scenario: Pod not running
 
@@ -111,6 +119,40 @@ PID files stored at `~/.config/hf/pf-<name>.pid` — format: `<pid>\n<localPort>
 - **WHEN** any `hf kube` command is invoked
 - **THEN** the CLI MUST display `[ERROR] kubeconfig not found at <path>. Set KUBECONFIG or use --kubeconfig.`
 - **AND** exit with code 1
+
+### Requirement: Protocol-Aware Connectivity Probes
+
+The CLI SHALL test connectivity to each predefined HyperFleet service using that service's native protocol. Each connectivity check MUST use a short timeout (≤ 2 seconds) so that `status` remains responsive when a service is down.
+
+#### Scenario: API connectivity check passes
+
+- **WHEN** the `hyperfleet-api` port-forward connectivity check runs and the port is bound to an HTTP server that responds
+- **THEN** the check MUST succeed (display green)
+
+#### Scenario: API connectivity check fails
+
+- **WHEN** the `hyperfleet-api` connectivity check runs and no process is listening on the port
+- **THEN** the check MUST fail (display red) within 2 seconds
+
+#### Scenario: Maestro HTTP connectivity check fails
+
+- **WHEN** the `maestro-http` connectivity check runs and no process is listening on the port
+- **THEN** the check MUST fail (display red) within 2 seconds
+
+#### Scenario: Postgres connectivity check fails when port is closed
+
+- **WHEN** the `postgresql` connectivity check runs and no process is listening on the port
+- **THEN** the check MUST fail (display red) within 2 seconds
+
+#### Scenario: Maestro gRPC connectivity check fails when port is closed
+
+- **WHEN** the `maestro-grpc` connectivity check runs and no process is listening on the port
+- **THEN** the check MUST fail (display red) within 2 seconds
+
+#### Scenario: Maestro gRPC treats UNIMPLEMENTED as pass
+
+- **WHEN** the `maestro-grpc` connectivity check runs and the gRPC server responds but does not implement the Health service
+- **THEN** the check MUST succeed (server is reachable, Health check not mandatory)
 
 ### Requirement: In-Cluster Curl
 
@@ -140,13 +182,12 @@ The CLI SHALL create debug pods from existing deployment templates.
 
 ### Requirement: Pod Log Tailing
 
-The CLI SHALL tail logs from pods matching a name pattern.
+The CLI SHALL tail logs from pods matching a name pattern using client-go log streaming.
 
 #### Scenario: Tail logs for matching pods
 
 - WHEN the user runs `hf logs [pattern]`
-- THEN if `stern` is available in PATH, the CLI MUST delegate to `stern <pattern> -n <namespace>`
-- AND if stern is not available, fan out goroutine log streaming across all pods matching pattern
+- THEN the CLI MUST fan out goroutine log streaming across all pods matching pattern
 - AND prefix each line with `[pod-name]`
 
 ### Requirement: Adapter Log Tailing
@@ -160,74 +201,34 @@ The CLI SHALL tail adapter logs filtered by the current cluster ID.
 - AND filter log lines to those containing `cluster_id=<id>` (logfmt format)
 - AND skip JSON/OpenTelemetry span lines (lines starting with `{`)
 - AND display matching lines as `[pod] <time>  <LEVEL>  <msg>`
-- AND resolve cluster-id from `--cluster-id` flag, else from active config state (`cfgStore.State().ClusterID`)
+- AND resolve cluster-id from `--cluster-id` flag, else from active config state
 
-### Requirement: CollectLogs
+### Requirement: Bounded Log Collection
 
-Package `internal/kube` SHALL provide a `CollectLogs` function that fetches pod logs
-for a bounded time window and returns all lines as a flat slice.
-
-```go
-func CollectLogs(ctx context.Context, cs kubernetes.Interface, namespace, podPattern string, sinceSeconds int64) ([]string, error)
-```
+The CLI SHALL support collecting pod logs for a bounded time window for use in analysis commands.
 
 #### Scenario: Collect logs from matching pods
 
-- GIVEN pods exist in the namespace whose names contain `podPattern`
-- WHEN `CollectLogs` is called with a positive `sinceSeconds` value
-- THEN it MUST return all log lines from all matching pods as `[]string`
-- AND lines from different pods MUST be combined into a single slice
+- GIVEN pods exist in the namespace whose names match the pattern
+- WHEN log collection is requested for a specific time window
+- THEN the CLI MUST return all log lines from all matching pods combined into a single result
+- AND lines from different pods MUST be combined in the order they are received
 
 #### Scenario: No matching pods
 
-- GIVEN no pods in the namespace match `podPattern`
-- WHEN `CollectLogs` is called
-- THEN it MUST return an empty slice with no error
+- GIVEN no pods in the namespace match the pattern
+- WHEN log collection is requested
+- THEN the CLI MUST return an empty result with no error
 
 #### Scenario: Pod list error
 
 - GIVEN the Kubernetes API returns an error listing pods
-- WHEN `CollectLogs` is called
-- THEN it MUST return the error immediately
-
-### Requirement: ParseLogfmt exported
-
-Package `internal/kube` SHALL export `ParseLogfmt(line string) map[string]string`
-so that other packages can reuse logfmt parsing without duplication.
-
-#### Scenario: Parse logfmt line
-
-- WHEN `ParseLogfmt` is called with a valid logfmt line
-- THEN it MUST return a map of all key-value pairs including quoted values
-
-### Requirement: insights package
-
-Package `internal/insights` SHALL provide three pure log-parsing functions that
-operate on `[]string` log lines and return structured summary types.
-
-#### Scenario: ParseAPILogs extracts completed requests
-
-- WHEN `ParseAPILogs` is called with API pod log lines
-- THEN it MUST parse only lines where `message == "HTTP request completed"`
-- AND group counts by `method + path` with UUIDs normalised to `:id`
-- AND track `OK` count (status_code < 400) and `Err` count (status_code >= 400) per group
-
-#### Scenario: ParseSentinelLogs extracts cycle summaries
-
-- WHEN `ParseSentinelLogs` is called with sentinel pod log lines
-- THEN it MUST parse only lines where `message` starts with `"Trigger cycle completed"`
-- AND accumulate per-topic cycle count, published count, and skipped count
-
-#### Scenario: ParseAdapterLogs extracts adapter activity
-
-- WHEN `ParseAdapterLogs` is called with adapter pod log lines
-- THEN it MUST count `"Processing event"` messages per `component` as executions
-- AND count `"Phase <name>: RUNNING"` messages per `component` and phase name
+- WHEN log collection is requested
+- THEN the CLI MUST propagate the error immediately
 
 ### Requirement: Log Insights Command
 
-The CLI SHALL provide `hf logs insights [-s <duration>]` that fetches logs from
-running pods and displays a human-readable summary of recent system activity.
+The CLI SHALL provide `hf logs insights [-s <duration>]` that fetches logs from running pods and displays a human-readable summary of recent system activity.
 
 #### Scenario: Run log insights with default window
 
@@ -260,45 +261,3 @@ running pods and displays a human-readable summary of recent system activity.
 - GIVEN pods exist but emitted no relevant log lines in the time window
 - WHEN the user runs `hf logs insights`
 - THEN the CLI MUST display `(no activity)` for that section
-
-### Requirement: Port Forward Bare Invocation
-
-When `hf kube port-forward` is invoked with no subcommand, the CLI SHALL display the command help block and then show the current port-forward status. If any port-forward is not connected, the user SHALL be prompted to start all port-forwards.
-
-#### Scenario: hf kube port-forward bare — help and status shown
-
-- **WHEN** the user runs `hf kube port-forward` with no subcommand
-- **THEN** the CLI MUST print the command help block (including "Usage:" and available subcommands) to stdout
-- **AND** MUST resolve and display the active Kubernetes context (same as `hf kube port-forward status`)
-- **AND** MUST display the current port-forward connectivity status for all tracked port-forwards
-
-#### Scenario: hf kube port-forward bare — no port-forwards tracked
-
-- **WHEN** the user runs `hf kube port-forward` with no subcommand
-- **AND** no port-forward PID files exist
-- **THEN** the CLI MUST print the help block
-- **AND** MUST print `No port-forwards tracked.`
-- **AND** MUST exit with code 0 without prompting
-
-#### Scenario: hf kube port-forward bare — all connected, no prompt
-
-- **WHEN** the user runs `hf kube port-forward` with no subcommand
-- **AND** all tracked port-forwards pass their connectivity check
-- **THEN** the CLI MUST display the status table with green checkmarks
-- **AND** MUST exit with code 0 without prompting to start
-
-#### Scenario: hf kube port-forward bare — some down, user confirms start
-
-- **WHEN** the user runs `hf kube port-forward` with no subcommand
-- **AND** at least one tracked port-forward fails its connectivity check
-- **THEN** the CLI MUST display the status table with red ✗ for the failing service(s)
-- **AND** MUST print `Some port-forwards are down. Run 'hf kube port-forward start'? [y/N]: `
-- **AND** if the user enters `y`, the CLI MUST start all port-forwards (same behaviour as `hf kube port-forward start`)
-
-#### Scenario: hf kube port-forward bare — some down, user declines start
-
-- **WHEN** the user runs `hf kube port-forward` with no subcommand
-- **AND** at least one tracked port-forward fails its connectivity check
-- **AND** the user enters anything other than `y` at the prompt
-- **THEN** the CLI MUST exit with code 0 without starting any port-forwards
-

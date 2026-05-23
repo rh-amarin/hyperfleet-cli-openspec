@@ -1,8 +1,8 @@
-# Technical Architecture Specification
+# Command Hierarchy and Architecture Specification
 
 ## Purpose
 
-Define the modular Go architecture for the HyperFleet CLI, including package structure, shared libraries, the Cobra command tree, and dependency bundling strategy. The architecture prioritizes maintainability, extensibility, and a self-contained binary with minimal external tool requirements.
+Define the Cobra command tree, Go module structure, shared library contracts, and developer tooling for the HyperFleet CLI. The architecture prioritizes a self-contained binary with no external tool dependencies for core operations.
 
 ## Requirements
 
@@ -22,15 +22,16 @@ The CLI SHALL be organized as a single Go module with internal packages followin
   │   ├── cluster.go          # hf cluster [create|get|list|search|patch|delete|conditions|statuses|id]
   │   ├── nodepool.go         # hf nodepool [create|get|list|search|patch|delete|conditions|statuses|id]
   │   ├── adapter.go          # hf cluster adapter post-status, hf nodepool adapter post-status
-  │   ├── config.go           # hf config [show|set|env]
+  │   ├── config.go           # hf config [show|set]
+  │   ├── env.go              # hf env [create|list|show|activate|delete]
   │   ├── db.go               # hf db [query|delete|config]
   │   ├── maestro.go          # hf maestro [list|get|delete|bundles|consumers]
   │   ├── pubsub.go           # hf pubsub [list|publish cluster|publish nodepool]
   │   ├── rabbitmq.go         # hf rabbitmq [publish]
   │   ├── kube.go             # hf kube [port-forward|curl|debug]
-  │   ├── logs.go             # hf logs [<pattern>|adapter]
+  │   ├── logs.go             # hf logs [<pattern>|adapter|insights]
   │   ├── repos.go            # hf repos
-  │   └── resources.go        # hf resources (combined overview of clusters and nodepools)
+  │   └── resources.go        # hf resources / hf table (combined overview of clusters and nodepools)
   ├── internal/
   │   ├── api/                # HyperFleet API client
   │   ├── config/             # Configuration management (split YAML model)
@@ -60,41 +61,44 @@ The CLI SHALL use [spf13/cobra](https://github.com/spf13/cobra) for command rout
   ```
   hf
   ├── cluster
-  │   ├── create    <name> [region] [version]
+  │   ├── create    [--name <name>] [--file <path>]
   │   ├── get       [cluster_id]
-  │   ├── list      [--table]
+  │   ├── list
   │   ├── search    [name]
   │   ├── patch     {spec|labels} [cluster_id]
   │   ├── delete    [cluster_id]
   │   ├── id
-  │   ├── conditions      [--table] [cluster_id]
+  │   ├── conditions      [cluster_id]
   │   ├── statuses        [cluster_id]
   │   └── adapter
   │       └── post-status <adapter> <status> <generation>
   ├── nodepool
-  │   ├── create    <name> [count] [instance-type]
+  │   ├── create    [--name <name>] [--file <path>]
   │   ├── get       [nodepool_id]
-  │   ├── list      [--table]
+  │   ├── list
   │   ├── search    [name]
   │   ├── patch     {spec|labels} [nodepool_id]
   │   ├── delete    [nodepool_id]
   │   ├── id
-  │   ├── conditions      [--table] [nodepool_id]
+  │   ├── conditions      [nodepool_id]
   │   ├── statuses        [nodepool_id]
   │   └── adapter
   │       └── post-status <adapter> <status> <generation> [nodepool_id]
   ├── config
   │   ├── show      [env-name]
-  │   ├── set       <key> <value>
-  │   └── env
-  │       ├── new      [name]
-  │       ├── list
-  │       ├── show     <name>
-  │       └── activate <name>
-  ├── resources
+  │   └── set       <key> <value>
+  ├── env
+  │   ├── create   [name]
+  │   ├── list
+  │   ├── show     <name>
+  │   ├── activate <name>
+  │   ├── delete   <name>
+  │   └── rm       <name>     (alias for delete)
+  ├── resources                (default: JSON; --output table for table view)
+  ├── table                    (alias for resources)
   ├── db
   │   ├── query     <sql> | -f <file>
-  │   ├── delete    <clusters|nodepools|adapter_statuses|ALL>
+  │   ├── delete    <clusters|nodepools|adapter_statuses> | --all
   │   └── config
   ├── maestro
   │   ├── list
@@ -112,29 +116,59 @@ The CLI SHALL use [spf13/cobra](https://github.com/spf13/cobra) for command rout
   │       ├── cluster  <exchange> [routing-key]
   │       └── nodepool <exchange> [routing-key]
   ├── kube
-  │   ├── port-forward  start|stop|status
+  │   ├── port-forward  start|stop|status [name]
   │   ├── curl       [options] <url>
-  │   └── debug      <deployment> [namespace]
-  ├── logs           <pattern> [flags]
-  │   └── adapter    <pattern> [flags]
+  │   └── debug      <deployment>
+  ├── logs           [pattern]
+  │   ├── adapter    [pattern]
+  │   └── insights   [-s <duration>]
   ├── repos
   ├── version
   └── completion     bash|zsh|fish|powershell
   ```
-NOTE: `hf resources` is a standalone command that displays all clusters and their nodepools in a combined table. `--table` is a flag available only on `list` and `conditions` subcommands — it is NOT supported on `hf resources`.
+
+NOTE: `hf resources` and `hf table` default to JSON output. Pass `--output table` to render the combined cluster+nodepool table. The `--output` flag is the universal mechanism for format selection — there is no `--table` flag.
+
+#### Scenario: Command stub registration
+
+- WHEN the user runs `hf --help`
+- THEN the following commands MUST appear in the output: `cluster`, `nodepool`, `config`, `env`, `db`, `maestro`, `pubsub`, `rabbitmq`, `kube`, `logs`, `repos`, `resources`, `table`, `version`, `completion`
+
+#### Scenario: Stub group commands show help when invoked directly
+
+- WHEN the user runs `hf cluster` (or any other command group) with no subcommand
+- THEN the CLI MUST print help text for that command and exit 0
 
 #### Scenario: Global flags
 
 - GIVEN the root command is defined
 - WHEN global flags are registered
 - THEN the following persistent flags MUST be available on every command:
-  - `--config <path>`: override config file location
-  - `--output <format>`: output format (`json`, `table`, `yaml`); default varies per command
+  - `--output <format>` / `-o`: output format (`json`, `table`, `yaml`); default varies per command
   - `--no-color`: disable colored output
   - `--verbose` / `-v`: enable verbose/debug logging
   - `--api-url <url>`: override API URL for this invocation
   - `--api-token <token>`: override API token for this invocation
-- NOTE: There is no `--force-color` flag. Color is enabled when stdout is a TTY, disabled otherwise. Use `--no-color` to explicitly disable.
+- NOTE: There is no `--force-color` flag. Color is enabled when stdout is a TTY, disabled otherwise.
+
+### Requirement: Version Package
+
+The CLI SHALL expose a canonical version string through `internal/version`.
+
+#### Scenario: Default version
+
+- WHEN the binary is built without `-ldflags` injection
+- THEN `internal/version.Version` MUST equal `"dev"`
+
+#### Scenario: Injected version
+
+- WHEN the binary is built with `-ldflags "-X github.com/rh-amarin/hyperfleet-cli/internal/version.Version=<tag>"`
+- THEN `internal/version.Version` MUST equal `<tag>`
+
+#### Scenario: Version command output
+
+- WHEN the user runs `hf version`
+- THEN the CLI MUST print the version string to stdout and exit 0
 
 ### Requirement: Shared API Client Package (internal/api)
 
@@ -149,19 +183,19 @@ The CLI SHALL provide a shared HTTP client for all HyperFleet API operations.
   - Generic typed methods: `Get[T]`, `Post[T]`, `Patch[T]`, `Delete[T]` using Go type parameters
   - Authentication via Bearer token from config (omitted when token is empty)
   - Automatic JSON marshaling/unmarshaling with `encoding/json`
-  - RFC 7807 Problem Details error parsing with structured `APIError` type implementing `error`
+  - RFC 7807 Problem Details error parsing with a structured error type implementing `error`
   - Request/response logging when `--verbose` is set (format: `[DEBUG] METHOD URL → STATUS (DURATIONms)`)
-  - Default timeout of 30 seconds via `http.Client.Timeout`
-  - Context propagation for cancellation via `http.NewRequestWithContext`
+  - Default timeout of 30 seconds
+  - Context propagation for cancellation
 
 #### Scenario: API error handling
 
 - GIVEN the API returns a non-2xx response
 - WHEN the client parses the response
-- THEN it MUST return a structured `APIError` type containing code, detail, status, title, trace_id, type, timestamp
+- THEN it MUST return a structured error type containing code, detail, status, title, trace_id, type, timestamp
 - AND the error MUST implement Go's `error` interface with format `[{status}] {title}: {detail}`
 - AND commands MUST be able to output the raw error JSON (exit 0) or propagate as a Go error
-- AND non-JSON error responses MUST be wrapped in an `APIError` with the raw body as `detail`
+- AND non-JSON error responses MUST be wrapped with the raw body as `detail`
 
 ### Requirement: Shared Output Package (internal/output)
 
@@ -175,42 +209,17 @@ The CLI SHALL provide a shared output formatting package supporting multiple for
   - `json`: pretty-printed JSON with 2-space indentation and trailing newline
   - `table`: formatted table with uppercase headers and aligned columns via `text/tabwriter`
   - `yaml`: YAML serialization via `gopkg.in/yaml.v3`
-- AND the default format MUST be determined per command (table for list views, json for get views)
 
 #### Scenario: Dynamic column table rendering
 
 - GIVEN a table output is requested for cluster or nodepool resources
 - WHEN conditions vary across resources
 - THEN the table renderer MUST:
-  - Collect all unique condition types across all items
-  - Order columns: fixed columns first, then `Available`, then alphabetical adapter conditions, then `Reconciled` last
+  - Collect all unique condition types across all items, excluding types ending in `Successful`
+  - Order condition columns: `Available` first, then remaining conditions alphabetically, `Reconciled` last
+  - Append adapter columns after condition columns, ordered by first occurrence
   - Render status values as colored dots: green `●`=True, red `●`=False, yellow `●`=Unknown, `-`=absent
   - Respect `--no-color` flag and `NO_COLOR` environment variable to disable ANSI colors
-  - In no-color mode, render status as plain text: `True`, `False`, `Unknown`, `-`
-
-Status dot rendering follows the spec defined in `output-formatting/spec.md` Requirement: Colored Dot Rendering.
-
-### Requirement: Shared Utility Functions
-
-The CLI SHALL expose well-defined shared helper functions used across command implementations.
-
-#### Scenario: API lookup helpers
-
-- GIVEN the `internal/api` package exists
-- WHEN commands need to find resources by name
-- THEN the package MUST provide:
-  - `FindClusterByName(ctx context.Context, client *Client, name string) (*resource.Cluster, error)` — queries the clusters list endpoint filtering by exact name match; returns the first match or nil if not found
-  - `FindNodePoolByName(ctx context.Context, client *Client, clusterID, name string) (*resource.NodePool, error)` — queries the nodepools list endpoint for the given cluster, filtering by exact name match
-
-#### Scenario: Config state helpers
-
-- GIVEN the `internal/config` package manages active state
-- WHEN commands need to read or write the active cluster or nodepool
-- THEN the package MUST provide:
-  - `SetClusterID(id string) error` — writes `cluster-id` to `state.yaml`
-  - `GetClusterID() (string, error)` — reads `cluster-id` from `state.yaml`; returns error if not set
-  - `SetNodePoolID(id string) error` — writes `nodepool-id` to `state.yaml`
-  - `GetNodePoolID() (string, error)` — reads `nodepool-id` from `state.yaml`; returns error if not set
 
 ### Requirement: Shared Resource Types Package (internal/resource)
 
@@ -221,21 +230,16 @@ The CLI SHALL define shared Go types for all HyperFleet resources.
 - GIVEN the `internal/resource` package exists
 - WHEN resource types are defined
 - THEN the package MUST include:
-  - `Cluster` struct with fields: ID, Kind, Href, Name, Generation (int32), Labels (map[string]string), Spec (map[string]any), Status (ClusterStatus), CreatedBy, CreatedTime, UpdatedBy, UpdatedTime, DeletedBy, DeletedTime
-  - `NodePool` struct with fields: ID, Kind, Href, Name, Generation (int32), Labels (map[string]string), Spec (map[string]any), Status (NodePoolStatus), OwnerReferences (ObjectReference — single object), CreatedBy, CreatedTime, UpdatedBy, UpdatedTime, DeletedBy, DeletedTime
-  - `ResourceCondition` struct for cluster/nodepool conditions: Type, Status (True|False only), Reason, Message, LastTransitionTime, ObservedGeneration, CreatedTime, LastUpdatedTime
-  - `AdapterCondition` struct for adapter status conditions: Type, Status (True|False|Unknown), Reason, Message, LastTransitionTime
-  - `AdapterStatus` struct: Adapter, ObservedGeneration, Conditions ([]AdapterCondition), Metadata (AdapterStatusMetadata), Data, CreatedTime, LastReportTime
-  - `AdapterStatusMetadata` struct: JobName, JobNamespace, Attempt, StartedTime, CompletedTime, Duration
-  - `AdapterStatusCreateRequest` struct: Adapter, ObservedGeneration, ObservedTime, Conditions ([]ConditionRequest), Metadata, Data
-  - `ObjectReference` struct: ID, Kind, Href
+  - `Cluster` struct: ID, Kind, Href, Name, Generation, Labels, Spec, Status, CreatedBy, CreatedTime, UpdatedBy, UpdatedTime, DeletedBy, DeletedTime
+  - `NodePool` struct: ID, Kind, Href, Name, Generation, Labels, Spec, Status, OwnerReferences, CreatedBy, CreatedTime, UpdatedBy, UpdatedTime, DeletedBy, DeletedTime
+  - `ResourceCondition` struct: Type, Status (True|False only), Reason, Message, LastTransitionTime, ObservedGeneration, CreatedTime, LastUpdatedTime
+  - `AdapterCondition` struct: Type, Status (True|False|Unknown), Reason, Message, LastTransitionTime
+  - `AdapterStatus` struct: Adapter, ObservedGeneration, Conditions, Metadata, Data, CreatedTime, LastReportTime
+  - `AdapterStatusCreateRequest` struct: Adapter, ObservedGeneration, ObservedTime, Conditions, Metadata, Data
   - `CloudEvent` struct: SpecVersion, Type, Source, ID, Data
-  - `ValidationError` struct: Field, Message, Value, Constraint
-  - Generic `ListResponse[T]` with fields: Items, Kind, Page (int32), Size (int32), Total (int32)
-- AND all types MUST conform to the canonical OpenAPI spec at `openshift-hyperfleet/hyperfleet-api-spec`
+  - Generic `ListResponse[T]`: Items, Kind, Page, Size, Total
 - AND all types MUST have JSON struct tags matching the API field names (snake_case)
 - AND `Spec` MUST use `map[string]any` and `Labels` MUST use `map[string]string`
-- AND `ListResponse[T]` MUST use Go type parameters for type-safe list operations
 
 ### Requirement: Kubernetes Operations Package (internal/kube)
 
@@ -248,7 +252,7 @@ The CLI SHALL bundle `client-go` for all Kubernetes operations without requiring
 - THEN it MUST provide:
   - Kubeconfig loading (respecting `--kubeconfig` flag, `KUBECONFIG` env, and default `~/.kube/config`)
   - Port-forward lifecycle management (start, stop, status with PID tracking)
-  - Pod log streaming with label/name filtering and multi-pod fan-out (replacing stern)
+  - Pod log streaming with label/name filtering and multi-pod fan-out
   - Pod exec for in-cluster curl and debug operations
 - AND the binary MUST NOT require `kubectl` to be installed for any core operation
 
@@ -262,7 +266,7 @@ The CLI SHALL bundle Go libraries to replace external tool dependencies, produci
 - WHEN external tool equivalents are needed
 - THEN the following MUST be bundled as Go libraries:
   | Former Tool | Go Replacement | Library |
-  |-------------|---------------|---------|
+  |-------------|----------------|---------|
   | jq | encoding/json | stdlib |
   | curl | net/http | stdlib |
   | awk/sed | text/tabwriter + string processing | stdlib |
@@ -278,7 +282,7 @@ The CLI SHALL bundle Go libraries to replace external tool dependencies, produci
 - GIVEN maestro-http-endpoint is configured
 - WHEN maestro commands are invoked
 - THEN `hf maestro list`, `hf maestro get`, `hf maestro delete`, `hf maestro bundles`, and `hf maestro consumers` MUST use the Maestro HTTP API directly via `net/http`
-- AND the CLI MUST NOT require any external `maestro-cli` tool for any maestro command
+- AND the CLI MUST NOT require any external `maestro-cli` tool
 
 #### Scenario: Zero external dependencies for core operations
 
@@ -287,16 +291,35 @@ The CLI SHALL bundle Go libraries to replace external tool dependencies, produci
 - THEN the CLI MUST NOT require any external tools to be installed
 - AND only GCP credentials (for Pub/Sub) MAY be required for their respective specialized commands
 
+### Requirement: Makefile Build Targets
+
+The repository SHALL provide a `Makefile` with standard developer targets.
+
+#### Scenario: Build target
+
+- WHEN the developer runs `make build`
+- THEN the binary `bin/hf` MUST be produced with no errors
+
+#### Scenario: Test target
+
+- WHEN the developer runs `make test`
+- THEN `go test ./...` MUST run and exit 0 when all tests pass
+
+#### Scenario: Vet target
+
+- WHEN the developer runs `make vet`
+- THEN `go vet ./...` MUST run and exit 0 when no issues are found
+
 ### Requirement: Error Handling Strategy
 
 The CLI SHALL follow a consistent error handling pattern across all commands.
 
-#### Scenario: Error propagation
+#### Scenario: API error propagation
 
 - GIVEN an error occurs during command execution
 - WHEN the error is an API error (RFC 7807)
 - THEN the CLI MUST output the structured error in the current output format (json/table/yaml)
-- AND exit with code 0 to maintain backwards compatibility with the shell scripts
+- AND exit with code 0
 
 #### Scenario: CLI-level errors
 
@@ -314,7 +337,7 @@ The CLI SHALL follow a consistent error handling pattern across all commands.
 
 ### Requirement: Logging and Verbosity
 
-The CLI SHALL support structured logging with configurable verbosity.
+The CLI SHALL support configurable verbosity.
 
 #### Scenario: Verbose mode
 

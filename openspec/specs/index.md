@@ -2,46 +2,38 @@
 
 ## Purpose
 
-Complete requirements specification for the HyperFleet CLI tool (`hf`), reverse-engineered from the shell scripts at [rh-amarin/hyperfleet-cli](https://github.com/rh-amarin/hyperfleet-cli) and extended with technical architecture, configuration model, and non-functional requirements for the Go reimplementation.
+Complete requirements specification for the HyperFleet CLI tool (`hf`), reverse-engineered from the shell scripts at [rh-amarin/hyperfleet-cli](https://github.com/rh-amarin/hyperfleet-cli) and extended with architecture, configuration model, and non-functional requirements for the Go reimplementation.
 
 ## Specification Index
 
 ### Functional Requirements
 
-Organized to match the [output index](https://github.com/rh-amarin/hyperfleet-cli/blob/main/scripts/output/00-index.json):
-
-| # | Domain | Spec | Req | Scenarios | Scripts Covered |
-|---|--------|------|-----|-----------|-----------------|
-| 01 | [Configuration](config/spec.md) | Config management, env profiles, diagnostics | 6 | 17 | hf.config.sh, hf.cluster.id.sh, hf.nodepool.id.sh |
-| 02 | [Cluster Lifecycle](cluster-lifecycle/spec.md) | Cluster CRUD operations | 8 | 21 | hf.cluster.{create,search,get,patch,delete,conditions,conditions.table,statuses}.sh |
-| 03 | [NodePool Lifecycle](nodepool-lifecycle/spec.md) | NodePool CRUD operations | 10 | 23 | hf.nodepool.{create,list,search,get,patch,delete,conditions,conditions.table,statuses,table}.sh |
-| 04 | [Adapter Status](adapter-status/spec.md) | Adapter status posting and convergence model | 3 | 11 | hf.cluster.adapter.post.status.sh, hf.nodepool.adapter.post.status.sh |
-| 05 | [Tables and Lists](tables-and-lists/spec.md) | Aggregated views and formatted tables | 4 | 6 | hf.cluster.{list,table}.sh, hf.nodepool.table.sh, hf.resources.sh |
-| 06 | [Database](database/spec.md) | Direct PostgreSQL operations | 3 | 12 | hf.db.{query,delete,delete.all,config}.sh |
-| 07 | [Maestro](maestro/spec.md) | Maestro resource management via HTTP API | 5 | 8 | hf.maestro.{list,bundles,consumers,get,delete}.sh |
-| 08 | [Pub/Sub & Messaging](pubsub/spec.md) | Event publishing to GCP Pub/Sub and RabbitMQ | 5 | 10 | hf.pubsub.{list,publish.*}.sh, hf.rabbitmq.publish.*.sh |
-| 09 | [Kubernetes](kubernetes/spec.md) | Port-forwarding, debugging, log tailing | 5 | 10 | hf.kube.{port.forward,context,curl,debug.pod}.sh, hf.logs.{sh,adapter}.sh |
-| 10 | [Repos](repos/spec.md) | GitHub repository status overview | 1 | 3 | hf.repos.sh |
-| 11 | [Errors & Usage](errors-and-usage/spec.md) | Error handling, usage messages, edge cases | 6 | 11 | Cross-cutting across all commands |
-| 12 | [Config Registry](config-registry/spec.md) | Configuration property registry and storage model | 2 | 4 | hf.lib.sh (shared library) |
+| # | Domain | Spec | Description | Scripts Covered |
+|---|--------|------|-------------|-----------------|
+| 01 | [Configuration](config/spec.md) | Config management, `hf env` profiles, diagnostics | hf.config.sh, hf.cluster.id.sh, hf.nodepool.id.sh |
+| 02 | [Cluster Lifecycle](cluster-lifecycle/spec.md) | Cluster create (template-based), get, list, search, patch, delete, conditions, statuses | hf.cluster.{create,search,get,patch,delete,conditions,statuses}.sh |
+| 03 | [NodePool Lifecycle](nodepool-lifecycle/spec.md) | NodePool create (template-based), get, list, search, patch, delete, conditions, statuses | hf.nodepool.{create,list,search,get,patch,delete,conditions,statuses}.sh |
+| 04 | [Adapter Status](adapter-status/spec.md) | Adapter status posting and convergence model | hf.cluster.adapter.post.status.sh, hf.nodepool.adapter.post.status.sh |
+| 05 | [Tables and Lists](tables-and-lists/spec.md) | Cluster/nodepool/combined tables with `--output table`, watch mode, spinner | hf.cluster.list.sh, hf.nodepool.table.sh, hf.resources.sh |
+| 06 | [Database](database/spec.md) | Direct PostgreSQL operations (query, delete, config) | hf.db.{query,delete,config}.sh |
+| 07 | [Maestro](maestro/spec.md) | Maestro resource management via HTTP API | hf.maestro.{list,bundles,consumers,get,delete}.sh |
+| 08 | [Pub/Sub & Messaging](pubsub/spec.md) | Event publishing to GCP Pub/Sub and RabbitMQ | hf.pubsub.{list,publish.*}.sh, hf.rabbitmq.publish.*.sh |
+| 09 | [Kubernetes](kubernetes/spec.md) | Port-forwarding, debug pods, log tailing, log insights | hf.kube.{port.forward,curl,debug.pod}.sh, hf.logs.{sh,adapter}.sh |
+| 10 | [Repos](repos/spec.md) | GitHub repository status overview | hf.repos.sh |
+| 11 | [Errors & Usage](errors-and-usage/spec.md) | Error handling, usage messages, edge cases | Cross-cutting across all commands |
+| 12 | ~~Config Registry~~ | **ARCHIVED** — superseded by [Config Model](config-model/spec.md) | — |
 
 ### Technical & Non-Functional Requirements
 
-| # | Domain | Spec | Req | Scenarios |
-|---|--------|------|-----|-----------|
-| T1 | [Technical Architecture](technical-architecture/spec.md) | Go module structure, Cobra command tree, shared packages, dependency bundling | 10 | 19 |
-| T2 | [Configuration Model](config-model/spec.md) | Self-contained environment files, precedence chain, state.yaml, secret handling | 8 | 18 |
-| T5 | [Config Template](config-template/spec.md) | Bundled environment template embedding and consistency requirements | 1 | 2 |
-| T3 | [Non-Functional](non-functional/spec.md) | Shell completions, output format flag, cross-compilation, testing, security | 9 | 26 |
-| T4 | [Output Formatting](output-formatting/spec.md) | Multi-format output dispatch, colored dot rendering, dynamic column ordering, JSON colorization | 5 | 18 |
-
-### Summary
-
-| Category | Requirements | Scenarios |
-|----------|-------------|-----------|
-| Functional (01–12) | 58 | 136 |
-| Technical & NFR (T1–T4) | 31 | 79 |
-| **Total** | **89** | **215** |
+| # | Domain | Spec | Description |
+|---|--------|------|-------------|
+| T1 | [Command Hierarchy](command-hierarchy/spec.md) | Go module structure, Cobra command tree, shared packages, dependency bundling |
+| T2 | [Configuration Model](config-model/spec.md) | Self-contained environment files, precedence chain, state.yaml, secret handling |
+| T3 | [Non-Functional](non-functional/spec.md) | Shell completions, output format flag, cross-compilation, CI/CD pipelines, testing, security |
+| T4 | [Output Formatting](output-formatting/spec.md) | Multi-format output dispatch, colored dot rendering, dynamic column ordering, JSON colorization |
+| T5 | [Config Template](config-template/spec.md) | Bundled environment template embedding and consistency requirements |
+| T6 | [Resource Types](resource-types/spec.md) | Canonical resource type definitions for clusters, nodepools, adapter statuses |
+| T7 | [API Client](api-client/spec.md) | HTTP client contract, RFC 7807 error parsing, request/response conventions |
 
 ## Technology Decisions
 
@@ -49,7 +41,7 @@ Organized to match the [output index](https://github.com/rh-amarin/hyperfleet-cl
 |----------|--------|-----------|
 | Language | **Go** | Single binary, strong k8s ecosystem, cross-platform |
 | CLI Framework | **Cobra** | Industry standard (kubectl, gh, docker), subcommand trees, auto-completions |
-| Config Format | **Environment files + state** | Self-contained `environments/<name>.yaml` seeded from bundled template; `state.yaml` for active state (top-level keys) |
+| Config Format | **Environment files + state** | Self-contained `environments/<name>.yaml` seeded from bundled template; `state.yaml` for active state |
 | K8s Client | **client-go (bundled)** | Self-contained binary, no kubectl dependency |
 | DB Driver | **pgx** | Native Go PostgreSQL driver, no psql needed |
 | GCP Pub/Sub | **Cloud Go SDK** | Official library, no gcloud dependency |
@@ -60,7 +52,7 @@ Organized to match the [output index](https://github.com/rh-amarin/hyperfleet-cl
 ## Dependency Bundling
 
 | Former External Tool | Go Replacement | Status |
-|---------------------|---------------|--------|
+|---------------------|----------------|--------|
 | jq | encoding/json (stdlib) | Bundled |
 | curl | net/http (stdlib) | Bundled |
 | awk/sed | text/tabwriter + strings | Bundled |
@@ -75,14 +67,20 @@ Organized to match the [output index](https://github.com/rh-amarin/hyperfleet-cl
 ## Key Design Patterns
 
 1. **Environment files**: Self-contained `environments/<name>.yaml` (seeded from bundled template) for all settings; `state.yaml` for active cluster/nodepool/environment
-2. **Shared internal functions**: Commands reuse `internal/` packages (e.g., `api.FindClusterByName`, `config.SetClusterID`) rather than invoking each other as subprocesses
-3. **Defaults over usage**: Create commands with no args use defaults, not usage display
-4. **Generation tracking**: Resources track generation; adapters report observed_generation
-5. **Convergence logic**: Reconciled becomes True when ALL required adapters report Available=True at current generation
-6. **Multi-format output**: `--output json|table|yaml` on every data-producing command
-7. **Zero external deps for core**: Only GCP credentials needed for Pub/Sub commands; all other commands are fully self-contained
-9. **RFC 7807 errors**: API errors follow Problem Details format
-10. **Config precedence**: flags > env vars > active environment file > built-in defaults
+2. **`hf env` as top-level command group**: `hf env create|list|show|activate|delete` — not nested under `hf config`
+3. **Template-based creation**: `hf cluster create` and `hf nodepool create` use embedded JSON templates; `--name` overrides the name, `--file` uses a custom template
+4. **`--output` flag everywhere**: `--output json|table|yaml` on every data-producing command; no `--table` flag
+5. **`hf resources` / `hf table`**: Default to JSON output; `--output table` required for the combined cluster+nodepool table view
+6. **Defaults over usage**: Create commands with no args use embedded defaults, not a usage message
+7. **Generation tracking**: Resources track generation; adapters report observed_generation
+8. **Convergence logic**: Reconciled becomes True when ALL required adapters report Available=True at current generation
+9. **Zero external deps for core**: Only GCP credentials needed for Pub/Sub; all other commands are fully self-contained
+10. **RFC 7807 errors**: API errors follow Problem Details format; CLI exits 0 and outputs the error body
+11. **Config precedence**: flags > env vars > active environment file > built-in defaults
+
+## API Base Path
+
+All HyperFleet API calls use: `/api/hyperfleet/v1/`
 
 ## Environment Context
 
@@ -102,7 +100,3 @@ From the recording environment:
   "gcp_project": "hcm-hyperfleet"
 }
 ```
-
-## API Base Path
-
-All HyperFleet API calls use: `/api/hyperfleet/v1/`

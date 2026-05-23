@@ -10,7 +10,7 @@ The CLI SHALL display a status table for all HyperFleet GitHub repositories.
 
 #### Scenario: Display repos table
 
-- GIVEN the user has GitHub CLI (`gh`) authenticated
+- GIVEN a GitHub token is configured (via `GITHUB_TOKEN` env or `registry.github-token` config)
 - WHEN the user runs `hf repos`
 - THEN the CLI MUST display a formatted table with columns: REPOSITORY, COMMIT, PR URL, PR BRANCH, QUAY TAG, QUAY ALIASES
 - AND the following repositories MUST be tracked:
@@ -21,7 +21,7 @@ The CLI SHALL display a status table for all HyperFleet GitHub repositories.
   - `openshift-hyperfleet/hyperfleet-infra`
   - `openshift-hyperfleet/hyperfleet-e2e`
   - `openshift-hyperfleet/architecture`
-- AND COMMIT MUST show the short hash of the latest commit (fetched via `gh`)
+- AND COMMIT MUST show the short hash of the latest commit (fetched via GitHub API)
 - AND PR URL MUST show the URL of the latest open PR (or `-` if none)
 - AND PR BRANCH MUST show the source branch of the latest open PR (or `-`)
 - AND QUAY TAG MUST show the latest container image tag with date (or `-`)

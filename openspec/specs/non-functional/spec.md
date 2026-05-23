@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Define non-functional requirements for the HyperFleet CLI covering shell completions, multi-format output, cross-platform builds, testing strategy, and distribution.
+Define non-functional requirements for the HyperFleet CLI covering shell completions, multi-format output, cross-platform builds, CI/CD pipelines, testing strategy, and distribution.
 
 ## Requirements
 
@@ -10,15 +10,37 @@ Define non-functional requirements for the HyperFleet CLI covering shell complet
 
 The CLI SHALL generate shell completion scripts for all major shells.
 
-#### Scenario: Generate completion scripts
+#### Scenario: Generate bash completion
 
-- GIVEN Cobra provides built-in completion support
-- WHEN the user runs `hf completion <shell>`
-- THEN the CLI MUST generate completion scripts for:
-  - `bash`: Bash completion v2
-  - `zsh`: Zsh completion with descriptions
-  - `fish`: Fish completion
-  - `powershell`: PowerShell completion
+- GIVEN the user has installed `hf`
+- WHEN the user runs `hf completion bash`
+- THEN the CLI MUST output a bash completion script to stdout
+- AND the output MUST be compatible with `source <(hf completion bash)`
+
+#### Scenario: Generate zsh completion
+
+- GIVEN the user has installed `hf`
+- WHEN the user runs `hf completion zsh`
+- THEN the CLI MUST output a zsh completion script to stdout
+- AND the output MUST begin with `#compdef hf`
+
+#### Scenario: Generate fish completion
+
+- GIVEN the user has installed `hf`
+- WHEN the user runs `hf completion fish`
+- THEN the CLI MUST output a non-empty fish completion script to stdout
+
+#### Scenario: Generate powershell completion
+
+- GIVEN the user has installed `hf`
+- WHEN the user runs `hf completion powershell`
+- THEN the CLI MUST output a non-empty PowerShell completion script to stdout
+
+#### Scenario: Reject invalid shell argument
+
+- GIVEN the user runs `hf completion invalid`
+- THEN the CLI MUST exit with a non-zero exit code
+- AND MUST NOT output a completion script
 
 #### Scenario: Dynamic completions
 
@@ -33,6 +55,17 @@ The CLI SHALL generate shell completion scripts for all major shells.
 - WHEN the script is generated
 - THEN the CLI MUST print instructions for installing the completion (e.g., `source <(hf completion bash)` or adding to `.bashrc`)
 
+### Requirement: Output Flag Tab Completion
+
+The CLI SHALL provide tab completions for the `--output` persistent flag.
+
+#### Scenario: --output completions
+
+- GIVEN a shell with tab completion enabled
+- WHEN the user types `hf <command> --output <TAB>`
+- THEN the shell MUST offer `json`, `table`, and `yaml` as completions
+- AND MUST NOT offer file paths
+
 ### Requirement: Multi-Format Output
 
 The CLI SHALL support a global `--output` flag for controlling output format on every command that produces data.
@@ -46,7 +79,7 @@ The CLI SHALL support a global `--output` flag for controlling output format on 
 
 #### Scenario: Table output
 
-- GIVEN `--output table` is specified or is the default for list/table commands
+- GIVEN `--output table` is specified
 - WHEN the command produces output
 - THEN the output MUST be a human-readable formatted table with:
   - Column headers in uppercase
@@ -65,10 +98,9 @@ The CLI SHALL support a global `--output` flag for controlling output format on 
 - GIVEN no `--output` flag is specified
 - WHEN a command produces output
 - THEN the default MUST be:
-  - `table` for list views with `--table`: `cluster list --table`, `nodepool list --table`, `resources`, `repos`, `cluster conditions --table`, `nodepool conditions --table`
-  - `json` for list/get views without `--table`: `cluster list`, `nodepool list`, `cluster get`, `nodepool get`, `cluster conditions`, `nodepool conditions`, `cluster statuses`, `nodepool statuses`
-  - `text` for config commands, port-forward status, and log output
-
+  - `json` for resource commands: `cluster list`, `cluster get`, `nodepool list`, `nodepool get`, `cluster conditions`, `nodepool conditions`, `cluster statuses`, `nodepool statuses`, `resources`, `table`
+  - `table` for `repos` (always renders a table)
+  - `text` for config commands (`hf config show`, `hf env *`), port-forward status, and log output
 
 ### Requirement: Cross-Platform Build and Distribution
 
@@ -85,6 +117,37 @@ The CLI SHALL be built and distributed for multiple platforms using GoReleaser.
   - `darwin/arm64`
   - `windows/amd64`
 - AND each binary MUST be a statically linked, self-contained executable
+
+#### Scenario: Linux amd64 archive naming
+
+- GIVEN a tagged release `v*`
+- WHEN GoReleaser runs
+- THEN the Linux amd64 archive MUST be named `hf_<version>_linux_amd64.tar.gz`
+
+#### Scenario: macOS arm64 archive naming
+
+- GIVEN a tagged release `v*`
+- WHEN GoReleaser runs
+- THEN the macOS arm64 archive MUST be named `hf_<version>_darwin_arm64.tar.gz`
+
+#### Scenario: Windows build uses zip format
+
+- GIVEN a tagged release `v*`
+- WHEN GoReleaser runs
+- THEN the Windows archives MUST use `.zip` format instead of `.tar.gz`
+
+#### Scenario: Version is injected at build time
+
+- GIVEN a tagged release `v1.2.3`
+- WHEN GoReleaser builds the binary
+- THEN `hf version` MUST output `1.2.3`
+- AND the binary MUST have been built with `-X github.com/rh-amarin/hyperfleet-cli/internal/version.Version=1.2.3`
+
+#### Scenario: Checksums file is generated
+
+- GIVEN a tagged release
+- WHEN GoReleaser runs
+- THEN it MUST produce a `checksums.txt` file listing SHA256 hashes of all archives
 
 #### Scenario: Release artifacts
 
@@ -108,7 +171,7 @@ The CLI SHALL be built and distributed for multiple platforms using GoReleaser.
   Go version: go1.22.0
   OS/Arch:    linux/amd64
   ```
-- AND values MUST be injected at build time via `-ldflags` (e.g., `-X main.version=$(git describe --tags)`)
+- AND values MUST be injected at build time via `-ldflags`
 - AND `--output json` MUST be supported, outputting the same fields as a JSON object
 
 #### Scenario: Homebrew and package managers
@@ -130,12 +193,32 @@ The CLI SHALL have automated build, test, and release pipelines via GitHub Actio
 - AND it MUST NOT run integration tests (no `-tags integration` flag)
 - AND the workflow MUST fail if any step exits non-zero
 
+#### Scenario: Go version is pinned via go.mod
+
+- GIVEN the workflow runs
+- WHEN `actions/setup-go` installs Go
+- THEN it MUST read the Go version from `go.mod`
+- AND MUST enable the Go module cache
+
 #### Scenario: Release on tag push
 
 - GIVEN a tag matching `v*` is pushed
 - WHEN the release workflow runs
 - THEN it MUST invoke GoReleaser with `--clean`
 - AND produce cross-platform binaries, archives, checksums, and a GitHub Release automatically
+
+#### Scenario: Full git history is available to GoReleaser
+
+- GIVEN the release workflow runs
+- WHEN the repository is checked out
+- THEN `fetch-depth: 0` MUST be set so GoReleaser can generate a full changelog
+
+#### Scenario: GITHUB_TOKEN is passed to GoReleaser
+
+- GIVEN the release workflow runs
+- WHEN GoReleaser attempts to create a GitHub release and upload assets
+- THEN it MUST have access to `GITHUB_TOKEN` from secrets
+- AND the token MUST be passed via the `env` block of the goreleaser-action step
 
 ### Requirement: Error Output Conventions
 
@@ -149,7 +232,7 @@ The CLI SHALL follow consistent conventions for all output to stdout and stderr.
 | `[INFO]` message | stderr | `[INFO] <msg>` | 0 |
 | `[ERROR]` message | stderr | `[ERROR] <msg>` | 1 (unless otherwise specified per command) |
 
-`SilenceUsage: true` on the root command suppresses the usage block for all subcommands on runtime errors (Cobra v1.10+ propagation via `!cmd.SilenceUsage && !root.SilenceUsage`).
+`SilenceUsage: true` on the root command suppresses the usage block for all subcommands on runtime errors.
 
 ### Requirement: Testing Strategy
 
@@ -202,7 +285,6 @@ The CLI SHALL degrade gracefully when optional dependencies are unavailable.
 - WHEN the user runs `hf pubsub list` or `hf pubsub publish`
 - THEN the CLI MUST display a clear error: `[ERROR] GCP credentials not found. Run 'gcloud auth application-default login' or set GOOGLE_APPLICATION_CREDENTIALS`
 - AND other commands MUST continue to work
-
 
 #### Scenario: Unreachable API
 

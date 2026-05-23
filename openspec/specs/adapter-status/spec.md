@@ -31,10 +31,10 @@ Request payload:
   "observed_generation": 3,
   "observed_time": "2026-04-24T16:19:06Z",
   "conditions": [
-    {"type": "Available", "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf.adapter.status.sh"},
-    {"type": "Applied",   "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf.adapter.status.sh"},
-    {"type": "Health",    "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf.adapter.status.sh"},
-    {"type": "Finalized", "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf.adapter.status.sh"}
+    {"type": "Available", "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf adapter post-status"},
+    {"type": "Applied",   "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf adapter post-status"},
+    {"type": "Health",    "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf adapter post-status"},
+    {"type": "Finalized", "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf adapter post-status"}
   ]
 }
 ```
@@ -47,10 +47,10 @@ Response (HTTP 200):
   "observed_time": "2026-04-24T16:19:06Z",
   "last_report_time": "2026-04-24T16:19:06Z",
   "conditions": [
-    {"type": "Available", "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf.adapter.status.sh"},
-    {"type": "Applied",   "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf.adapter.status.sh"},
-    {"type": "Health",    "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf.adapter.status.sh"},
-    {"type": "Finalized", "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf.adapter.status.sh"}
+    {"type": "Available", "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf adapter post-status"},
+    {"type": "Applied",   "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf adapter post-status"},
+    {"type": "Health",    "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf adapter post-status"},
+    {"type": "Finalized", "status": "True", "reason": "ManualStatusPost", "message": "Status posted via hf adapter post-status"}
   ]
 }
 ```
@@ -77,16 +77,9 @@ Response (HTTP 200):
 - THEN the CLI MUST display usage information
 - AND exit with code 1
 
-**Example** output (stderr + stdout):
+**Example** usage:
 ```
-Usage: hf.cluster.adapter.post.status.sh <adapter_name> <available> [generation]
-
-Arguments:
-  adapter_name  Name of the adapter (e.g., validator, dns, provisioner)
-  available     Status: True, False, or Unknown
-  generation    Observed generation (default: 1)
-
-Example: hf.adapter.status.sh validator True 1
+hf cluster adapter post-status <adapter_name> <True|False|Unknown> <generation>
 ```
 
 #### Scenario: Invalid status value
@@ -149,70 +142,3 @@ The system SHALL follow a defined convergence model for adapter statuses.
 - THEN `Reconciled` MUST remain `False` with reason `MissingRequiredAdapters`
 - AND the message MUST list which adapters are missing
 
----
-
-## Go Command Interface (added in phase-05-adapter-status)
-
-### hf cluster adapter post-status
-
-```
-hf cluster adapter post-status <adapter_name> <True|False|Unknown> <generation>
-```
-
-- `adapter_name` — required
-- `True|False|Unknown` — required; case-sensitive
-- `generation` — required integer; the `generation` of the resource the adapter is reporting on
-
-Requires `cluster-id` in state (`~/.config/hf/state.yaml`). No explicit cluster-id override arg.
-
-### hf nodepool adapter post-status
-
-```
-hf nodepool adapter post-status <adapter_name> <True|False|Unknown> <generation> [nodepool_id]
-```
-
-- `generation` — required integer
-- `nodepool_id` — optional 4th arg; overrides the nodepool-id from state
-
-Requires both `cluster-id` and `nodepool-id` in state (or explicit `nodepool_id` arg).
-
-The request payload structure is identical to the cluster adapter status payload. Only the endpoint differs:
-- Cluster: `POST /api/hyperfleet/{version}/clusters/{cluster_id}/statuses`
-- NodePool: `POST /api/hyperfleet/{version}/clusters/{cluster_id}/nodepools/{nodepool_id}/statuses`
-
-## API Endpoints
-
-| Target | Method | Path |
-|---|---|---|
-| Cluster | POST | `/api/hyperfleet/{version}/clusters/{cluster_id}/statuses` |
-| Cluster | GET | `/api/hyperfleet/{version}/clusters/{cluster_id}/statuses` |
-| NodePool | POST | `/api/hyperfleet/{version}/clusters/{cluster_id}/nodepools/{nodepool_id}/statuses` |
-| NodePool | GET | `/api/hyperfleet/{version}/clusters/{cluster_id}/nodepools/{nodepool_id}/statuses` |
-
-Note: both POST and GET use the `/statuses` path. There is no `/adapter-statuses` endpoint.
-
-## Request Payload
-
-```json
-{
-  "adapter": "<adapter_name>",
-  "observed_generation": <generation>,
-  "observed_time": "<ISO8601 UTC>",
-  "conditions": [
-    {"type": "Available",  "status": "<status>", "reason": "ManualStatusPost", "message": "Status posted via hf adapter post-status"},
-    {"type": "Applied",    "status": "<status>", "reason": "ManualStatusPost", "message": "Status posted via hf adapter post-status"},
-    {"type": "Health",     "status": "<status>", "reason": "ManualStatusPost", "message": "Status posted via hf adapter post-status"},
-    {"type": "Finalized",  "status": "<status>", "reason": "ManualStatusPost", "message": "Status posted via hf adapter post-status"}
-  ]
-}
-```
-
-`data`, `created_time`, and `last_report_time` are server-computed; they appear in the response only.
-
-HTTP 204 is returned by the API for `Unknown` status — the CLI handles this gracefully via a 204 guard in `internal/api/methods.go decode[T]`.
-
-## Go Struct Changes
-
-- `resource.ConditionRequest` — fields are `Type`, `Status`, `Reason` (omitempty), `Message` (omitempty) per the OpenAPI `ConditionRequest` schema; `last_transition_time` is NOT a field on this struct
-- `resource.AdapterStatusCreateRequest` — added `CreatedTime`, `LastReportTime` (response-side); `ObservedTime` has `omitempty` in the Go struct for response parsing only — it MUST always be included in the request payload (the CLI always sets it to the current ISO8601 UTC timestamp)
-- `internal/api/methods.go decode[T]` — returns zero value of T on HTTP 204 instead of EOF error

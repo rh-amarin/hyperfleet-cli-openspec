@@ -3,35 +3,47 @@
 ## Purpose
 
 Provide CLI commands for full CRUD lifecycle management of HyperFleet clusters, including creation, retrieval, listing, searching, patching, and deletion. All cluster operations interact with the HyperFleet API at `/api/hyperfleet/v1/clusters`.
+
 ## Requirements
+
 ### Requirement: Create Cluster
 
-`hf cluster create` SHALL load the request body from a JSON template. The binary embeds a built-in default template (`cmd/assets/cluster-template.json`). When no `--file` flag is given, the CLI MUST use the embedded default bytes directly in memory — it MUST NOT read from or write to `<config-dir>`.
+`hf cluster create` SHALL load the request body from a JSON template. The binary embeds a built-in default template (`cmd/assets/cluster-template.json`). When no `--file` flag is given, the CLI MUST use the embedded default bytes directly in memory — it MUST NOT read from or write to `<config-dir>`. The `--name` flag overrides only the `name` field in the template.
 
-#### Scenario: Create cluster with default template (no template file exists)
+#### Scenario: Create cluster with default template
 
 - GIVEN no `--file` flag is provided
 - WHEN the user runs `hf cluster create`
 - THEN the CLI MUST use the built-in embedded template in memory
 - AND MUST NOT write any file to `<config-dir>`
-- AND MUST NOT print `[INFO] Created default cluster template at …`
 - AND MUST create the cluster using the default payload (`kind=Cluster`, `name=my-cluster`, default labels and spec)
 
-#### Scenario: Create cluster using existing config-dir template
+#### Scenario: Create cluster with `--name` override
 
-- GIVEN `<config-dir>/cluster-template.json` exists on disk
-- WHEN the user runs `hf cluster create` without `--file`
-- THEN the CLI MUST use the embedded default in memory
-- AND MUST NOT read the on-disk file
-- AND MUST NOT write any file to `<config-dir>`
+- GIVEN a template (embedded or from `--file`) with `"name": "<template-name>"`
+- WHEN the user runs `hf cluster create --name <name>`
+- THEN the CLI MUST set `name` to `<name>` in the request body, overriding the template value
+- AND all other template fields MUST remain unchanged
+
+#### Scenario: Create cluster with `--file` override
+
+- GIVEN a file at `<path>` containing a valid JSON cluster payload
+- WHEN the user runs `hf cluster create --file <path>`
+- THEN the CLI MUST use that file's content as the request body
+- AND `--name` MAY still be used to override the name field from that file
 
 #### Scenario: Create cluster with no arguments
 
-- GIVEN no `--file` flag and no positional arguments
+- GIVEN no flags and no arguments
 - WHEN the user runs `hf cluster create`
 - THEN the CLI MUST NOT show a usage message
 - AND MUST proceed with creation using the embedded template payload
-- AND MUST NOT write any file to `<config-dir>`
+
+#### Scenario: Malformed template file
+
+- GIVEN a file provided via `--file` containing invalid JSON
+- WHEN the user runs `hf cluster create --file <path>`
+- THEN the CLI MUST exit with `[ERROR] loading template: <reason>` and code 1
 
 ### Requirement: Search Cluster
 
@@ -99,7 +111,7 @@ The CLI SHALL retrieve and display full details of a specific cluster.
 - THEN the CLI MUST output the API error response (RFC 7807 format)
 - AND the error MUST contain code `HYPERFLEET-NTF-001`, status 404, title `Resource Not Found`
 - AND the CLI MUST exit with code 0
-- NOTE: Exit code 0 for API errors is intentional to maintain backwards compatibility with the original shell scripts. All API errors exit 0 and output the error JSON. See `errors-and-usage/spec.md` and `technical-architecture/spec.md` Error Handling Strategy.
+- NOTE: Exit code 0 for API errors is intentional to maintain backwards compatibility with the original shell scripts. All API errors exit 0 and output the error JSON. See `errors-and-usage/spec.md` and `command-hierarchy/spec.md` Error Handling Strategy.
 
 **Example** — `hf cluster get 00000000-0000-0000-0000-000000000000`:
 ```json
@@ -155,20 +167,11 @@ The CLI SHALL increment a counter field in the cluster's spec or labels section,
 - THEN the CLI MUST display usage: `Usage: hf cluster patch {spec|labels} [cluster_id]`
 - AND exit with code 1
 
-**Example** — `hf cluster patch`:
-```
-Usage: hf.cluster.patch.sh spec|labels [cluster_id]
-
-Arguments:
-  spec|labels   Which section to increment the counter field in (required)
-  cluster_id    Cluster ID (default: current cluster)
-```
-
 ### Requirement: Delete Cluster
 
 `hf cluster delete` SHALL accept an optional cluster ID, falling back to the configured cluster-id.
 
-#### Scenario: Delete cluster (MODIFIED — optional ID, output)
+#### Scenario: Delete cluster
 
 - WHEN the user runs `hf cluster delete [cluster_id]`
 - THEN the CLI MUST use the provided ID, or the configured cluster-id if none is provided
@@ -213,16 +216,16 @@ The CLI SHALL display the generation and status conditions of a cluster.
 
 ### Requirement: Get Cluster Conditions Table
 
-The CLI SHALL display cluster conditions in a formatted table via the `--table` flag.
+The CLI SHALL display cluster conditions in a formatted table via `--output table`.
 
 #### Scenario: Display conditions table
 
 - GIVEN a cluster-id is set in config
-- WHEN the user runs `hf cluster conditions --table`
+- WHEN the user runs `hf cluster conditions --output table`
 - THEN the CLI MUST output a table with columns: TYPE, STATUS, LAST TRANSITION, REASON, MESSAGE
 - AND status values MUST be color-coded: True=green, False=red, Unknown=yellow
 
-**Example** — `hf cluster conditions --table` before any adapters report:
+**Example** — `hf cluster conditions --output table` before any adapters report:
 ```
 TYPE        STATUS  LAST TRANSITION      REASON                       MESSAGE
 ---         ---     ---                  ---                          ---
@@ -230,22 +233,22 @@ Available   False   2026-04-24T16:00:00Z AdaptersNotAtSameGeneration  Required a
 Reconciled  False   2026-04-24T16:00:00Z MissingRequiredAdapters      Required adapters not reporting Available=True: [cl-deployment, ...]. Currently reporting: []
 ```
 
-**Example** — `hf cluster conditions --table` after some adapters report (partial convergence):
+**Example** — `hf cluster conditions --output table` after some adapters report (partial convergence):
 ```
 TYPE                    STATUS  LAST TRANSITION      REASON               MESSAGE
 ---                     ---     ---                  ---                  ---
 Available               False   2026-04-24T16:01:00Z AdaptersNotAtSame... ...
 Reconciled              False   2026-04-24T16:01:00Z MissingRequired...   ...
-ClDeploymentSuccessful  True    2026-04-24T16:01:00Z ManualStatusPost      Status posted via hf.adapter.status.sh
-ClJobSuccessful         False   2026-04-24T16:01:00Z ManualStatusPost      Status posted via hf.adapter.status.sh
-ClNamespaceSuccessful   True    2026-04-24T16:01:00Z ManualStatusPost      Status posted via hf.adapter.status.sh
+ClDeploymentSuccessful  True    2026-04-24T16:01:00Z ManualStatusPost      Status posted via hf adapter post-status
+ClJobSuccessful         False   2026-04-24T16:01:00Z ManualStatusPost      Status posted via hf adapter post-status
+ClNamespaceSuccessful   True    2026-04-24T16:01:00Z ManualStatusPost      Status posted via hf adapter post-status
 ```
 
 ### Requirement: Get Cluster Adapter Statuses
 
 The statuses table SHALL include a FINALIZED column in addition to AVAILABLE.
 
-#### Scenario: Get statuses table (MODIFIED — add FINALIZED column)
+#### Scenario: Get statuses table
 
 - WHEN the user runs `hf cluster statuses --output table`
 - THEN the CLI MUST output columns: ADAPTER, GEN, AVAILABLE, FINALIZED
@@ -268,22 +271,3 @@ The CLI SHALL list all clusters via GET /clusters.
 - WHEN the user runs `hf cluster list --output table`
 - THEN the CLI MUST output a table with columns: ID, NAME, GEN, STATUS
 - AND STATUS MUST be derived from conditions: green dot if Available=True AND Reconciled=True, otherwise red dot (or plain text in no-color mode)
-
-### Requirement: Update Cluster
-
-The CLI SHALL update a cluster's fields via PATCH.
-
-#### Scenario: Update cluster name
-
-- GIVEN a valid cluster ID and --name flag
-- WHEN the user runs `hf cluster update <id> --name <new-name>`
-- THEN the CLI MUST send PATCH to `/api/hyperfleet/v1/clusters/<id>` with `{"name": "<new-name>"}`
-- AND output the updated Cluster as JSON
-
-#### Scenario: Update cluster replicas
-
-- GIVEN a valid cluster ID and --replicas flag
-- WHEN the user runs `hf cluster update <id> --replicas <n>`
-- THEN the CLI MUST send PATCH to `/api/hyperfleet/v1/clusters/<id>` with `{"spec": {"replicas": "<n>"}}`
-- AND output the updated Cluster as JSON
-

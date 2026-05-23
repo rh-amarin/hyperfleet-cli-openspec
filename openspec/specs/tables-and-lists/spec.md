@@ -28,7 +28,9 @@ For condition columns the generation comes from `condition.observed_generation`.
 ### Deletion marker
 
 When a resource has `deleted_time` set, the generation cell MUST append a red `❌` icon (e.g., `3 ❌`). Additionally, adapter columns for that resource MUST use the `Finalized` condition (instead of `Available`) when reading the adapter's status, reflecting that the adapter is reporting on finalization rather than availability.
+
 ## Requirements
+
 ### Requirement: List Clusters (JSON)
 
 The CLI SHALL list all clusters as raw JSON.
@@ -68,12 +70,12 @@ The CLI SHALL list all clusters as raw JSON.
 
 ### Requirement: Cluster Table View
 
-The CLI SHALL display clusters in a formatted table with dynamic condition and adapter columns when the `--table` flag is passed to `hf cluster list`.
+The CLI SHALL display clusters in a formatted table with dynamic condition and adapter columns when `--output table` is passed to `hf cluster list`.
 
 #### Scenario: Empty table
 
 - GIVEN no clusters exist
-- WHEN the user runs `hf cluster list --table`
+- WHEN the user runs `hf cluster list --output table`
 - THEN the CLI MUST output table headers only: `ID  NAME  GEN` with a separator line
 
 **Example**:
@@ -85,7 +87,7 @@ ID   NAME  GEN
 #### Scenario: Populated table
 
 - GIVEN clusters exist
-- WHEN the user runs `hf cluster list --table`
+- WHEN the user runs `hf cluster list --output table`
 - THEN the CLI MUST:
   1. Fetch all clusters via GET `/api/hyperfleet/v1/clusters`
   2. For each cluster, fetch its adapter statuses via GET `/api/hyperfleet/v1/clusters/{id}/statuses`
@@ -114,12 +116,12 @@ ID                                    NAME                GEN    Available  Reco
 
 ### Requirement: NodePool Table View
 
-The CLI SHALL display nodepools in the current cluster as a formatted table when the `--table` flag is passed to `hf nodepool list`.
+The CLI SHALL display nodepools in the current cluster as a formatted table when `--output table` is passed to `hf nodepool list`.
 
 #### Scenario: Populated nodepool table
 
 - GIVEN nodepools exist in the current cluster
-- WHEN the user runs `hf nodepool list --table`
+- WHEN the user runs `hf nodepool list --output table`
 - THEN the CLI MUST:
   1. Fetch all nodepools via GET `/api/hyperfleet/v1/clusters/{cluster_id}/nodepools`
   2. For each nodepool, fetch its adapter statuses via GET `/api/hyperfleet/v1/clusters/{cluster_id}/nodepools/{id}/statuses`
@@ -141,26 +143,20 @@ ID                                    NAME      REPLICAS  TYPE           GEN  Av
 
 ### Requirement: Combined Resources Overview
 
-The CLI SHALL display a combined table of all clusters and their nested nodepools.
+The CLI SHALL display a combined table of all clusters and their nested nodepools via `hf resources` and `hf table`.
 
-`hf table` and `hf resources` MUST default to table output format without requiring `--output table`. JSON and YAML remain available via `--output json` and `--output yaml` respectively.
+`hf table` and `hf resources` default to JSON output. Pass `--output table` to render the combined table.
 
-#### Scenario: Display combined resources table (default table format)
-
-- **GIVEN** clusters and nodepools exist
-- **WHEN** the user runs `hf table` (no `--output` flag)
-- **THEN** the CLI MUST render the full combined table (not JSON)
-
-#### Scenario: Override to JSON
+#### Scenario: Display combined resources JSON (default)
 
 - **GIVEN** clusters exist
-- **WHEN** the user runs `hf table --output json`
-- **THEN** the CLI MUST output the cluster list as JSON (existing behavior preserved)
+- **WHEN** the user runs `hf table` or `hf resources` (no `--output` flag)
+- **THEN** the CLI MUST output the cluster list as JSON
 
-#### Scenario: Display combined resources table (existing behavior)
+#### Scenario: Display combined resources table
 
 - **GIVEN** clusters and nodepools exist
-- **WHEN** the user runs `hf table`
+- **WHEN** the user runs `hf table --output table` or `hf resources --output table`
 - **THEN** the CLI MUST:
   1. Fetch all clusters
   2. For each cluster, fetch its nodepools and adapter statuses
@@ -174,33 +170,61 @@ The CLI SHALL display a combined table of all clusters and their nested nodepool
 - **AND** each cluster's nodepools MUST appear immediately after their parent cluster row
 - **AND** dot rendering and the deletion marker MUST follow the rules in "Table Column Architecture"
 
+#### Scenario: hf table alias
+
+- GIVEN the user runs `hf table`
+- WHEN the command executes
+- THEN it MUST produce the same output as `hf resources`
+
+#### Scenario: JSON output skips per-resource fetching
+
+- GIVEN the user runs `hf resources` or `hf resources --output json`
+- THEN the CLI MUST output the raw clusters list JSON response
+- AND MUST NOT fetch nodepools or adapter statuses
+
 ### Requirement: Watch Mode for Table Commands
 
-`hf table --watch`, `hf resources --watch`, `hf cluster list --watch`, and `hf nodepool list --watch` MUST continuously refresh the table output at the configured interval. The refresh interval MUST default to 5 seconds and MAY be changed with `--seconds / -s`.
+The CLI SHALL support a `--watch` flag on `hf cluster list`, `hf nodepool list`, `hf table`, and `hf resources` that causes the table to refresh continuously at a configurable interval.
 
-For commands that use fast-tick rendering (500 ms spinner interval decoupled from the data-fetch interval), the CLI MUST additionally display a live countdown line above the table headers on every render tick, showing the number of seconds remaining until the next data fetch and an animated braille spinner.
+When `--watch` is active the CLI MUST:
+1. Clear the terminal screen using ANSI escape sequences before each render.
+2. Re-fetch all data from the API on every tick.
+3. Re-render the full table after each fetch.
+4. Continue until the user interrupts with SIGINT (Ctrl+C) or SIGTERM.
+5. Exit cleanly on interrupt with no partial-line output.
 
-#### Scenario: Combined table watch mode — countdown line shown
+A `-s <seconds>` flag (default `5`) controls the refresh interval. The minimum accepted value is `1`.
 
-- GIVEN `hf table --watch` is running with a refresh interval of N seconds
-- WHEN the table is rendered (every 500 ms)
-- THEN the CLI MUST print a line of the form `↻ Xs  <spinner>` above the table headers
-- AND `X` MUST be the ceiling of the number of seconds remaining until the next data fetch (range: 1 to N)
-- AND `<spinner>` MUST be the current braille spinner frame, advancing every 500 ms
-- AND the line MUST appear flush left, directly above the `ID` column header
+#### Scenario: Cluster list watch mode — basic refresh
 
-#### Scenario: Combined table watch mode — countdown resets after data refresh
+- **WHEN** the user runs `hf cluster list --output table --watch`
+- **THEN** the CLI MUST render the cluster table immediately, then re-render every 5 seconds
+- **AND** each render MUST be preceded by a terminal clear
 
-- GIVEN `hf table --watch` is running with a refresh interval of N seconds
-- WHEN a data fetch completes successfully
-- THEN the countdown MUST reset to N on the next render tick
+#### Scenario: Cluster list watch mode — custom frequency
 
-#### Scenario: No countdown line in non-watch mode
+- **WHEN** the user runs `hf cluster list --output table --watch -s 10`
+- **THEN** the CLI MUST refresh every 10 seconds
 
-- GIVEN the user runs `hf table` without `--watch`
-- WHEN the table is rendered once and exits
-- THEN the CLI MUST NOT print any `↻` countdown line
-- AND the output MUST be byte-for-byte identical to the output before this change
+#### Scenario: Nodepool list watch mode
+
+- **WHEN** the user runs `hf nodepool list --output table --watch`
+- **THEN** the CLI MUST render the nodepool table immediately, then re-render every 5 seconds
+
+#### Scenario: Combined table watch mode
+
+- **WHEN** the user runs `hf table --output table --watch`
+- **THEN** the CLI MUST render the combined cluster+nodepool table immediately, then re-render every 5 seconds
+
+#### Scenario: Watch mode — graceful exit
+
+- **WHEN** the user sends SIGINT (Ctrl+C) while `--watch` is active
+- **THEN** the CLI MUST exit with code 0 and leave the terminal in a clean state
+
+#### Scenario: Watch mode — API error during refresh
+
+- **WHEN** an API call fails during a watch refresh cycle
+- **THEN** the CLI MUST exit with a non-zero code and print the error message
 
 ### Requirement: Adapter Activity Indicator
 
@@ -226,4 +250,3 @@ The activity check computes `time.Since(lastReportTime) < 2 × frequencySecs`. I
 
 - **WHEN** an adapter's `last_report_time` is empty or unparseable
 - **THEN** the adapter MUST be treated as inactive (no spinner)
-

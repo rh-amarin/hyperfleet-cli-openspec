@@ -1,0 +1,40 @@
+=== RUN   TestExecuteHelp
+--- PASS: TestExecuteHelp (0.00s)
+=== RUN   TestGlobalFlagsRegistered
+--- PASS: TestGlobalFlagsRegistered (0.00s)
+=== RUN   TestAutoPortForward_DisabledByDefault
+--- PASS: TestAutoPortForward_DisabledByDefault (0.00s)
+=== RUN   TestLoadTemplate_EmbeddedDefault_Cluster
+--- PASS: TestLoadTemplate_EmbeddedDefault_Cluster (0.00s)
+=== RUN   TestLoadTemplate_EmbeddedDefault_Nodepool
+--- PASS: TestLoadTemplate_EmbeddedDefault_Nodepool (0.00s)
+=== RUN   TestLoadTemplate_FlagFileOverride
+--- PASS: TestLoadTemplate_FlagFileOverride (0.00s)
+=== RUN   TestLoadTemplate_MalformedJSON
+--- PASS: TestLoadTemplate_MalformedJSON (0.00s)
+=== RUN   TestLoadTemplate_FlagFileMissing
+--- PASS: TestLoadTemplate_FlagFileMissing (0.00s)
+=== RUN   TestRunWatch_CallsFnImmediately
+--- PASS: TestRunWatch_CallsFnImmediately (0.00s)
+=== RUN   TestRunWatch_StopsOnContextCancel
+--- PASS: TestRunWatch_StopsOnContextCancel (0.00s)
+=== RUN   TestRunWatch_StopsOnFnError
+--- PASS: TestRunWatch_StopsOnFnError (0.00s)
+=== RUN   TestRunWatch_UsesAltScreenAndClearsOnRender
+--- PASS: TestRunWatch_UsesAltScreenAndClearsOnRender (0.00s)
+=== RUN   TestRunWatchFast_CallsFnImmediatelyWithRefresh
+--- PASS: TestRunWatchFast_CallsFnImmediatelyWithRefresh (0.00s)
+=== RUN   TestRunWatchFast_SpinnerTicksHaveRefreshFalse
+--- PASS: TestRunWatchFast_SpinnerTicksHaveRefreshFalse (0.50s)
+=== RUN   TestRunWatchFast_StopsOnContextCancel
+--- PASS: TestRunWatchFast_StopsOnContextCancel (0.00s)
+=== RUN   TestRunWatchFast_StopsOnFnError
+--- PASS: TestRunWatchFast_StopsOnFnError (0.00s)
+=== RUN   TestRunWatchFast_UsesAltScreenAndClearsOnRender
+--- PASS: TestRunWatchFast_UsesAltScreenAndClearsOnRender (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/cmd	0.831s
+=== RUN   TestItemFields
+--- PASS: TestItemFields (0.00s)
+PASS
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/selector	0.034s

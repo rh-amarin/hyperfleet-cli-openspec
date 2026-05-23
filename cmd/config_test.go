@@ -107,26 +107,26 @@ func TestActiveEnvGuard_BlocksConfigSet(t *testing.T) {
 
 func TestActiveEnvGuard_BypassEnvList(t *testing.T) {
 	dir := t.TempDir()
-	_, err := runCmd(t, dir, "config", "env", "list")
+	_, err := runCmd(t, dir, "env", "list")
 	if err != nil {
-		t.Errorf("config env list should bypass guard, got: %v", err)
+		t.Errorf("env list should bypass guard, got: %v", err)
 	}
 }
 
 func TestActiveEnvGuard_BypassEnvCreate(t *testing.T) {
 	dir := t.TempDir()
-	_, err := runCmd(t, dir, "config", "env", "create", "myenv")
+	_, err := runCmd(t, dir, "env", "create", "myenv")
 	if err != nil {
-		t.Errorf("config env create should bypass guard, got: %v", err)
+		t.Errorf("env create should bypass guard, got: %v", err)
 	}
 }
 
 func TestActiveEnvGuard_BypassEnvActivate(t *testing.T) {
 	dir := t.TempDir()
 	makeEnv(t, dir, "dev", "http://dev:8000")
-	_, err := runCmd(t, dir, "config", "env", "activate", "dev")
+	_, err := runCmd(t, dir, "env", "activate", "dev")
 	if err != nil {
-		t.Errorf("config env activate should bypass guard, got: %v", err)
+		t.Errorf("env activate should bypass guard, got: %v", err)
 	}
 }
 
@@ -329,7 +329,7 @@ func TestConfigSet_InvalidSection(t *testing.T) {
 	}
 }
 
-// ---- config env list ----
+// ---- env list ----
 
 func TestConfigEnvList(t *testing.T) {
 	dir := t.TempDir()
@@ -337,7 +337,7 @@ func TestConfigEnvList(t *testing.T) {
 	makeEnv(t, dir, "prod", "http://prod:8000")
 	setActiveEnv(t, dir, "dev")
 
-	out, err := runCmd(t, dir, "config", "env", "list")
+	out, err := runCmd(t, dir, "env", "list")
 	if err != nil {
 		t.Fatalf("config env list: %v", err)
 	}
@@ -354,18 +354,18 @@ func TestConfigEnvList(t *testing.T) {
 
 func TestConfigEnvList_Empty(t *testing.T) {
 	dir := t.TempDir()
-	out, err := runCmd(t, dir, "config", "env", "list")
+	out, err := runCmd(t, dir, "env", "list")
 	if err != nil {
 		t.Fatalf("config env list (empty): %v", err)
 	}
-	if !strings.Contains(out, "hf config env create") {
+	if !strings.Contains(out, "hf env create") {
 		t.Errorf("empty list should reference create command: %q", out)
 	}
 }
 
 func TestConfigEnvList_Alias(t *testing.T) {
 	dir := t.TempDir()
-	_, err := runCmd(t, dir, "config", "env", "ls")
+	_, err := runCmd(t, dir, "env", "ls")
 	if err != nil {
 		t.Fatalf("config env ls alias: %v", err)
 	}
@@ -375,7 +375,7 @@ func TestConfigEnvList_Alias(t *testing.T) {
 
 func TestConfigEnvCreate_CreatesFileAndActivates(t *testing.T) {
 	dir := t.TempDir()
-	out, err := runCmd(t, dir, "config", "env", "create", "myenv")
+	out, err := runCmd(t, dir, "env", "create", "myenv")
 	if err != nil {
 		t.Fatalf("config env create: %v", err)
 	}
@@ -397,7 +397,7 @@ func TestConfigEnvCreate_CreatesFileAndActivates(t *testing.T) {
 
 func TestConfigEnvCreate_PrintsFilePath(t *testing.T) {
 	dir := t.TempDir()
-	out, err := runCmd(t, dir, "config", "env", "create", "myenv")
+	out, err := runCmd(t, dir, "env", "create", "myenv")
 	if err != nil {
 		t.Fatalf("config env create: %v", err)
 	}
@@ -408,7 +408,7 @@ func TestConfigEnvCreate_PrintsFilePath(t *testing.T) {
 
 func TestConfigEnvCreate_SeedsFromTemplate(t *testing.T) {
 	dir := t.TempDir()
-	_, err := runCmd(t, dir, "config", "env", "create", "myenv")
+	_, err := runCmd(t, dir, "env", "create", "myenv")
 	if err != nil {
 		t.Fatalf("config env create: %v", err)
 	}
@@ -423,7 +423,7 @@ func TestConfigEnvCreate_Duplicate(t *testing.T) {
 	dir := t.TempDir()
 	makeEnv(t, dir, "myenv", "http://x:8000")
 
-	_, err := runCmd(t, dir, "config", "env", "create", "myenv")
+	_, err := runCmd(t, dir, "env", "create", "myenv")
 	if err == nil {
 		t.Fatal("expected error for duplicate env")
 	}
@@ -434,7 +434,7 @@ func TestConfigEnvCreate_Duplicate(t *testing.T) {
 
 func TestConfigEnvCreate_NoArg_ShowsHelp(t *testing.T) {
 	dir := t.TempDir()
-	out, err := runCmd(t, dir, "config", "env", "create")
+	out, err := runCmd(t, dir, "env", "create")
 	if err == nil {
 		t.Fatal("expected error when no name given")
 	}
@@ -449,7 +449,7 @@ func TestConfigEnvActivate(t *testing.T) {
 	dir := t.TempDir()
 	makeEnv(t, dir, "prod", "http://prod:8000")
 
-	out, err := runCmd(t, dir, "config", "env", "activate", "prod")
+	out, err := runCmd(t, dir, "env", "activate", "prod")
 	if err != nil {
 		t.Fatalf("config env activate: %v", err)
 	}
@@ -465,7 +465,7 @@ func TestConfigEnvActivate(t *testing.T) {
 
 func TestConfigEnvActivate_NotFound(t *testing.T) {
 	dir := t.TempDir()
-	_, err := runCmd(t, dir, "config", "env", "activate", "nonexistent")
+	_, err := runCmd(t, dir, "env", "activate", "nonexistent")
 	if err == nil {
 		t.Fatal("expected error for non-existent env")
 	}
@@ -480,7 +480,7 @@ func TestConfigEnvDelete(t *testing.T) {
 	dir := t.TempDir()
 	makeEnv(t, dir, "old", "http://old:8000")
 
-	_, err := runCmd(t, dir, "config", "env", "delete", "old")
+	_, err := runCmd(t, dir, "env", "delete", "old")
 	if err != nil {
 		t.Fatalf("config env delete: %v", err)
 	}
@@ -496,7 +496,7 @@ func TestConfigEnvDelete_ClearsActiveEnv(t *testing.T) {
 	makeEnv(t, dir, "active-one", "http://x:8000")
 	setActiveEnv(t, dir, "active-one")
 
-	_, err := runCmd(t, dir, "config", "env", "delete", "active-one")
+	_, err := runCmd(t, dir, "env", "delete", "active-one")
 	if err != nil {
 		t.Fatalf("config env delete: %v", err)
 	}
@@ -511,7 +511,7 @@ func TestConfigEnvDelete_Alias(t *testing.T) {
 	dir := t.TempDir()
 	makeEnv(t, dir, "todelete", "http://x:8000")
 
-	_, err := runCmd(t, dir, "config", "env", "rm", "todelete")
+	_, err := runCmd(t, dir, "env", "rm", "todelete")
 	if err != nil {
 		t.Fatalf("config env rm alias: %v", err)
 	}
@@ -519,7 +519,7 @@ func TestConfigEnvDelete_Alias(t *testing.T) {
 
 func TestConfigEnvDelete_NotFound(t *testing.T) {
 	dir := t.TempDir()
-	_, err := runCmd(t, dir, "config", "env", "delete", "ghost")
+	_, err := runCmd(t, dir, "env", "delete", "ghost")
 	if err == nil {
 		t.Fatal("expected error for non-existent env")
 	}
@@ -534,7 +534,7 @@ func TestConfigEnvShow(t *testing.T) {
 	dir := t.TempDir()
 	makeEnv(t, dir, "staging", "http://staging:8000")
 
-	out, err := runCmd(t, dir, "config", "env", "show", "staging")
+	out, err := runCmd(t, dir, "env", "show", "staging")
 	if err != nil {
 		t.Fatalf("config env show: %v", err)
 	}
@@ -548,7 +548,7 @@ func TestConfigEnvShow_ActivePrefix(t *testing.T) {
 	makeEnv(t, dir, "myenv", "http://x:8000")
 	setActiveEnv(t, dir, "myenv")
 
-	out, err := runCmd(t, dir, "config", "env", "show", "myenv")
+	out, err := runCmd(t, dir, "env", "show", "myenv")
 	if err != nil {
 		t.Fatalf("config env show: %v", err)
 	}
@@ -559,7 +559,7 @@ func TestConfigEnvShow_ActivePrefix(t *testing.T) {
 
 func TestConfigEnvShow_NotFound(t *testing.T) {
 	dir := t.TempDir()
-	_, err := runCmd(t, dir, "config", "env", "show", "ghost")
+	_, err := runCmd(t, dir, "env", "show", "ghost")
 	if err == nil {
 		t.Fatal("expected error for non-existent env")
 	}

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -254,183 +253,15 @@ func configSetInteractive(cmd *cobra.Command, s *config.Store) error {
 	return configShowCmd.RunE(cmd, nil)
 }
 
-// ---- env subcommands ----
-
-var configEnvCmd = &cobra.Command{
-	Use:   "env",
-	Short: "Manage environment profiles",
-}
-
-var configEnvListCmd = &cobra.Command{
-	Use:     "list",
-	Aliases: []string{"ls"},
-	Short:   "List all environment profiles",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		s := config.NewFromEnv()
-		if err := s.Load(); err != nil {
-			return fmt.Errorf("[ERROR] loading config: %w", err)
-		}
-		names, err := s.ListEnvironments()
-		if err != nil {
-			return fmt.Errorf("[ERROR] listing environments: %w", err)
-		}
-		if len(names) == 0 {
-			fmt.Fprintln(cmd.OutOrStdout(), "No environments configured. Run 'hf config env create <name>' to create one.")
-			return nil
-		}
-		active := s.ActiveEnvironment()
-
-		w := cmd.OutOrStdout()
-		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(tw, "NAME\tACTIVE")
-		for _, name := range names {
-			activeMarker := ""
-			if name == active {
-				activeMarker = "✓"
-			}
-			fmt.Fprintf(tw, "%s\t%s\n", name, activeMarker)
-		}
-		return tw.Flush()
-	},
-}
-
-var configEnvCreateCmd = &cobra.Command{
-	Use:   "create <name>",
-	Short: "Create a new environment profile from the default template and activate it",
-	Args:  helpOnNoArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		name := args[0]
-		s := config.NewFromEnv()
-		if err := s.Load(); err != nil {
-			return fmt.Errorf("[ERROR] loading config: %w", err)
-		}
-
-		envDir := filepath.Join(s.ConfigDir(), "environments")
-		if err := os.MkdirAll(envDir, 0700); err != nil {
-			return err
-		}
-		profPath := filepath.Join(envDir, name+".yaml")
-		if _, err := os.Stat(profPath); err == nil {
-			return fmt.Errorf("[ERROR] environment '%s' already exists", name)
-		}
-
-		if err := os.WriteFile(profPath, config.ConfigTemplateYAML, 0600); err != nil {
-			return err
-		}
-		if err := s.ActivateEnvironment(name); err != nil {
-			return err
-		}
-		fmt.Fprintf(cmd.OutOrStdout(), "Environment '%s' created and activated.\nEdit your configuration: %s\n", name, profPath)
-		return nil
-	},
-}
-
-var configEnvActivateCmd = &cobra.Command{
-	Use:   "activate <name>",
-	Short: "Activate an environment profile",
-	Args:  helpOnNoArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		name := args[0]
-		s := config.NewFromEnv()
-		if err := s.Load(); err != nil {
-			return fmt.Errorf("[ERROR] loading config: %w", err)
-		}
-		if err := s.ActivateEnvironment(name); err != nil {
-			return err
-		}
-		fmt.Fprintf(cmd.OutOrStdout(), "Active environment set to '%s'.\n", name)
-		return nil
-	},
-}
-
-var configEnvDeleteCmd = &cobra.Command{
-	Use:     "delete <name>",
-	Aliases: []string{"rm"},
-	Short:   "Delete an environment profile",
-	Args:    helpOnNoArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		name := args[0]
-		s := config.NewFromEnv()
-		if err := s.Load(); err != nil {
-			return fmt.Errorf("[ERROR] loading config: %w", err)
-		}
-
-		profPath := filepath.Join(s.ConfigDir(), "environments", name+".yaml")
-		if _, err := os.Stat(profPath); os.IsNotExist(err) {
-			return fmt.Errorf("[ERROR] environment '%s' not found", name)
-		}
-		active := s.ActiveEnvironment()
-		if err := os.Remove(profPath); err != nil {
-			return err
-		}
-		if active == name {
-			_ = s.SetState("active-environment", "")
-		}
-		return nil
-	},
-}
-
-var configEnvShowCmd = &cobra.Command{
-	Use:   "show <name>",
-	Short: "Show an environment profile",
-	Args:  helpOnNoArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		name := args[0]
-		s := config.NewFromEnv()
-		if err := s.Load(); err != nil {
-			return fmt.Errorf("[ERROR] loading config: %w", err)
-		}
-		return showEnvProfile(cmd, s, name)
-	},
-}
-
 func init() {
 	rootCmd.AddCommand(configCmd)
 
 	configCmd.AddCommand(configShowCmd)
 	configCmd.AddCommand(configGetCmd)
 	configCmd.AddCommand(configSetCmd)
-	configCmd.AddCommand(configEnvCmd)
-
-	configEnvCmd.AddCommand(configEnvListCmd)
-	configEnvCmd.AddCommand(configEnvCreateCmd)
-	configEnvCmd.AddCommand(configEnvActivateCmd)
-	configEnvCmd.AddCommand(configEnvDeleteCmd)
-	configEnvCmd.AddCommand(configEnvShowCmd)
 }
 
 // ---- helpers ----
-
-// showEnvProfile prints the content of a named environment profile file.
-func showEnvProfile(cmd *cobra.Command, s *config.Store, name string) error {
-	profPath := filepath.Join(s.ConfigDir(), "environments", name+".yaml")
-	raw, err := os.ReadFile(profPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("[ERROR] environment '%s' not found", name)
-		}
-		return err
-	}
-
-	w := cmd.OutOrStdout()
-	if s.ActiveEnvironment() == name {
-		fmt.Fprintf(w, "[active] %s\n", profPath)
-	} else {
-		fmt.Fprintln(w, profPath)
-	}
-
-	var prof map[string]map[string]string
-	if err := yaml.Unmarshal(raw, &prof); err != nil {
-		return err
-	}
-	redactSecrets(prof)
-	b, err := yaml.Marshal(prof)
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(b)
-	return err
-}
 
 // resolvedSection returns all key/value pairs for a section with secrets masked.
 func resolvedSection(s *config.Store, section string) map[string]string {

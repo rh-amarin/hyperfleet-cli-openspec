@@ -46,7 +46,7 @@ It replaces a suite of bash scripts with a single binary — no external tools r
 			return fmt.Errorf("[ERROR] loading config: %w", err)
 		}
 		if _, err := s.RequireActiveEnvironment(); err != nil {
-			return fmt.Errorf("[ERROR] no active environment\n  → run 'hf config env create <name>' to create one\n  → run 'hf config env activate <name>' to activate an existing one")
+			return fmt.Errorf("[ERROR] no active environment\n  → run 'hf env create <name>' to create one\n  → run 'hf env activate <name>' to activate an existing one")
 		}
 		if s.Get("hyperfleet", "auto-port-forward") == "true" {
 			startAutoPortForwards(s)
@@ -126,11 +126,11 @@ func startAutoPortForwards(s *config.Store) {
 }
 
 // isBypassCommand returns true for commands that may run without an active environment.
-// Bypassed: all `config env *` subcommands, version, completion, help,
+// Bypassed: all `hf env *` subcommands, version, completion, help,
 // and cobra's built-in completion helpers.
 func isBypassCommand(cmd *cobra.Command) bool {
 	path := cmd.CommandPath()
-	if strings.Contains(path, "config env") {
+	if strings.HasPrefix(path, "hf env") {
 		return true
 	}
 	leaf := cmd.Name()

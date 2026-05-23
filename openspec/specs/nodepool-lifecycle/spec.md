@@ -131,16 +131,16 @@ The CLI SHALL retrieve and display full details of a specific nodepool.
 
 ### Requirement: Interactive NodePool View
 
-The CLI SHALL support an interactive split-screen viewer for a nodepool via `hf nodepool get -i`.
+The CLI SHALL support an interactive split-screen viewer for a nodepool via `hf nodepool get -i`. This is a **read-only viewer** — there is no text input or filter. It replaces the old "pick a cluster" behavior that `-i` had on other subcommands.
 
 #### Scenario: Open interactive viewer
 
 - GIVEN cluster-id and nodepool-id are set in config (or an explicit nodepool ID is provided)
 - WHEN the user runs `hf nodepool get -i` (or `hf nodepool get <id> -i`)
-- THEN the CLI MUST open an interactive split-screen view
-- AND the left panel MUST display the list of top-level JSON field names (e.g. `id`, `name`, `generation`, `labels`, `spec`, `status`) as a navigable list
-- AND the right panel MUST display the full nodepool JSON with syntax coloring
-- AND the right panel MUST scroll to highlight or expand the field selected in the left panel
+- THEN the CLI MUST fetch the nodepool and open an interactive split-screen view
+- AND the left panel MUST display a compact summary of the nodepool's key fields: `name`, `id`, `generation`, `spec.replicas`, `spec.platform.type`, and a one-line status derived from `status.conditions`
+- AND the right panel MUST display the complete nodepool JSON with syntax coloring, scrollable with arrow keys
+- AND there is NO text input field — the view is read-only; the user navigates the right panel directly
 - AND pressing `q` or Escape MUST exit the view cleanly with code 0
 
 #### Scenario: Interactive viewer — no nodepool in state
@@ -282,43 +282,51 @@ The statuses table SHALL include a FINALIZED column in addition to AVAILABLE.
 
 ### Requirement: Interactive NodePool Status Filter
 
-The CLI SHALL provide an interactive split-screen filter for nodepool adapter statuses via `hf nodepool statuses -i`.
+The CLI SHALL provide an interactive split-screen filter for nodepool adapter statuses via `hf nodepool statuses -i`. This is a **typed filter** — the primary interaction is typing a query string, not navigating a list. It is entirely different from `hf nodepool get -i` (which is a read-only viewer with no input).
 
-#### Scenario: Split-screen layout
+#### Scenario: Split-screen layout and filter input
 
 - GIVEN cluster-id and nodepool-id are set in config and adapter statuses exist
 - WHEN the user runs `hf nodepool statuses -i`
-- THEN the CLI MUST open a split-screen interactive view
-- AND the left panel MUST display two labelled groups:
-  - **Adapters** — the unique adapter names, derived from the `adapter` field of each status item
-  - **Conditions** — the unique condition types, derived from `conditions[].type` across all status items; condition types start with an uppercase letter
-- AND the right panel MUST show the results filtered by the current query string
-- AND the filter input field MUST be displayed at the top of the left panel
+- THEN the CLI MUST fetch all adapter statuses and open a split-screen view
+- AND the left panel MUST contain:
+  - A **text input field at the top** where the user types their filter query
+  - A **reference section below** showing two labelled groups:
+    - **Adapters** — the unique adapter names (from the `adapter` field of each status item)
+    - **Conditions** — the unique condition types (from `conditions[].type` across all items); these always start with an uppercase letter
+  - The reference groups are for visual reference only — they are not selectable or navigable; the user interacts only via the text input
+- AND the right panel MUST show the filtered results, updating as the user types
 - AND pressing `q` or Escape MUST exit the view cleanly with code 0
 
 #### Scenario: Filter by adapter name (lowercase-prefixed query)
 
 - GIVEN the user is in the interactive status filter view
-- WHEN the user types a query string whose first character is lowercase (e.g. `np-configmap`)
-- THEN the right panel MUST show the full status item(s) where the `adapter` field contains the query as a substring
-- AND all conditions of the matching adapter(s) MUST be included in the result
+- WHEN the user types a query string whose first character is **lowercase** (e.g. `np-configmap`)
+- THEN the filter targets the `adapter` field of each status item
+- AND the right panel MUST show the full status item(s) where `adapter` contains the query as a substring
+- AND all conditions of the matching adapter(s) MUST be shown
+
+**Example** — query `np-configmap` shows the entire `np-configmap` adapter status including all its conditions.
 
 #### Scenario: Filter by condition type (uppercase-prefixed query)
 
 - GIVEN the user is in the interactive status filter view
-- WHEN the user types a query string whose first character is uppercase (e.g. `Available`)
-- THEN the right panel MUST show all individual conditions where `type` contains the query as a substring, across all adapters
-- AND each displayed condition MUST include its parent adapter name to differentiate conditions from different adapters
+- WHEN the user types a query string whose first character is **uppercase** (e.g. `Available`)
+- THEN the filter targets `conditions[].type` across all adapter status items
+- AND the right panel MUST show only the individual conditions where `type` contains the query as a substring, collected from all adapters
+- AND each displayed condition MUST be labelled with its parent adapter name (e.g. `np-configmap › Available: True`) to differentiate same-type conditions from different adapters
+
+**Example** — query `Available` shows one row per adapter that has an `Available` condition, each labelled with the adapter name.
 
 #### Scenario: Empty query — show all
 
 - GIVEN the user is in the interactive status filter view
-- WHEN the filter query is empty
-- THEN the right panel MUST display all adapter statuses unfiltered
+- WHEN the filter input is empty
+- THEN the right panel MUST display all adapter statuses unfiltered (same as `hf nodepool statuses` default JSON output)
 
 #### Scenario: No matching results
 
-- GIVEN the user types a query with no matching adapter names or condition types
+- GIVEN the user types a query that matches no adapter name and no condition type
 - THEN the right panel MUST display `(no results)`
 
 ### Requirement: Display NodePool Table

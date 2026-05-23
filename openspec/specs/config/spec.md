@@ -82,6 +82,18 @@ The CLI SHALL allow setting individual configuration properties using dotted sec
 - AND after the user enters a value the CLI MUST write it to the active environment file
 - AND the CLI MUST display the full active configuration after the successful write
 
+#### Scenario: Show current value in prompt
+
+- GIVEN an active environment is configured
+- WHEN the user provides a key directly (`hf config set <section.key>`) or selects a key from the interactive picker
+- AND the CLI prompts for the new value on stdin
+- THEN the prompt MUST display the current value of that key:
+  ```
+  <section.key> [current: <value>]:
+  ```
+- AND for secret keys (`api-token`, `password`) the current value MUST be masked as `<set>` or `<not set>`
+- AND if the user presses Enter with no input the CLI MUST leave the current value unchanged and exit 0
+
 #### Scenario: Interactive set — user aborts selection
 
 - GIVEN an active environment is configured

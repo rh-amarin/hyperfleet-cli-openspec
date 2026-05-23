@@ -124,6 +124,26 @@ The CLI SHALL retrieve and display full details of a specific cluster.
 }
 ```
 
+### Requirement: Interactive Cluster View
+
+The CLI SHALL support an interactive split-screen viewer for a cluster via `hf cluster get -i`.
+
+#### Scenario: Open interactive viewer
+
+- GIVEN a cluster-id is set in config (or an explicit ID is provided)
+- WHEN the user runs `hf cluster get -i` (or `hf cluster get <id> -i`)
+- THEN the CLI MUST open an interactive split-screen view
+- AND the left panel MUST display the list of top-level JSON field names (e.g. `id`, `name`, `generation`, `labels`, `spec`, `status`) as a navigable list
+- AND the right panel MUST display the full cluster JSON with syntax coloring
+- AND the right panel MUST scroll to highlight or expand the field selected in the left panel
+- AND pressing `q` or Escape MUST exit the view cleanly with code 0
+
+#### Scenario: Interactive viewer — no cluster in state
+
+- GIVEN no cluster-id is set in state and no explicit ID is provided
+- WHEN the user runs `hf cluster get -i`
+- THEN the CLI MUST display the standard missing-cluster-id error and exit 1
+
 ### Requirement: Patch Cluster
 
 The CLI SHALL increment a counter field in the cluster's spec or labels section, triggering a generation bump.
@@ -253,6 +273,47 @@ The statuses table SHALL include a FINALIZED column in addition to AVAILABLE.
 - WHEN the user runs `hf cluster statuses --output table`
 - THEN the CLI MUST output columns: ADAPTER, GEN, AVAILABLE, FINALIZED
 - AND AVAILABLE and FINALIZED columns MUST be color-coded dots: green=True, red=False, `-`=not present
+
+### Requirement: Interactive Cluster Status Filter
+
+The CLI SHALL provide an interactive split-screen filter for adapter statuses via `hf cluster statuses -i`.
+
+#### Scenario: Split-screen layout
+
+- GIVEN a cluster-id is set in config and adapter statuses exist
+- WHEN the user runs `hf cluster statuses -i`
+- THEN the CLI MUST open a split-screen interactive view
+- AND the left panel MUST display two labelled groups:
+  - **Adapters** — the unique adapter names, derived from the `adapter` field of each status item
+  - **Conditions** — the unique condition types, derived from `conditions[].type` across all status items; condition types start with an uppercase letter
+- AND the right panel MUST show the results filtered by the current query string
+- AND the filter input field MUST be displayed at the top of the left panel
+- AND pressing `q` or Escape MUST exit the view cleanly with code 0
+
+#### Scenario: Filter by adapter name (lowercase-prefixed query)
+
+- GIVEN the user is in the interactive status filter view
+- WHEN the user types a query string whose first character is lowercase (e.g. `cl-job`)
+- THEN the right panel MUST show the full status item(s) where the `adapter` field contains the query as a substring
+- AND all conditions of the matching adapter(s) MUST be included in the result
+
+#### Scenario: Filter by condition type (uppercase-prefixed query)
+
+- GIVEN the user is in the interactive status filter view
+- WHEN the user types a query string whose first character is uppercase (e.g. `Health`)
+- THEN the right panel MUST show all individual conditions where `type` contains the query as a substring, across all adapters
+- AND each displayed condition MUST include its parent adapter name to differentiate conditions from different adapters
+
+#### Scenario: Empty query — show all
+
+- GIVEN the user is in the interactive status filter view
+- WHEN the filter query is empty
+- THEN the right panel MUST display all adapter statuses unfiltered
+
+#### Scenario: No matching results
+
+- GIVEN the user types a query with no matching adapter names or condition types
+- THEN the right panel MUST display `(no results)`
 
 ### Requirement: List Clusters
 

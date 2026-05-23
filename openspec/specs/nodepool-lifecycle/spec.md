@@ -282,12 +282,12 @@ The statuses table SHALL include a FINALIZED column in addition to AVAILABLE.
 
 ### Requirement: Interactive NodePool Status Filter
 
-The CLI SHALL provide an interactive split-screen filter for nodepool adapter statuses via `hf nodepool statuses -i`. This is a **typed filter** — the primary interaction is typing a query string, not navigating a list. It is entirely different from `hf nodepool get -i` (which is a read-only viewer with no input).
+The CLI SHALL provide an interactive split-screen filter for nodepool adapter statuses via `hf nodepool statuses --filter`. This is a **typed filter** — the primary interaction is typing a query string, not navigating a list. It is entirely different from `hf nodepool get -i` (which is a read-only viewer with no input). The `-i` flag on `hf nodepool statuses` retains its original behavior of interactively selecting the active nodepool.
 
 #### Scenario: Split-screen layout and filter input
 
 - GIVEN cluster-id and nodepool-id are set in config and adapter statuses exist
-- WHEN the user runs `hf nodepool statuses -i`
+- WHEN the user runs `hf nodepool statuses --filter`
 - THEN the CLI MUST fetch all adapter statuses and open a split-screen view
 - AND the left panel MUST contain:
   - A **text input field at the top** where the user types their filter query
@@ -297,6 +297,7 @@ The CLI SHALL provide an interactive split-screen filter for nodepool adapter st
   - The reference groups are for visual reference only — they are not selectable or navigable; the user interacts only via the text input
 - AND the right panel MUST show the filtered results, updating as the user types
 - AND pressing `q` or Escape MUST exit the view cleanly with code 0
+- AND pressing Enter (selecting the highlighted item) MUST also exit cleanly with code 0
 
 #### Scenario: Filter by adapter name (lowercase-prefixed query)
 

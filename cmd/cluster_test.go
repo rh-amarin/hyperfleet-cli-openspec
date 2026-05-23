@@ -544,6 +544,50 @@ func TestClusterDelete_NotFound(t *testing.T) {
 	}
 }
 
+func TestClusterDelete_Force(t *testing.T) {
+	forceCalled := false
+	var gotBody map[string]string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/force-delete" {
+			forceCalled = true
+			_ = json.NewDecoder(r.Body).Decode(&gotBody)
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, clusterJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	_, err := runClusterCmd(t, dir, "cluster", "delete", clusterID, "--force", "--reason", "stuck in finalizing")
+	if err != nil {
+		t.Fatalf("cluster delete --force: %v", err)
+	}
+	if !forceCalled {
+		t.Error("expected POST to /force-delete endpoint")
+	}
+	if gotBody["reason"] != "stuck in finalizing" {
+		t.Errorf("expected reason in body, got: %v", gotBody)
+	}
+}
+
+func TestClusterDelete_ForceRequiresReason(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	_, err := runClusterCmd(t, dir, "cluster", "delete", clusterID, "--force")
+	if err == nil {
+		t.Fatal("expected error when --reason is missing with --force")
+	}
+	if !strings.Contains(err.Error(), "--reason is required") {
+		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
 // ---- cluster conditions ----
 
 func TestClusterConditions(t *testing.T) {
@@ -1353,39 +1397,6 @@ func TestClusterIDInteractive_Empty(t *testing.T) {
 }
 
 // ---- cluster delete --force ----
-
-func TestClusterDelete_Force(t *testing.T) {
-	var gotMethod, gotPath string
-	var gotBody map[string]string
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotMethod = r.Method
-		gotPath = r.URL.Path
-		if r.Method == http.MethodPost && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/force-delete" {
-			if err := json.NewDecoder(r.Body).Decode(&gotBody); err != nil {
-				http.Error(w, "bad body", http.StatusBadRequest)
-				return
-			}
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		http.NotFound(w, r)
-	}))
-	defer ts.Close()
-
-	dir := setupClusterEnv(t, ts)
-	setClusterIDInState(t, dir, "test", clusterID)
-
-	_, err := runClusterCmd(t, dir, "cluster", "delete", "--force")
-	if err != nil {
-		t.Fatalf("cluster delete --force: %v", err)
-	}
-	if gotMethod != http.MethodPost {
-		t.Errorf("expected POST, got %s", gotMethod)
-	}
-	if gotPath != apiPrefix+"/clusters/"+clusterID+"/force-delete" {
-		t.Errorf("unexpected path: %s", gotPath)
-	}
-}
 
 func TestClusterDelete_Force_WithReason(t *testing.T) {
 	var gotBody map[string]string

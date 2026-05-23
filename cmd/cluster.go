@@ -30,17 +30,18 @@ Subcommands: create, get, list, search, update, patch, delete, conditions, statu
 // ---- flag vars ----
 
 var (
-	clusterCreateName     string
-	clusterCreateFile     string
-	clusterCreateReplicas int
-	clusterCreateNPID     string
-	clusterUpdateName     string
-	clusterUpdateReplicas int
-	clusterListWatch      bool
-	clusterListWatchSecs  int
-	clusterListSearch     string
-	clusterDeleteForce    bool
-	clusterDeleteReason   string
+	clusterCreateName      string
+	clusterCreateFile      string
+	clusterCreateReplicas  int
+	clusterCreateNPID      string
+	clusterUpdateName      string
+	clusterUpdateReplicas  int
+	clusterListWatch       bool
+	clusterListWatchSecs   int
+	clusterListSearch      string
+	clusterDeleteForce     bool
+	clusterDeleteReason    string
+	clusterStatusesFilter  bool
 )
 
 // ---- helpers ----
@@ -450,6 +451,9 @@ var clusterDeleteCmd = &cobra.Command{
 	Short: "Delete a cluster",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if clusterDeleteForce && clusterDeleteReason == "" {
+			return fmt.Errorf("[ERROR] --reason is required when using --force")
+		}
 		s, err := loadConfig()
 		if err != nil {
 			return err
@@ -591,6 +595,10 @@ var clusterStatusesCmd = &cobra.Command{
 		)
 		if err != nil {
 			return handleAPIError(p, err)
+		}
+
+		if clusterStatusesFilter {
+			return runStatusFilterUI(list.Items, noColor)
 		}
 
 		if outputFmt == "table" {
@@ -816,9 +824,10 @@ func init() {
 	clusterListCmd.Flags().StringVar(&clusterListSearch, "search", "", "TSL filter expression (e.g. \"labels.environment='prod'\")")
 
 	clusterIDCmd.Flags().BoolVarP(&clusterIDInteractive, "interactive", "i", false, "interactively select and set the active cluster")
+	clusterDeleteCmd.Flags().BoolVar(&clusterDeleteForce, "force", false, "force-delete the cluster via /force-delete endpoint")
+	clusterDeleteCmd.Flags().StringVar(&clusterDeleteReason, "reason", "", "reason for force-deletion (required with --force)")
 
-	clusterDeleteCmd.Flags().BoolVar(&clusterDeleteForce, "force", false, "force-delete the cluster via POST .../force-delete")
-	clusterDeleteCmd.Flags().StringVar(&clusterDeleteReason, "reason", "", "reason for force-deleting (used with --force)")
+	clusterStatusesCmd.Flags().BoolVar(&clusterStatusesFilter, "filter", false, "open interactive split-screen filter for adapter statuses")
 
 	for _, c := range []*cobra.Command{
 		clusterGetCmd, clusterPatchCmd, clusterDeleteCmd,

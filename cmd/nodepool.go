@@ -29,15 +29,16 @@ Subcommands: create, get, list, search, update, patch, delete, conditions, statu
 // ---- flag vars ----
 
 var (
-	nodepoolCreateName     string
-	nodepoolCreateFile     string
-	nodepoolCreateType     string
-	nodepoolCreateReplicas int
-	nodepoolUpdateName     string
-	nodepoolUpdateReplicas int
-	nodepoolListWatch      bool
-	nodepoolListWatchSecs  int
-	nodepoolListSearch     string
+	nodepoolCreateName      string
+	nodepoolCreateFile      string
+	nodepoolCreateType      string
+	nodepoolCreateReplicas  int
+	nodepoolUpdateName      string
+	nodepoolUpdateReplicas  int
+	nodepoolListWatch       bool
+	nodepoolListWatchSecs   int
+	nodepoolListSearch      string
+	nodepoolStatusesFilter  bool
 )
 
 // ---- helpers ----
@@ -700,6 +701,10 @@ var nodepoolStatusesCmd = &cobra.Command{
 			return handleAPIError(p, err)
 		}
 
+		if nodepoolStatusesFilter {
+			return runStatusFilterUI(list.Items, noColor)
+		}
+
 		if outputFmt == "table" {
 			headers := []string{"ADAPTER", "GEN", "AVAILABLE", "FINALIZED"}
 			rows := make([][]string, 0, len(list.Items))
@@ -940,6 +945,8 @@ func init() {
 
 	nodepoolDeleteCmd.Flags().BoolVar(&nodepoolDeleteForce, "force", false, "force-delete the nodepool via POST .../force-delete")
 	nodepoolDeleteCmd.Flags().StringVar(&nodepoolDeleteReason, "reason", "", "reason for force-deleting (used with --force)")
+
+	nodepoolStatusesCmd.Flags().BoolVar(&nodepoolStatusesFilter, "filter", false, "open interactive split-screen filter for adapter statuses")
 
 	for _, c := range []*cobra.Command{
 		nodepoolGetCmd, nodepoolPatchCmd, nodepoolDeleteCmd, nodepoolForceDeleteCmd,

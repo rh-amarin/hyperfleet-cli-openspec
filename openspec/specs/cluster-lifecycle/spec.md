@@ -276,12 +276,12 @@ The statuses table SHALL include a FINALIZED column in addition to AVAILABLE.
 
 ### Requirement: Interactive Cluster Status Filter
 
-The CLI SHALL provide an interactive split-screen filter for adapter statuses via `hf cluster statuses -i`. This is a **typed filter** — the primary interaction is typing a query string, not navigating a list. It is entirely different from `hf cluster get -i` (which is a read-only viewer with no input).
+The CLI SHALL provide an interactive split-screen filter for adapter statuses via `hf cluster statuses --filter`. This is a **typed filter** — the primary interaction is typing a query string, not navigating a list. It is entirely different from `hf cluster get -i` (which is a read-only viewer with no input). The `-i` flag on `hf cluster statuses` retains its original behavior of interactively selecting the active cluster.
 
 #### Scenario: Split-screen layout and filter input
 
 - GIVEN a cluster-id is set in config and adapter statuses exist
-- WHEN the user runs `hf cluster statuses -i`
+- WHEN the user runs `hf cluster statuses --filter`
 - THEN the CLI MUST fetch all adapter statuses and open a split-screen view
 - AND the left panel MUST contain:
   - A **text input field at the top** where the user types their filter query
@@ -291,6 +291,7 @@ The CLI SHALL provide an interactive split-screen filter for adapter statuses vi
   - The reference groups are for visual reference only — they are not selectable or navigable; the user interacts only via the text input
 - AND the right panel MUST show the filtered results, updating as the user types
 - AND pressing `q` or Escape MUST exit the view cleanly with code 0
+- AND pressing Enter (selecting the highlighted item) MUST also exit cleanly with code 0
 
 #### Scenario: Filter by adapter name (lowercase-prefixed query)
 

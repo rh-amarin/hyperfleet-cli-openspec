@@ -615,7 +615,7 @@ func TestConfigSet_Interactive(t *testing.T) {
 	setActiveEnv(t, dir, "dev")
 
 	old := configSetSel
-	configSetSel = mockSel{idx: 0} // selects hyperfleet.api-url (first item)
+	configSetSel = mockPreviewSel{idx: 0} // selects hyperfleet.api-url (first item)
 	defer func() { configSetSel = old }()
 
 	rootCmd.SetIn(strings.NewReader("http://new:9000\n"))

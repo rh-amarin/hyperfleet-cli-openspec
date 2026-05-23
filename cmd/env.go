@@ -17,6 +17,8 @@ import (
 // envSel is the injectable PreviewSelector used by the bare hf env picker.
 var envSel selector.PreviewSelector = selector.FuzzyPreviewSelector{}
 
+const envPickerHeader = "hf env  —  select an environment to activate\ntype to filter  ·  ↑↓ navigate  ·  Enter to activate  ·  Esc to cancel"
+
 // envCmd is the top-level env management command.
 // Bare invocation launches an interactive fuzzy-picker with a YAML preview panel.
 var envCmd = &cobra.Command{
@@ -63,7 +65,7 @@ Selecting an environment activates it and shows the full config.`,
 			return output.ColorizeYAMLSections(string(raw), noColor)
 		}
 
-		idx, err := envSel.SelectWithPreview(items, previewFn)
+		idx, err := envSel.SelectWithPreview(items, previewFn, envPickerHeader)
 		if err != nil {
 			return err
 		}

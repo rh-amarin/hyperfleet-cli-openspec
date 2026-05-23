@@ -12,7 +12,7 @@ type mockPreviewSel struct {
 	err error
 }
 
-func (m mockPreviewSel) SelectWithPreview(_ []selector.Item, _ func(int) string) (int, error) {
+func (m mockPreviewSel) SelectWithPreview(_ []selector.Item, _ func(int) string, _ string) (int, error) {
 	return m.idx, m.err
 }
 

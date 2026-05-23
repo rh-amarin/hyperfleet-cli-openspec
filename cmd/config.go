@@ -37,7 +37,9 @@ var secretConfigKeys = map[string]bool{
 }
 
 // configSetSel is the selector used by hf config set interactive mode; swapped in tests.
-var configSetSel selector.Selector = selector.FuzzySelector{}
+var configSetSel selector.PreviewSelector = selector.FuzzyPreviewSelector{}
+
+const configSetHeader = "hf config set  —  select a key to edit\ntype to filter  ·  ↑↓ navigate  ·  Enter to set value  ·  Esc to cancel"
 
 // configCmd is the top-level group for configuration management.
 // With no subcommand it runs show.
@@ -231,7 +233,9 @@ func configSetInteractive(cmd *cobra.Command, s *config.Store) error {
 		items[i] = selector.Item{Name: p.dotKey, ID: p.value}
 	}
 
-	idx, err := configSetSel.Select(items)
+	preview := renderConfigPreview(s)
+	previewFn := func(_ int) string { return preview }
+	idx, err := configSetSel.SelectWithPreview(items, previewFn, configSetHeader)
 	if err != nil {
 		return err
 	}
@@ -262,6 +266,24 @@ func init() {
 }
 
 // ---- helpers ----
+
+// renderConfigPreview renders the active configuration as colorized YAML for use
+// in picker preview panels. Reuses resolvedSection, marshalYAMLOrdered, and
+// output.ColorizeYAMLSections so the output matches hf config show.
+func renderConfigPreview(s *config.Store) string {
+	configSections := []string{"hyperfleet", "kubernetes", "maestro", "port-forward", "database", "rabbitmq", "registry"}
+	cfgMap := make(map[string]map[string]string, len(configSections))
+	for _, sec := range configSections {
+		if vals := resolvedSection(s, sec); len(vals) > 0 {
+			cfgMap[sec] = vals
+		}
+	}
+	b, err := marshalYAMLOrdered(cfgMap, configSections)
+	if err != nil {
+		return "[ERROR] failed to render config"
+	}
+	return output.ColorizeYAMLSections(string(b), noColor)
+}
 
 // resolvedSection returns all key/value pairs for a section with secrets masked.
 func resolvedSection(s *config.Store, section string) map[string]string {

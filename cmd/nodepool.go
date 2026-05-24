@@ -23,7 +23,7 @@ var nodepoolCmd = &cobra.Command{
 	Short: "Manage HyperFleet nodepools",
 	Long: `Manage HyperFleet nodepools.
 
-Subcommands: create, get, list, search, update, patch, delete, conditions, statuses.`,
+Subcommands: create, get, list, search, patch, delete, conditions, statuses.`,
 }
 
 // ---- flag vars ----
@@ -33,8 +33,6 @@ var (
 	nodepoolCreateFile      string
 	nodepoolCreateType      string
 	nodepoolCreateReplicas  int
-	nodepoolUpdateName      string
-	nodepoolUpdateReplicas  int
 	nodepoolListWatch       bool
 	nodepoolListWatchSecs   int
 	nodepoolListSearch      string
@@ -362,44 +360,6 @@ var nodepoolCreateCmd = &cobra.Command{
 	},
 }
 
-// ---- nodepool update ----
-
-var nodepoolUpdateCmd = &cobra.Command{
-	Use:   "update <id>",
-	Short: "Update a nodepool",
-	Args:  helpOnNoArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		id := args[0]
-		s, err := loadConfig()
-		if err != nil {
-			return err
-		}
-		clusterID, err := requireClusterID(s)
-		if err != nil {
-			return err
-		}
-		client := newAPIClient(s)
-		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
-
-		body := map[string]any{}
-		if nodepoolUpdateName != "" {
-			body["name"] = nodepoolUpdateName
-		}
-		if nodepoolUpdateReplicas > 0 {
-			if _, ok := body["spec"]; !ok {
-				body["spec"] = map[string]any{}
-			}
-			body["spec"].(map[string]any)["replicas"] = nodepoolUpdateReplicas
-		}
-
-		np, err := api.Patch[resource.NodePool](context.Background(), client, npBase(clusterID)+"/"+id, body)
-		if err != nil {
-			return handleAPIError(p, err)
-		}
-		return p.Print(np)
-	},
-}
-
 // ---- nodepool patch ----
 
 var nodepoolPatchCmd = &cobra.Command{
@@ -449,30 +409,11 @@ var nodepoolPatchCmd = &cobra.Command{
 			return handleAPIError(p, err)
 		}
 
-		var oldVal int
-		if section == "spec" {
-			if v, ok := np.Spec["counter"].(string); ok {
-				oldVal, _ = strconv.Atoi(v)
-			}
-		} else {
-			if v, ok := np.Labels["counter"]; ok {
-				oldVal, _ = strconv.Atoi(v)
-			}
-		}
-		newVal := oldVal + 1
+		oldVal, newVal := bumpCounter(section, np.Spec, np.Labels)
 
 		p.Info(fmt.Sprintf("Incrementing %s.counter: %d -> %d", section, oldVal, newVal))
 
-		var body map[string]any
-		if section == "spec" {
-			body = map[string]any{
-				"spec": map[string]any{"counter": strconv.Itoa(newVal)},
-			}
-		} else {
-			body = map[string]any{
-				"labels": map[string]any{"counter": strconv.Itoa(newVal)},
-			}
-		}
+		body := patchCounterBody(section, newVal, np.Spec, np.Labels)
 
 		_, err = api.Patch[resource.NodePool](context.Background(), client, npBase(clusterID)+"/"+id, body)
 		if err != nil {
@@ -917,7 +858,6 @@ func init() {
 	nodepoolCmd.AddCommand(nodepoolGetCmd)
 	nodepoolCmd.AddCommand(nodepoolSearchCmd)
 	nodepoolCmd.AddCommand(nodepoolCreateCmd)
-	nodepoolCmd.AddCommand(nodepoolUpdateCmd)
 	nodepoolCmd.AddCommand(nodepoolPatchCmd)
 	nodepoolCmd.AddCommand(nodepoolDeleteCmd)
 	nodepoolCmd.AddCommand(nodepoolForceDeleteCmd)
@@ -931,9 +871,6 @@ func init() {
 	nodepoolCreateCmd.Flags().StringVarP(&nodepoolCreateFile, "file", "f", "", "JSON template file (default: <config-dir>/nodepool-template.json)")
 	nodepoolCreateCmd.Flags().StringVar(&nodepoolCreateType, "type", "", "instance type (overrides template)")
 	nodepoolCreateCmd.Flags().IntVar(&nodepoolCreateReplicas, "replicas", 0, "number of replicas (overrides template)")
-
-	nodepoolUpdateCmd.Flags().StringVar(&nodepoolUpdateName, "name", "", "new nodepool name")
-	nodepoolUpdateCmd.Flags().IntVar(&nodepoolUpdateReplicas, "replicas", 0, "new number of replicas")
 
 	nodepoolListCmd.Flags().BoolVar(&nodepoolListWatch, "watch", false, "continuously refresh the table (requires --output table)")
 	nodepoolListCmd.Flags().IntVarP(&nodepoolListWatchSecs, "seconds", "s", 5, "refresh interval in seconds (used with --watch)")

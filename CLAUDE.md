@@ -58,6 +58,45 @@ go build ./...      # verify compilation
 - HTTP tests use `httptest.NewServer` — never mock the HTTP client directly.
 - Integration tests are tagged `//go:build integration` and skipped without cluster access.
 
+### Interactive commands (`-i`) via ttyd
+
+Several commands use `go-fuzzyfinder` and require a real TTY (`hf cluster get -i`, `hf cluster delete -i`, `hf config set`, `hf config env`, etc.). Non-interactive shells (including the Cursor agent terminal) fail with:
+
+```
+failed to initialize the fuzzy finder: failed to new screen: terminal not cursor addressable
+```
+
+Use **[ttyd](https://github.com/tsl0922/ttyd)** to expose a browser terminal with a proper pseudo-TTY for manual testing or browser-based automation:
+
+```bash
+# Install (macOS)
+brew install ttyd
+
+# Persistent shell — run any hf command interactively
+ttyd -p 7681 -W bash -l
+# Open http://localhost:7681
+
+# One-shot: launch a specific interactive command
+ttyd -p 7682 -W bash -lc './bin/hf cluster get -i'
+# Open http://localhost:7682 — fuzzy picker works; Enter selects, Esc aborts
+```
+
+**Useful flags:**
+
+| Flag | Purpose |
+|---|---|
+| `-p 7681` | Listen port |
+| `-W` | Allow client input (required) |
+| `-i lo` | Bind to localhost only |
+| `-c user:pass` | Basic auth (recommended if not localhost-only) |
+
+**Notes:**
+
+- One-shot mode exits when the command finishes; ttyd shows “Press ⏎ to Reconnect”.
+- Unit tests mock the selector (`clusterIDSel`) — ttyd is for live/manual verification only.
+- Browser automation can drive selection via keyboard (`Enter`, `ArrowDown`, `Escape`) after clicking the xterm canvas; typing long commands into the hidden textarea is unreliable — prefer launching the command via `bash -lc '...'`.
+- **Security:** ttyd exposes a real shell. Default to `-i lo` and auth when not testing locally.
+
 ## OpenSpec Workflow
 
 All changes follow the **spec-driven** workflow. Never implement code outside a change folder.

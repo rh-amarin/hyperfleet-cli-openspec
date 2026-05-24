@@ -88,57 +88,12 @@ func (p *Printer) printYAML(v any) error {
 // Column widths are computed from visible display widths (ANSI codes excluded)
 // so colored data cells remain visually aligned under their headers.
 func (p *Printer) PrintTable(headers []string, rows [][]string) error {
-	const maxHeaderWidth = 10
-	const colSep = 2
-
-	// Uppercase and wrap each header.
-	wrapped := make([][]string, len(headers))
-	maxHeaderLines := 0
-	for i, h := range headers {
-		lines := WrapHeader(strings.ToUpper(h), maxHeaderWidth)
-		wrapped[i] = lines
-		if len(lines) > maxHeaderLines {
-			maxHeaderLines = len(lines)
-		}
+	ft := FormatTable(headers, rows)
+	for _, line := range ft.HeaderLines {
+		fmt.Fprintln(p.w, line)
 	}
-
-	numCols := len(headers)
-
-	// Build the full row list: header rows first, then data rows.
-	allRows := make([][]string, 0, maxHeaderLines+len(rows))
-	for line := 0; line < maxHeaderLines; line++ {
-		row := make([]string, numCols)
-		for col, lines := range wrapped {
-			if line < len(lines) {
-				row[col] = lines[line]
-			}
-		}
-		allRows = append(allRows, row)
-	}
-	allRows = append(allRows, rows...)
-
-	// Compute column widths using display widths (ANSI escape codes do not
-	// contribute to visible width, so strip them before measuring).
-	colWidths := make([]int, numCols)
-	for _, row := range allRows {
-		for col, cell := range row {
-			if w := displayWidth(cell); w > colWidths[col] {
-				colWidths[col] = w
-			}
-		}
-	}
-
-	// Render: write each cell followed by padding to reach column width + separator.
-	// The last column in each row gets no trailing padding.
-	for _, row := range allRows {
-		for col, cell := range row {
-			fmt.Fprint(p.w, cell)
-			if col < numCols-1 {
-				pad := colWidths[col] - displayWidth(cell) + colSep
-				fmt.Fprint(p.w, strings.Repeat(" ", pad))
-			}
-		}
-		fmt.Fprintln(p.w)
+	for _, line := range ft.DataLines {
+		fmt.Fprintln(p.w, line)
 	}
 	return nil
 }
@@ -277,6 +232,16 @@ func (p *Printer) Info(msg string) {
 // Error writes an [ERROR] message to stderr.
 func (p *Printer) Error(msg string) {
 	fmt.Fprintf(p.errW, "[ERROR] %s\n", msg)
+}
+
+// ColorizeJSON applies ANSI color codes to indented JSON bytes.
+// Keys → cyan, string values → green, numbers → yellow, true → green, false → red, null → dim.
+// When noColor is true, src is returned unchanged.
+func ColorizeJSON(src []byte, noColor bool) []byte {
+	if noColor {
+		return src
+	}
+	return colorizeJSON(src)
 }
 
 // colorizeJSON applies ANSI color codes to JSON bytes.

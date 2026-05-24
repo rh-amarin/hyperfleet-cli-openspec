@@ -1,0 +1,28 @@
+Live verification via ttyd (2026-05-23)
+========================================
+
+Setup:
+  make build
+  ttyd -p 7684 -W bash -lc './bin/hf tui -s 10'
+  Open http://127.0.0.1:7684/
+
+Results:
+  ✓ TUI launches in alternate screen with active environment (gke)
+  ✓ Countdown line "↻ Ns" with braille spinner displayed above table
+  ✓ Combined cluster+nodepool table renders with status dots and adapter columns
+  ✓ Footer shows key hints: ↑↓ navigate · Enter detail · V format · S statuses · / search · Esc close · q quit
+  ✓ Enter opens split view with syntax-highlighted JSON detail panel on the right
+  ✓ Footer updates to scroll hints when detail panel is open
+  ✓ Data auto-refreshes (countdown resets after fetch)
+
+Manual key bindings verified in browser xterm (first session):
+  - Enter: detail panel opened with JSON
+  - Table selection highlight visible on rows
+
+Note: Browser keyboard automation for xterm requires clicking the canvas first;
+full interactive walkthrough is best done manually at http://127.0.0.1:7684/
+
+Unit tests:
+  go test ./internal/tui/... -count=1  → PASS
+  go test ./cmd/ -run 'TUI|ToTUI' -count=1  → PASS
+  make build  → PASS

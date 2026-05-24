@@ -97,8 +97,6 @@ func resetClusterFlags() {
 	clusterCreateFile = ""
 	clusterCreateReplicas = 0
 	clusterCreateNPID = ""
-	clusterUpdateName = ""
-	clusterUpdateReplicas = 0
 	clusterListWatch = false
 	clusterListWatchSecs = 5
 	clusterInteractive = false
@@ -450,30 +448,6 @@ func TestClusterCreate_Defaults(t *testing.T) {
 		if name, _ := capturedBody["name"].(string); name != "my-cluster" {
 			t.Errorf("expected default name 'my-cluster', got %q", name)
 		}
-	}
-}
-
-// ---- cluster update ----
-
-func TestClusterUpdate(t *testing.T) {
-	resetClusterFlags()
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPatch && r.URL.Path == apiPrefix+"/clusters/"+clusterID {
-			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprint(w, clusterJSON)
-			return
-		}
-		http.NotFound(w, r)
-	}))
-	defer ts.Close()
-
-	dir := setupClusterEnv(t, ts)
-	out, err := runClusterCmd(t, dir, "cluster", "update", clusterID, "--name", "new-name")
-	if err != nil {
-		t.Fatalf("cluster update: %v", err)
-	}
-	if !strings.Contains(out, clusterID) {
-		t.Errorf("expected cluster ID in output, got: %q", out)
 	}
 }
 
@@ -833,6 +807,12 @@ func TestClusterPatch_Spec(t *testing.T) {
 	if spec["counter"] != "1" {
 		t.Errorf("expected counter '1' (0→1), got %v", spec["counter"])
 	}
+	if spec["region"] != "us-east-1" {
+		t.Errorf("expected region preserved in PATCH body, got %v", spec["region"])
+	}
+	if spec["version"] != "4.15.0" {
+		t.Errorf("expected version preserved in PATCH body, got %v", spec["version"])
+	}
 }
 
 func TestClusterPatch_Labels(t *testing.T) {
@@ -868,6 +848,23 @@ func TestClusterPatch_Labels(t *testing.T) {
 	}
 	if labels["counter"] != "2" {
 		t.Errorf("expected counter '2', got %v", labels["counter"])
+	}
+}
+
+func TestPatchCounterBody_PreservesExistingFields(t *testing.T) {
+	spec := map[string]any{"region": "us-east-1", "version": "4.15.0", "counter": "1"}
+	labels := map[string]string{"counter": "1", "env": "staging"}
+
+	specBody := patchCounterBody("spec", 2, spec, labels)
+	gotSpec, _ := specBody["spec"].(map[string]any)
+	if gotSpec["counter"] != "2" || gotSpec["region"] != "us-east-1" || gotSpec["version"] != "4.15.0" {
+		t.Fatalf("spec patch body = %#v", gotSpec)
+	}
+
+	labelsBody := patchCounterBody("labels", 2, spec, labels)
+	gotLabels, _ := labelsBody["labels"].(map[string]any)
+	if gotLabels["counter"] != "2" || gotLabels["env"] != "staging" {
+		t.Fatalf("labels patch body = %#v", gotLabels)
 	}
 }
 

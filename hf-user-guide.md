@@ -219,15 +219,12 @@ $ hf cluster create my-cluster eu-west-1 1.30
 $ hf cluster create --file /path/to/cluster.json
 ```
 
-### 4.4 Update and patch
+### 4.4 Patch
 
 ```bash
-# Full update from a template file
-$ hf cluster update --file cluster.json
-
-# Increment a counter field
-$ hf cluster patch spec.desiredCount
-$ hf cluster patch labels.retryCount
+# Increment a counter field in spec or labels
+$ hf cluster patch spec
+$ hf cluster patch labels
 ```
 
 ### 4.5 Delete
@@ -267,12 +264,12 @@ $ hf nodepool create my-nodepool eu-west-1 1.30
 $ hf nodepool create --name my-nodepool --nodepool-id <id> --replicas 3
 ```
 
-### 5.3 Search, update, patch, delete
+### 5.3 Search, patch, delete
 
 ```bash
 $ hf nodepool search my-nodepool
-$ hf nodepool update --file nodepool.json
-$ hf nodepool patch spec.desiredCount
+$ hf nodepool patch spec
+$ hf nodepool patch labels
 $ hf nodepool delete 019dbf43-7199-7ea6-b786-d617fc793c28
 ```
 

@@ -167,7 +167,8 @@ The CLI SHALL increment a counter field in the nodepool's spec or labels section
 - THEN the CLI MUST fetch the current nodepool
 - AND read the current `spec.counter` value as an integer (if absent, treat as `0`)
 - AND increment it by 1
-- AND send a PATCH to `/api/hyperfleet/v1/clusters/{cluster_id}/nodepools/{nodepool_id}` with the incremented counter as a string
+- AND send a PATCH to `/api/hyperfleet/v1/clusters/{cluster_id}/nodepools/{nodepool_id}` with the full existing `spec` map, updating only `counter` to the incremented string value
+- AND MUST NOT omit other existing keys in the patched section — the API replaces the entire `spec`/`labels` object on PATCH
 - AND display `[INFO] Incrementing spec.counter: <old> -> <new>` where `<old>` and `<new>` are integer strings (e.g., `1 -> 2`; first increment displays `0 -> 1`)
 - AND the nodepool's generation MUST increment
 
@@ -178,7 +179,8 @@ The CLI SHALL increment a counter field in the nodepool's spec or labels section
 - THEN the CLI MUST fetch the current nodepool
 - AND read the current `labels.counter` value as an integer (if absent, treat as `0`)
 - AND increment it by 1
-- AND send a PATCH to `/api/hyperfleet/v1/clusters/{cluster_id}/nodepools/{nodepool_id}` with the incremented counter as a string
+- AND send a PATCH to `/api/hyperfleet/v1/clusters/{cluster_id}/nodepools/{nodepool_id}` with the full existing `labels` map, updating only `counter` to the incremented string value
+- AND MUST NOT omit other existing keys in the patched section — the API replaces the entire `spec`/`labels` object on PATCH
 - AND display `[INFO] Incrementing labels.counter: <old> -> <new>`
 - AND the nodepool's generation MUST increment
 

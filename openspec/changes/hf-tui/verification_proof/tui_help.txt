@@ -1,0 +1,21 @@
+Launch a k9s-style terminal UI for monitoring clusters and nodepools.
+
+Main view mirrors hf table --watch. Use arrow keys to select rows, Enter to
+open a detail panel, V to cycle JSON/YAML/overview, S for adapter statuses,
+/ to search statuses, and Esc to close the detail panel.
+
+Usage:
+  hf tui [flags]
+
+Flags:
+  -h, --help          help for tui
+  -s, --seconds int   refresh interval in seconds (default 5)
+
+Global Flags:
+      --api-token string   override API bearer token for this invocation
+      --api-url string     override HyperFleet API URL for this invocation
+      --config string      config file (default: ~/.config/hf/config.yaml)
+      --curl               print equivalent curl command for each API request
+      --no-color           disable colored output
+  -o, --output string      output format: json, table, yaml (default "json")
+  -v, --verbose            enable verbose/debug logging

@@ -1,0 +1,2 @@
+go build -ldflags "-X github.com/rh-amarin/hyperfleet-cli/internal/version.Version=2d9cccb-dirty -X github.com/rh-amarin/hyperfleet-cli/internal/version.BuildTime=2026-05-23T19:11:53Z" -o bin/hf .
+(build succeeded)

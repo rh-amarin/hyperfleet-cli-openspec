@@ -102,8 +102,6 @@ func resetNodepoolFlags() {
 	nodepoolCreateFile = ""
 	nodepoolCreateType = ""
 	nodepoolCreateReplicas = 0
-	nodepoolUpdateName = ""
-	nodepoolUpdateReplicas = 0
 	nodepoolListWatch = false
 	nodepoolListWatchSecs = 5
 	nodepoolInteractive = false
@@ -443,30 +441,6 @@ func TestNodepoolCreate_Defaults(t *testing.T) {
 		if name, _ := capturedBody["name"].(string); name != "my-nodepool" {
 			t.Errorf("expected default name 'my-nodepool', got %q", name)
 		}
-	}
-}
-
-// ---- nodepool update ----
-
-func TestNodepoolUpdate(t *testing.T) {
-	resetNodepoolFlags()
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPatch && r.URL.Path == apiPrefix+"/clusters/"+clusterID+"/nodepools/"+nodepoolID {
-			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprint(w, nodepoolJSON)
-			return
-		}
-		http.NotFound(w, r)
-	}))
-	defer ts.Close()
-
-	dir := setupNodepoolEnv(t, ts)
-	out, err := runNodepoolCmd(t, dir, "nodepool", "update", nodepoolID, "--name", "new-name")
-	if err != nil {
-		t.Fatalf("nodepool update: %v", err)
-	}
-	if !strings.Contains(out, nodepoolID) {
-		t.Errorf("expected nodepool ID in output, got: %q", out)
 	}
 }
 

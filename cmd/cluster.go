@@ -24,7 +24,7 @@ var clusterCmd = &cobra.Command{
 	Short: "Manage HyperFleet clusters",
 	Long: `Manage HyperFleet clusters.
 
-Subcommands: create, get, list, search, update, patch, delete, conditions, statuses.`,
+Subcommands: create, get, list, search, patch, delete, conditions, statuses.`,
 }
 
 // ---- flag vars ----
@@ -34,8 +34,6 @@ var (
 	clusterCreateFile      string
 	clusterCreateReplicas  int
 	clusterCreateNPID      string
-	clusterUpdateName      string
-	clusterUpdateReplicas  int
 	clusterListWatch       bool
 	clusterListWatchSecs   int
 	clusterListSearch      string
@@ -332,40 +330,6 @@ var clusterCreateCmd = &cobra.Command{
 	},
 }
 
-// ---- cluster update ----
-
-var clusterUpdateCmd = &cobra.Command{
-	Use:   "update <id>",
-	Short: "Update a cluster",
-	Args:  helpOnNoArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		id := args[0]
-		s, err := loadConfig()
-		if err != nil {
-			return err
-		}
-		client := newAPIClient(s)
-		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
-
-		body := map[string]any{}
-		if clusterUpdateName != "" {
-			body["name"] = clusterUpdateName
-		}
-		if clusterUpdateReplicas > 0 {
-			if _, ok := body["spec"]; !ok {
-				body["spec"] = map[string]any{}
-			}
-			body["spec"].(map[string]any)["replicas"] = strconv.Itoa(clusterUpdateReplicas)
-		}
-
-		cluster, err := api.Patch[resource.Cluster](context.Background(), client, "clusters/"+id, body)
-		if err != nil {
-			return handleAPIError(p, err)
-		}
-		return p.Print(cluster)
-	},
-}
-
 // ---- cluster patch ----
 
 var clusterPatchCmd = &cobra.Command{
@@ -411,30 +375,11 @@ var clusterPatchCmd = &cobra.Command{
 			return handleAPIError(p, err)
 		}
 
-		var oldVal int
-		if section == "spec" {
-			if v, ok := cluster.Spec["counter"].(string); ok {
-				oldVal, _ = strconv.Atoi(v)
-			}
-		} else {
-			if v, ok := cluster.Labels["counter"]; ok {
-				oldVal, _ = strconv.Atoi(v)
-			}
-		}
-		newVal := oldVal + 1
+		oldVal, newVal := bumpCounter(section, cluster.Spec, cluster.Labels)
 
 		p.Info(fmt.Sprintf("Incrementing %s.counter: %d -> %d", section, oldVal, newVal))
 
-		var body map[string]any
-		if section == "spec" {
-			body = map[string]any{
-				"spec": map[string]any{"counter": strconv.Itoa(newVal)},
-			}
-		} else {
-			body = map[string]any{
-				"labels": map[string]any{"counter": strconv.Itoa(newVal)},
-			}
-		}
+		body := patchCounterBody(section, newVal, cluster.Spec, cluster.Labels)
 
 		_, err = api.Patch[resource.Cluster](context.Background(), client, "clusters/"+id, body)
 		if err != nil {
@@ -802,7 +747,6 @@ func init() {
 	clusterCmd.AddCommand(clusterGetCmd)
 	clusterCmd.AddCommand(clusterSearchCmd)
 	clusterCmd.AddCommand(clusterCreateCmd)
-	clusterCmd.AddCommand(clusterUpdateCmd)
 	clusterCmd.AddCommand(clusterPatchCmd)
 	clusterCmd.AddCommand(clusterDeleteCmd)
 	clusterCmd.AddCommand(clusterConditionsCmd)
@@ -815,9 +759,6 @@ func init() {
 	clusterCreateCmd.Flags().StringVarP(&clusterCreateFile, "file", "f", "", "JSON template file (default: <config-dir>/cluster-template.json)")
 	clusterCreateCmd.Flags().IntVar(&clusterCreateReplicas, "replicas", 0, "number of replicas (overrides template)")
 	clusterCreateCmd.Flags().StringVar(&clusterCreateNPID, "nodepool-id", "", "nodepool ID")
-
-	clusterUpdateCmd.Flags().StringVar(&clusterUpdateName, "name", "", "new cluster name")
-	clusterUpdateCmd.Flags().IntVar(&clusterUpdateReplicas, "replicas", 0, "new number of replicas")
 
 	clusterListCmd.Flags().BoolVar(&clusterListWatch, "watch", false, "continuously refresh the table (requires --output table)")
 	clusterListCmd.Flags().IntVarP(&clusterListWatchSecs, "seconds", "s", 5, "refresh interval in seconds (used with --watch)")

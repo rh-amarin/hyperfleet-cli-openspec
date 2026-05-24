@@ -282,8 +282,8 @@ func TestPortForwardNoArgs_NoForwards(t *testing.T) {
 	defer ts.Close()
 
 	dir, kubeconfigPath := setupKubeEnv(t, ts.URL)
-	// Point XDG_CACHE_HOME to temp dir so ListPortForwards finds no PID files.
-	t.Setenv("XDG_CACHE_HOME", dir)
+	// Isolate PID file directory (~/.config/hf uses $HOME).
+	t.Setenv("HOME", dir)
 	resetKubeFlags()
 
 	out, err := runCmd(t, dir, "kube", "--kubeconfig", kubeconfigPath, "port-forward")

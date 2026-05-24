@@ -76,17 +76,18 @@ func startAutoPortForwards(s *config.Store) {
 	maestroGRPCRemote := portVal(s, "port-forward", "maestro-grpc-remote-port", 8090)
 
 	type svcSpec struct {
-		label      string
-		namespace  string
-		podPattern string
-		remotePort int
-		envVar     string
-		urlFmt     string
+		label       string
+		namespace   string
+		serviceName string
+		podPattern  string
+		remotePort  int
+		envVar      string
+		urlFmt      string
 	}
 	services := []svcSpec{
-		{"hyperfleet-api", hfNS, "hyperfleet-api", 8000, "HF_API_URL", "http://127.0.0.1:%d"},
-		{"maestro HTTP", maestroNS, "maestro", maestroHTTPRemote, "HF_MAESTRO_HTTP", "http://127.0.0.1:%d"},
-		{"maestro gRPC", maestroNS, "maestro", maestroGRPCRemote, "HF_MAESTRO_GRPC", "127.0.0.1:%d"},
+		{"hyperfleet-api", hfNS, "hyperfleet-api", "hyperfleet-api", 8000, "HF_API_URL", "http://127.0.0.1:%d"},
+		{"maestro HTTP", maestroNS, "maestro", "maestro", maestroHTTPRemote, "HF_MAESTRO_HTTP", "http://127.0.0.1:%d"},
+		{"maestro gRPC", maestroNS, "maestro", "maestro", maestroGRPCRemote, "HF_MAESTRO_GRPC", "127.0.0.1:%d"},
 	}
 
 	type result struct {
@@ -100,7 +101,7 @@ func startAutoPortForwards(s *config.Store) {
 		wg.Add(1)
 		go func(i int, svc svcSpec) {
 			defer wg.Done()
-			port, stop, err := kube.EphemeralPortForward(kubeconfigPath, svc.namespace, svc.podPattern, svc.remotePort, kubeCtx)
+			port, stop, err := kube.EphemeralPortForward(kubeconfigPath, svc.namespace, svc.serviceName, svc.podPattern, svc.remotePort, kubeCtx)
 			results[i] = result{port: port, stop: stop, err: err}
 		}(i, svc)
 	}

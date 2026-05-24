@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -47,14 +48,20 @@ type PortForward struct {
 	RemotePort int
 }
 
-// StartResult is returned by StartPortForward with the resolved pod details.
+const (
+	TargetKindService = "service"
+	TargetKindPod     = "pod"
+)
+
+// StartResult is returned by StartPortForward with the resolved target details.
 type StartResult struct {
 	Name       string
 	PID        int
 	LocalPort  int
 	RemotePort int
 	Namespace  string
-	PodName    string
+	TargetKind string // TargetKindService or TargetKindPod
+	TargetName string
 }
 
 // PodNotReadyError is returned when a pod is found but not in Running phase.
@@ -174,6 +181,88 @@ func PIDForPort(port int) (int, error) {
 	return 0, fmt.Errorf("no process listening on TCP port %d", port)
 }
 
+// serviceHasPort reports whether svc exposes remotePort on spec.ports[].port.
+func serviceHasPort(svc *corev1.Service, remotePort int) bool {
+	for _, p := range svc.Spec.Ports {
+		if int(p.Port) == remotePort {
+			return true
+		}
+	}
+	return false
+}
+
+// PortForwardResolution holds the pod to forward to and the display target for output.
+// When resolved via a Service, DisplayKind is TargetKindService; the tunnel still uses the pod API.
+type PortForwardResolution struct {
+	PodName     string
+	DisplayKind string
+	DisplayName string
+}
+
+// podForService returns a backing pod name from Service Endpoints for remotePort.
+func podForService(ctx context.Context, cs kubernetes.Interface, namespace, serviceName string, remotePort int) (string, error) {
+	ep, err := cs.CoreV1().Endpoints(namespace).Get(ctx, serviceName, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	for _, subset := range ep.Subsets {
+		portOK := len(subset.Ports) == 0
+		for _, p := range subset.Ports {
+			if int(p.Port) == remotePort {
+				portOK = true
+				break
+			}
+		}
+		if !portOK {
+			continue
+		}
+		for _, addr := range subset.Addresses {
+			if addr.TargetRef != nil && addr.TargetRef.Kind == "Pod" && addr.TargetRef.Name != "" {
+				return addr.TargetRef.Name, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("no ready pod found for service %q port %d in namespace %q", serviceName, remotePort, namespace)
+}
+
+// ResolvePortForwardTarget prefers a Kubernetes Service when available, else pod pattern.
+// Returns PodNotReadyError as warn when falling back to a pod that is not Running.
+func ResolvePortForwardTarget(ctx context.Context, cs kubernetes.Interface, namespace, serviceName, podPattern string, remotePort int) (PortForwardResolution, error) {
+	if serviceName != "" {
+		svc, err := cs.CoreV1().Services(namespace).Get(ctx, serviceName, metav1.GetOptions{})
+		if err == nil && serviceHasPort(svc, remotePort) {
+			if podName, err := podForService(ctx, cs, namespace, serviceName, remotePort); err == nil {
+				return PortForwardResolution{
+					PodName: podName, DisplayKind: TargetKindService, DisplayName: serviceName,
+				}, nil
+			}
+		}
+	}
+	podName, err := FindRunningPod(ctx, cs, namespace, podPattern)
+	if err != nil {
+		var notReady *PodNotReadyError
+		if errors.As(err, &notReady) {
+			return PortForwardResolution{
+				PodName: podName, DisplayKind: TargetKindPod, DisplayName: podName,
+			}, err
+		}
+		return PortForwardResolution{}, err
+	}
+	return PortForwardResolution{
+		PodName: podName, DisplayKind: TargetKindPod, DisplayName: podName,
+	}, nil
+}
+
+// portForwardURL builds the REST URL for a pod port-forward subresource.
+func portForwardURL(cs kubernetes.Interface, namespace, podName string) string {
+	return cs.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Namespace(namespace).
+		Name(podName).
+		SubResource("portforward").
+		URL().String()
+}
+
 // FindRunningPod returns the name of the first pod whose name contains pattern.
 // Returns PodNotReadyError (non-nil, with pod name) when found but not Running.
 func FindRunningPod(ctx context.Context, cs kubernetes.Interface, namespace, pattern string) (string, error) {
@@ -192,22 +281,22 @@ func FindRunningPod(ctx context.Context, cs kubernetes.Interface, namespace, pat
 	return "", fmt.Errorf("no pod found matching %q in namespace %q", pattern, namespace)
 }
 
-// StartPortForward finds the pod matching podPattern, spawns a detached daemon subprocess,
-// writes a PID file, and returns immediately.
+// StartPortForward resolves a port-forward target (service-first), spawns a detached daemon
+// subprocess, writes a PID file, and returns immediately.
 // contextName selects a specific Kubernetes context; empty string uses the kubeconfig's current-context.
-func StartPortForward(kubeconfigPath, namespace, name, podPattern string, localPort, remotePort int, contextName string) (StartResult, error) {
+func StartPortForward(kubeconfigPath, namespace, name, serviceName, podPattern string, localPort, remotePort int, contextName string) (StartResult, error) {
 	cs, err := NewClientset(kubeconfigPath, contextName)
 	if err != nil {
 		return StartResult{}, err
 	}
-	podName, err := FindRunningPod(context.Background(), cs, namespace, podPattern)
-	if err != nil {
+	res, warnErr := ResolvePortForwardTarget(context.Background(), cs, namespace, serviceName, podPattern, remotePort)
+	if warnErr != nil {
 		var notReady *PodNotReadyError
-		if errors.As(err, &notReady) {
+		if errors.As(warnErr, &notReady) {
 			fmt.Fprintf(os.Stderr, "[WARN] %s: pod not ready (phase: %s). Port-forward may not succeed.\n",
 				name, notReady.Phase)
 		} else {
-			return StartResult{}, err
+			return StartResult{}, warnErr
 		}
 	}
 
@@ -217,7 +306,7 @@ func StartPortForward(kubeconfigPath, namespace, name, podPattern string, localP
 	}
 	resolved := resolveKubeconfig(kubeconfigPath)
 	cmd := exec.Command(exe, "kube", "port-forward", "_daemon",
-		resolved, namespace, podName,
+		resolved, namespace, res.PodName,
 		strconv.Itoa(localPort), strconv.Itoa(remotePort), contextName)
 	cmd.Stdin = nil
 	cmd.Stdout = nil
@@ -232,7 +321,10 @@ func StartPortForward(kubeconfigPath, namespace, name, podPattern string, localP
 	if err := writePIDFile(name, pid, localPort, remotePort); err != nil {
 		return StartResult{}, fmt.Errorf("writing PID file: %w", err)
 	}
-	return StartResult{Name: name, PID: pid, LocalPort: localPort, RemotePort: remotePort, Namespace: namespace, PodName: podName}, nil
+	return StartResult{
+		Name: name, PID: pid, LocalPort: localPort, RemotePort: remotePort,
+		Namespace: namespace, TargetKind: res.DisplayKind, TargetName: res.DisplayName,
+	}, nil
 }
 
 // StopPortForward terminates the named port-forward and removes its tracking file.
@@ -296,13 +388,11 @@ func RunPortForwardDaemon(kubeconfigPath, namespace, podName string, localPort, 
 	if err != nil {
 		return fmt.Errorf("SPDY transport: %w", err)
 	}
-	url := cs.CoreV1().RESTClient().Post().
-		Resource("pods").
-		Namespace(namespace).
-		Name(podName).
-		SubResource("portforward").
-		URL()
-	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, url)
+	pfURL, err := url.Parse(portForwardURL(cs, namespace, podName))
+	if err != nil {
+		return fmt.Errorf("port-forward URL: %w", err)
+	}
+	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, pfURL)
 	stopCh := make(chan struct{})
 	readyCh := make(chan struct{})
 	fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", localPort, remotePort)},
@@ -557,11 +647,11 @@ func findFreePort() (int, error) {
 	return port, nil
 }
 
-// EphemeralPortForward starts an in-process SPDY port-forward to podPattern in
-// namespace for remotePort, allocating a random local port. It returns the
-// local port, a stop func (safe to call multiple times), and any setup error.
+// EphemeralPortForward starts an in-process SPDY port-forward to the resolved target
+// (service-first) in namespace for remotePort, allocating a random local port.
+// It returns the local port, a stop func (safe to call multiple times), and any setup error.
 // The stop func must be called when the caller is done to release the connection.
-func EphemeralPortForward(kubeconfigPath, namespace, podPattern string, remotePort int, contextName string) (localPort int, stop func(), err error) {
+func EphemeralPortForward(kubeconfigPath, namespace, serviceName, podPattern string, remotePort int, contextName string) (localPort int, stop func(), err error) {
 	config, err := BuildConfig(kubeconfigPath, contextName)
 	if err != nil {
 		return 0, nil, err
@@ -570,9 +660,9 @@ func EphemeralPortForward(kubeconfigPath, namespace, podPattern string, remotePo
 	if err != nil {
 		return 0, nil, err
 	}
-	podName, err := FindRunningPod(context.Background(), cs, namespace, podPattern)
-	if err != nil {
-		return 0, nil, err
+	res, resolveErr := ResolvePortForwardTarget(context.Background(), cs, namespace, serviceName, podPattern, remotePort)
+	if resolveErr != nil {
+		return 0, nil, resolveErr
 	}
 	localPort, err = findFreePort()
 	if err != nil {
@@ -582,13 +672,11 @@ func EphemeralPortForward(kubeconfigPath, namespace, podPattern string, remotePo
 	if err != nil {
 		return 0, nil, fmt.Errorf("SPDY transport: %w", err)
 	}
-	url := cs.CoreV1().RESTClient().Post().
-		Resource("pods").
-		Namespace(namespace).
-		Name(podName).
-		SubResource("portforward").
-		URL()
-	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, url)
+	pfURL, err := url.Parse(portForwardURL(cs, namespace, res.PodName))
+	if err != nil {
+		return 0, nil, fmt.Errorf("port-forward URL: %w", err)
+	}
+	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, pfURL)
 	stopCh := make(chan struct{})
 	readyCh := make(chan struct{})
 	fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", localPort, remotePort)},
@@ -608,7 +696,7 @@ func EphemeralPortForward(kubeconfigPath, namespace, podPattern string, remotePo
 		return 0, nil, fmt.Errorf("port-forward failed: %w", pfErr)
 	case <-time.After(30 * time.Second):
 		close(stopCh)
-		return 0, nil, fmt.Errorf("timed out waiting for port-forward to %s:%d", podPattern, remotePort)
+		return 0, nil, fmt.Errorf("timed out waiting for port-forward to %s:%d", res.PodName, remotePort)
 	}
 	var once sync.Once
 	stop = func() {

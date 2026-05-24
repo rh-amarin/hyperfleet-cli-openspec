@@ -93,18 +93,13 @@ var pfStartCmd = &cobra.Command{
 		}
 		services := servicesForArgs(s, args)
 		for _, svc := range services {
-			sr, err := kube.StartPortForward(kubeconfig, svc.namespace, svc.name, svc.podPattern, svc.localPort, svc.remotePort, kubeCtx)
+			sr, err := kube.StartPortForward(kubeconfig, svc.namespace, svc.name, svc.serviceName, svc.podPattern, svc.localPort, svc.remotePort, kubeCtx)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "[ERROR] %s: %v\n", svc.name, err)
 				continue
 			}
-			if sr.PodName != "" {
-				fmt.Fprintf(cmd.OutOrStdout(), "[INFO] Started %s (%s/%s): localhost:%d → %d (pid %d)\n",
-					sr.Name, sr.Namespace, sr.PodName, sr.LocalPort, sr.RemotePort, sr.PID)
-			} else {
-				fmt.Fprintf(cmd.OutOrStdout(), "[INFO] Started %s (%s): localhost:%d → %d (pid %d)\n",
-					sr.Name, sr.Namespace, sr.LocalPort, sr.RemotePort, sr.PID)
-			}
+			fmt.Fprintf(cmd.OutOrStdout(), "[INFO] Started %s (%s): localhost:%d → %d (pid %d)\n",
+				sr.Name, formatPortForwardTarget(sr), sr.LocalPort, sr.RemotePort, sr.PID)
 		}
 		time.Sleep(time.Second)
 		printPortForwardStatus(cmd.OutOrStdout(), s)
@@ -388,11 +383,12 @@ func resolvedKubeconfig(_ interface{ Get(string, string) string }) string {
 }
 
 type serviceSpec struct {
-	name       string
-	podPattern string
-	namespace  string
-	localPort  int
-	remotePort int
+	name        string
+	serviceName string
+	podPattern  string
+	namespace   string
+	localPort   int
+	remotePort  int
 }
 
 // servicesForArgs resolves which services to port-forward based on CLI args.
@@ -400,16 +396,16 @@ func servicesForArgs(s interface{ Get(string, string) string }, args []string) [
 	maestroNS := s.Get("maestro", "namespace")
 	hfNS := s.Get("hyperfleet", "namespace")
 	all := []serviceSpec{
-		{"hyperfleet-api", "hyperfleet-api", hfNS,
-			portVal(s, "port-forward", "api-port", 8000), 8000},
-		{"postgresql", "postgresql", hfNS,
-			portVal(s, "port-forward", "pg-port", 5432), 5432},
-		{"maestro-http", "maestro", maestroNS,
-			portVal(s, "port-forward", "maestro-http-port", 8100),
-			portVal(s, "port-forward", "maestro-http-remote-port", 8000)},
-		{"maestro-grpc", "maestro", maestroNS,
-			portVal(s, "port-forward", "maestro-grpc-port", 8090),
-			portVal(s, "port-forward", "maestro-grpc-remote-port", 8090)},
+		{name: "hyperfleet-api", serviceName: "hyperfleet-api", podPattern: "hyperfleet-api", namespace: hfNS,
+			localPort: portVal(s, "port-forward", "api-port", 8000), remotePort: 8000},
+		{name: "postgresql", serviceName: "postgresql", podPattern: "postgresql", namespace: hfNS,
+			localPort: portVal(s, "port-forward", "pg-port", 5432), remotePort: 5432},
+		{name: "maestro-http", serviceName: "maestro", podPattern: "maestro", namespace: maestroNS,
+			localPort: portVal(s, "port-forward", "maestro-http-port", 8100),
+			remotePort: portVal(s, "port-forward", "maestro-http-remote-port", 8000)},
+		{name: "maestro-grpc", serviceName: "maestro", podPattern: "maestro", namespace: maestroNS,
+			localPort: portVal(s, "port-forward", "maestro-grpc-port", 8090),
+			remotePort: portVal(s, "port-forward", "maestro-grpc-remote-port", 8090)},
 	}
 	if len(args) == 0 {
 		return all
@@ -429,7 +425,7 @@ func servicesForArgs(s interface{ Get(string, string) string }, args []string) [
 			return []serviceSpec{svc}
 		}
 	}
-	// Generic: treat first arg as pod pattern + second as port spec.
+	// Generic: try name as Service first, then pod pattern fallback.
 	if len(args) >= 2 {
 		lp, rp, err := parsePortSpec(args[1])
 		if err != nil {
@@ -437,7 +433,7 @@ func servicesForArgs(s interface{ Get(string, string) string }, args []string) [
 			return nil
 		}
 		ns := s.Get("hyperfleet", "namespace")
-		return []serviceSpec{{name: name, podPattern: name, namespace: ns, localPort: lp, remotePort: rp}}
+		return []serviceSpec{{name: name, serviceName: name, podPattern: name, namespace: ns, localPort: lp, remotePort: rp}}
 	}
 	fmt.Fprintf(os.Stderr, "[ERROR] Unknown service %q. Known: hyperfleet-api, postgresql, maestro-http, maestro-grpc\n", name)
 	return nil
@@ -469,4 +465,15 @@ func portVal(s interface{ Get(string, string) string }, section, key string, def
 		return def
 	}
 	return n
+}
+
+func formatPortForwardTarget(sr kube.StartResult) string {
+	switch sr.TargetKind {
+	case kube.TargetKindService:
+		return fmt.Sprintf("%s/svc/%s", sr.Namespace, sr.TargetName)
+	case kube.TargetKindPod:
+		return fmt.Sprintf("%s/pod/%s", sr.Namespace, sr.TargetName)
+	default:
+		return sr.Namespace
+	}
 }

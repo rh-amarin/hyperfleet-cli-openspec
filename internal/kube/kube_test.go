@@ -14,6 +14,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -249,6 +250,100 @@ func TestFindRunningPod_NotFound(t *testing.T) {
 	}
 }
 
+func TestResolvePortForwardTarget_ServicePreferred(t *testing.T) {
+	cs := fake.NewSimpleClientset(
+		&corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: "hyperfleet-api", Namespace: "hyperfleet"},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{Port: 8000, TargetPort: intstr.FromInt32(8000)}},
+			},
+		},
+		&corev1.Endpoints{
+			ObjectMeta: metav1.ObjectMeta{Name: "hyperfleet-api", Namespace: "hyperfleet"},
+			Subsets: []corev1.EndpointSubset{{
+				Ports: []corev1.EndpointPort{{Port: 8000}},
+				Addresses: []corev1.EndpointAddress{{
+					TargetRef: &corev1.ObjectReference{Kind: "Pod", Name: "hyperfleet-api-xyz"},
+				}},
+			}},
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: "hyperfleet-api-abc", Namespace: "hyperfleet"},
+			Status:     corev1.PodStatus{Phase: corev1.PodRunning},
+		},
+	)
+	res, warn := ResolvePortForwardTarget(context.Background(), cs, "hyperfleet", "hyperfleet-api", "hyperfleet-api", 8000)
+	if warn != nil {
+		t.Fatalf("unexpected warn: %v", warn)
+	}
+	if res.DisplayKind != TargetKindService || res.DisplayName != "hyperfleet-api" {
+		t.Errorf("display: kind=%q name=%q, want service/hyperfleet-api", res.DisplayKind, res.DisplayName)
+	}
+	if res.PodName != "hyperfleet-api-xyz" {
+		t.Errorf("pod=%q, want hyperfleet-api-xyz from endpoints", res.PodName)
+	}
+}
+
+func TestResolvePortForwardTarget_ServiceWrongPortFallsBackToPod(t *testing.T) {
+	cs := fake.NewSimpleClientset(
+		&corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: "maestro", Namespace: "maestro"},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{Port: 8000, TargetPort: intstr.FromInt32(8000)}},
+			},
+		},
+		&corev1.Endpoints{
+			ObjectMeta: metav1.ObjectMeta{Name: "maestro", Namespace: "maestro"},
+			Subsets: []corev1.EndpointSubset{{
+				Ports: []corev1.EndpointPort{{Port: 8000}},
+				Addresses: []corev1.EndpointAddress{{
+					TargetRef: &corev1.ObjectReference{Kind: "Pod", Name: "maestro-svc-pod"},
+				}},
+			}},
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: "maestro-abc", Namespace: "maestro"},
+			Status:     corev1.PodStatus{Phase: corev1.PodRunning},
+		},
+	)
+	res, warn := ResolvePortForwardTarget(context.Background(), cs, "maestro", "maestro", "maestro", 8090)
+	if warn != nil {
+		t.Fatalf("unexpected warn: %v", warn)
+	}
+	if res.DisplayKind != TargetKindPod || res.PodName != "maestro-abc" {
+		t.Errorf("got display=%q pod=%q, want pod/maestro-abc", res.DisplayKind, res.PodName)
+	}
+}
+
+func TestResolvePortForwardTarget_PodNotReady(t *testing.T) {
+	cs := fake.NewSimpleClientset(&corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "hyperfleet-api-pending", Namespace: "hyperfleet"},
+		Status:     corev1.PodStatus{Phase: corev1.PodPending},
+	})
+	res, warn := ResolvePortForwardTarget(context.Background(), cs, "hyperfleet", "missing-svc", "hyperfleet-api", 8000)
+	if warn == nil {
+		t.Fatal("expected PodNotReadyError")
+	}
+	var notReady *PodNotReadyError
+	if !isPodNotReady(warn, &notReady) {
+		t.Fatalf("expected *PodNotReadyError, got %T: %v", warn, warn)
+	}
+	if res.DisplayKind != TargetKindPod || res.PodName != "hyperfleet-api-pending" {
+		t.Errorf("got display=%q pod=%q", res.DisplayKind, res.PodName)
+	}
+}
+
+func TestResolvePortForwardTarget_NeitherFound(t *testing.T) {
+	cs := fake.NewSimpleClientset()
+	_, err := ResolvePortForwardTarget(context.Background(), cs, "hyperfleet", "missing-svc", "missing-pod", 8000)
+	if err == nil {
+		t.Fatal("expected error when neither service nor pod found")
+	}
+	if !strings.Contains(err.Error(), "no pod found") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
 func TestListPortForwards_Empty(t *testing.T) {
 	// Override pidDir for test by ensuring no PID files exist.
 	// Since pidDir uses UserHomeDir(), we test with the real dir (no pid files in CI).
@@ -461,6 +556,9 @@ func freePort(t *testing.T) int {
 func TestEphemeralPortForward_PodNotFound(t *testing.T) {
 	const ns = "hyperfleet"
 	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/namespaces/"+ns+"/services/hyperfleet-api", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	})
 	mux.HandleFunc("/api/v1/namespaces/"+ns+"/pods", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(corev1.PodList{})
@@ -491,12 +589,79 @@ users:
 		t.Fatal(err)
 	}
 
-	_, _, err := EphemeralPortForward(kubeconfigPath, ns, "hyperfleet-api", 8000, "")
+	_, _, err := EphemeralPortForward(kubeconfigPath, ns, "hyperfleet-api", "hyperfleet-api", 8000, "")
 	if err == nil {
 		t.Fatal("expected error when pod not found")
 	}
 	if !strings.Contains(err.Error(), "no pod found") {
 		t.Errorf("expected 'no pod found' in error, got: %v", err)
+	}
+}
+
+func TestEphemeralPortForward_ServicePreferred(t *testing.T) {
+	const ns = "hyperfleet"
+	podName := "api-hyperfleet-api-xyz"
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/namespaces/"+ns+"/services/hyperfleet-api", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: "hyperfleet-api", Namespace: ns},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{Port: 8000, TargetPort: intstr.FromInt32(8000)}},
+			},
+		})
+	})
+	mux.HandleFunc("/api/v1/namespaces/"+ns+"/endpoints/hyperfleet-api", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(corev1.Endpoints{
+			ObjectMeta: metav1.ObjectMeta{Name: "hyperfleet-api", Namespace: ns},
+			Subsets: []corev1.EndpointSubset{{
+				Ports: []corev1.EndpointPort{{Port: 8000}},
+				Addresses: []corev1.EndpointAddress{{
+					TargetRef: &corev1.ObjectReference{Kind: "Pod", Name: podName},
+				}},
+			}},
+		})
+	})
+	mux.HandleFunc("/api/v1/namespaces/"+ns+"/pods", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(corev1.PodList{})
+	})
+	mux.HandleFunc("/api/v1/namespaces/"+ns+"/pods/"+podName+"/portforward", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	dir := t.TempDir()
+	kubeconfigContent := fmt.Sprintf(`apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    server: %s
+  name: test
+contexts:
+- context:
+    cluster: test
+    user: test
+  name: test
+current-context: test
+users:
+- name: test
+  user:
+    token: test-token
+`, srv.URL)
+	kubeconfigPath := filepath.Join(dir, "kubeconfig")
+	if err := os.WriteFile(kubeconfigPath, []byte(kubeconfigContent), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err := EphemeralPortForward(kubeconfigPath, ns, "hyperfleet-api", "hyperfleet-api", 8000, "")
+	if err == nil {
+		t.Fatal("expected error from mock portforward endpoint")
+	}
+	if strings.Contains(err.Error(), "no pod found") {
+		t.Errorf("should resolve via service endpoints, not pod pattern: %v", err)
 	}
 }
 

@@ -1,0 +1,11 @@
+$ hf kube port-forward stop hyperfleet-api
+[INFO] Stopped hyperfleet-api
+
+$ hf kube port-forward start hyperfleet-api
+[INFO] Kubernetes context: gke_hcm-hyperfleet_europe-southwest1-a_hyperfleet-dev-amarin-eu1
+[INFO] Started hyperfleet-api (test1/svc/hyperfleet-api): localhost:8000 ? 8000 (pid 99754)
+  ? hyperfleet-api - localhost:8000 (PID: 99754)
+
+$ hf kube port-forward status
+[INFO] Kubernetes context: gke_hcm-hyperfleet_europe-southwest1-a_hyperfleet-dev-amarin-eu1
+  ? hyperfleet-api - localhost:8000 (PID: 99754)

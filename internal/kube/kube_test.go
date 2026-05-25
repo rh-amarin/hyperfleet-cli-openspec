@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
@@ -250,6 +251,27 @@ func TestFindRunningPod_NotFound(t *testing.T) {
 	}
 }
 
+func endpointSliceForService(namespace, serviceName, podName string, ports ...int32) *discoveryv1.EndpointSlice {
+	slicePorts := make([]discoveryv1.EndpointPort, len(ports))
+	for i, port := range ports {
+		p := port
+		slicePorts[i] = discoveryv1.EndpointPort{Port: &p}
+	}
+	return &discoveryv1.EndpointSlice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceName + "-slice",
+			Namespace: namespace,
+			Labels: map[string]string{
+				discoveryv1.LabelServiceName: serviceName,
+			},
+		},
+		Endpoints: []discoveryv1.Endpoint{{
+			TargetRef: &corev1.ObjectReference{Kind: "Pod", Name: podName},
+		}},
+		Ports: slicePorts,
+	}
+}
+
 func TestResolvePortForwardTarget_ServicePreferred(t *testing.T) {
 	cs := fake.NewSimpleClientset(
 		&corev1.Service{
@@ -258,15 +280,7 @@ func TestResolvePortForwardTarget_ServicePreferred(t *testing.T) {
 				Ports: []corev1.ServicePort{{Port: 8000, TargetPort: intstr.FromInt32(8000)}},
 			},
 		},
-		&corev1.Endpoints{
-			ObjectMeta: metav1.ObjectMeta{Name: "hyperfleet-api", Namespace: "hyperfleet"},
-			Subsets: []corev1.EndpointSubset{{
-				Ports: []corev1.EndpointPort{{Port: 8000}},
-				Addresses: []corev1.EndpointAddress{{
-					TargetRef: &corev1.ObjectReference{Kind: "Pod", Name: "hyperfleet-api-xyz"},
-				}},
-			}},
-		},
+		endpointSliceForService("hyperfleet", "hyperfleet-api", "hyperfleet-api-xyz", 8000),
 		&corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{Name: "hyperfleet-api-abc", Namespace: "hyperfleet"},
 			Status:     corev1.PodStatus{Phase: corev1.PodRunning},
@@ -280,7 +294,7 @@ func TestResolvePortForwardTarget_ServicePreferred(t *testing.T) {
 		t.Errorf("display: kind=%q name=%q, want service/hyperfleet-api", res.DisplayKind, res.DisplayName)
 	}
 	if res.PodName != "hyperfleet-api-xyz" {
-		t.Errorf("pod=%q, want hyperfleet-api-xyz from endpoints", res.PodName)
+		t.Errorf("pod=%q, want hyperfleet-api-xyz from endpoint slices", res.PodName)
 	}
 }
 
@@ -292,15 +306,7 @@ func TestResolvePortForwardTarget_ServiceWrongPortFallsBackToPod(t *testing.T) {
 				Ports: []corev1.ServicePort{{Port: 8000, TargetPort: intstr.FromInt32(8000)}},
 			},
 		},
-		&corev1.Endpoints{
-			ObjectMeta: metav1.ObjectMeta{Name: "maestro", Namespace: "maestro"},
-			Subsets: []corev1.EndpointSubset{{
-				Ports: []corev1.EndpointPort{{Port: 8000}},
-				Addresses: []corev1.EndpointAddress{{
-					TargetRef: &corev1.ObjectReference{Kind: "Pod", Name: "maestro-svc-pod"},
-				}},
-			}},
-		},
+		endpointSliceForService("maestro", "maestro", "maestro-svc-pod", 8000),
 		&corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{Name: "maestro-abc", Namespace: "maestro"},
 			Status:     corev1.PodStatus{Phase: corev1.PodRunning},
@@ -611,15 +617,22 @@ func TestEphemeralPortForward_ServicePreferred(t *testing.T) {
 			},
 		})
 	})
-	mux.HandleFunc("/api/v1/namespaces/"+ns+"/endpoints/hyperfleet-api", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/apis/discovery.k8s.io/v1/namespaces/"+ns+"/endpointslices", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(corev1.Endpoints{
-			ObjectMeta: metav1.ObjectMeta{Name: "hyperfleet-api", Namespace: ns},
-			Subsets: []corev1.EndpointSubset{{
-				Ports: []corev1.EndpointPort{{Port: 8000}},
-				Addresses: []corev1.EndpointAddress{{
+		port := int32(8000)
+		_ = json.NewEncoder(w).Encode(discoveryv1.EndpointSliceList{
+			Items: []discoveryv1.EndpointSlice{{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "hyperfleet-api-slice",
+					Namespace: ns,
+					Labels: map[string]string{
+						discoveryv1.LabelServiceName: "hyperfleet-api",
+					},
+				},
+				Endpoints: []discoveryv1.Endpoint{{
 					TargetRef: &corev1.ObjectReference{Kind: "Pod", Name: podName},
 				}},
+				Ports: []discoveryv1.EndpointPort{{Port: &port}},
 			}},
 		})
 	})
@@ -661,7 +674,7 @@ users:
 		t.Fatal("expected error from mock portforward endpoint")
 	}
 	if strings.Contains(err.Error(), "no pod found") {
-		t.Errorf("should resolve via service endpoints, not pod pattern: %v", err)
+		t.Errorf("should resolve via service endpoint slices, not pod pattern: %v", err)
 	}
 }
 

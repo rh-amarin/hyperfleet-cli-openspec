@@ -153,8 +153,9 @@ type contextRefreshedMsg struct {
 type errMsg struct{ err error }
 
 type patchResultMsg struct {
-	info string
-	err  error
+	info    string
+	err     error
+	entries []ClusterEntry
 }
 
 type portForwardResultMsg struct {
@@ -163,8 +164,9 @@ type portForwardResultMsg struct {
 }
 
 type deleteResultMsg struct {
-	info string
-	err  error
+	info    string
+	err     error
+	entries []ClusterEntry
 }
 
 // Update implements tea.Model.
@@ -176,23 +178,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case entriesFetchedMsg:
-		m.snapshot = BuildSnapshot(msg.entries, m.tick, m.opts.RefreshSecs, m.opts.NoColor)
-		if m.selected >= len(m.snapshot.Rows) {
-			if len(m.snapshot.Rows) > 0 {
-				m.selected = len(m.snapshot.Rows) - 1
-			} else {
-				m.selected = 0
-			}
-		}
-		if m.selected < 0 {
-			m.selected = 0
-		}
-		m.nextRefresh = time.Now().Add(time.Duration(m.opts.RefreshSecs) * time.Second)
-		m.secsLeft = m.opts.RefreshSecs
-		m.clampScroll()
-		if m.viewMode == ViewFilter {
-			m.refreshFilterTable()
-		}
+		m = m.applyEntries(msg.entries)
 		if m.statusMsg == "Refreshing…" {
 			m.statusMsg = ""
 		}
@@ -209,6 +195,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case spinnerTickMsg:
 		m.tick++
 		m.secsLeft = secsUntil(m.nextRefresh)
+		if len(m.snapshot.Entries) > 0 {
+			m.snapshot = BuildSnapshot(m.snapshot.Entries, m.tick, m.opts.RefreshSecs, m.opts.NoColor)
+		}
 		return m, m.spinnerTick()
 
 	case dataTickMsg:
@@ -220,6 +209,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusMsg = fmt.Sprintf("[ERROR] %v", msg.err)
 		} else {
 			m.statusMsg = msg.info
+		}
+		if msg.entries != nil {
+			m = m.applyEntries(msg.entries)
+			return m, m.contextCmd()
 		}
 		return m, tea.Batch(m.fetchCmd(), m.contextCmd())
 
@@ -241,6 +234,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusMsg = fmt.Sprintf("[ERROR] %v", msg.err)
 		} else {
 			m.statusMsg = msg.info
+		}
+		if msg.entries != nil {
+			m = m.applyEntries(msg.entries)
+			return m, m.contextCmd()
 		}
 		return m, tea.Batch(m.fetchCmd(), m.contextCmd())
 
@@ -557,9 +554,18 @@ func (m Model) runDelete(force bool) (Model, tea.Cmd) {
 		m.statusMsg = "Deleting…"
 	}
 	deleter := m.opts.Deleter
+	fetcher := m.opts.Fetcher
 	return m, func() tea.Msg {
 		info, err := deleter(target, force)
-		return deleteResultMsg{info: info, err: err}
+		var entries []ClusterEntry
+		var fetchErr error
+		if fetcher != nil {
+			entries, fetchErr = fetcher()
+			if fetchErr != nil && err == nil {
+				err = fetchErr
+			}
+		}
+		return deleteResultMsg{info: info, err: err, entries: entries}
 	}
 }
 
@@ -609,9 +615,18 @@ func (m Model) runPatch(section string) (Model, tea.Cmd) {
 	m.patching = true
 	m.statusMsg = "Patching…"
 	patcher := m.opts.Patcher
+	fetcher := m.opts.Fetcher
 	return m, func() tea.Msg {
 		info, err := patcher(target, section)
-		return patchResultMsg{info: info, err: err}
+		var entries []ClusterEntry
+		var fetchErr error
+		if fetcher != nil {
+			entries, fetchErr = fetcher()
+			if fetchErr != nil && err == nil {
+				err = fetchErr
+			}
+		}
+		return patchResultMsg{info: info, err: err, entries: entries}
 	}
 }
 
@@ -795,4 +810,25 @@ func secsUntil(t time.Time) int {
 		return 0
 	}
 	return int((d + time.Second - 1) / time.Second)
+}
+
+func (m Model) applyEntries(entries []ClusterEntry) Model {
+	m.snapshot = BuildSnapshot(entries, m.tick, m.opts.RefreshSecs, m.opts.NoColor)
+	if m.selected >= len(m.snapshot.Rows) {
+		if len(m.snapshot.Rows) > 0 {
+			m.selected = len(m.snapshot.Rows) - 1
+		} else {
+			m.selected = 0
+		}
+	}
+	if m.selected < 0 {
+		m.selected = 0
+	}
+	m.nextRefresh = time.Now().Add(time.Duration(m.opts.RefreshSecs) * time.Second)
+	m.secsLeft = m.opts.RefreshSecs
+	m.clampScroll()
+	if m.viewMode == ViewFilter {
+		m.refreshFilterTable()
+	}
+	return m
 }

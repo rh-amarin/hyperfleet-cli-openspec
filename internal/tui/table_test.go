@@ -1,8 +1,11 @@
 package tui
 
 import (
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/rh-amarin/hyperfleet-cli/internal/output"
 	"github.com/rh-amarin/hyperfleet-cli/internal/resource"
 )
 
@@ -25,6 +28,35 @@ func TestBuildSnapshotRows(t *testing.T) {
 	}
 	if len(snap.Headers) < 3 {
 		t.Fatalf("headers too short: %v", snap.Headers)
+	}
+}
+
+func TestBuildSnapshot_AdapterSpinnerChangesWithTick(t *testing.T) {
+	recent := time.Now().UTC().Format(time.RFC3339)
+	entries := []ClusterEntry{{
+		Cluster: resource.Cluster{ID: "c1", Name: "cluster-1", Generation: 1},
+		AdapterStatuses: []resource.AdapterStatus{{
+			Adapter:            "sentinel",
+			ObservedGeneration: 1,
+			LastReportTime:     recent,
+			Conditions:         []resource.AdapterCondition{{Type: "Available", Status: "True"}},
+		}},
+	}}
+
+	snap0 := BuildSnapshot(entries, 0, 5, true)
+	snap1 := BuildSnapshot(entries, 1, 5, true)
+	if len(snap0.Rows) != 1 || len(snap1.Rows) != 1 {
+		t.Fatalf("expected one row, got %d and %d", len(snap0.Rows), len(snap1.Rows))
+	}
+
+	adIdx := len(snap0.Headers) - 1
+	cell0 := snap0.Rows[0][adIdx]
+	cell1 := snap1.Rows[0][adIdx]
+	if cell0 == cell1 {
+		t.Fatalf("spinner cell should change with tick: %q vs %q", cell0, cell1)
+	}
+	if !strings.HasPrefix(cell0, output.SpinnerFrame(0)) {
+		t.Fatalf("expected spinner prefix in %q", cell0)
 	}
 }
 

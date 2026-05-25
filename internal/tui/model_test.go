@@ -3,6 +3,7 @@ package tui
 import (
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/rh-amarin/hyperfleet-cli/internal/resource"
@@ -63,9 +64,18 @@ func TestModelFormatToggle(t *testing.T) {
 
 func TestModelPatchMode(t *testing.T) {
 	patched := false
+	fetches := 0
 	m := NewModel(Options{
 		RefreshSecs: 5,
 		NoColor:     true,
+		Fetcher: func() ([]ClusterEntry, error) {
+			fetches++
+			cl := mustCluster()
+			if patched {
+				cl.Generation = 2
+			}
+			return []ClusterEntry{{Cluster: cl}}, nil
+		},
 		Patcher: func(target PatchTarget, section string) (string, error) {
 			patched = true
 			if section != "spec" || target.ClusterID != "c1" {
@@ -98,6 +108,18 @@ func TestModelPatchMode(t *testing.T) {
 	}
 	if !patched {
 		t.Fatal("patcher not called")
+	}
+
+	updated, _ = m2.Update(msg.(patchResultMsg))
+	m3 := updated.(Model)
+	if m3.snapshot.Entries[0].Cluster.Generation != 2 {
+		t.Fatalf("expected immediate refresh after patch, gen=%d", m3.snapshot.Entries[0].Cluster.Generation)
+	}
+	if m3.secsLeft != 5 {
+		t.Fatalf("expected refresh countdown reset, secsLeft=%d", m3.secsLeft)
+	}
+	if fetches != 1 {
+		t.Fatalf("expected one immediate fetch after patch, got %d", fetches)
 	}
 }
 
@@ -288,9 +310,18 @@ func TestModelFilterRefresh(t *testing.T) {
 
 func TestModelDeleteConfirm(t *testing.T) {
 	var deleted, force bool
+	fetches := 0
 	m := NewModel(Options{
 		RefreshSecs: 5,
 		NoColor:     true,
+		Fetcher: func() ([]ClusterEntry, error) {
+			fetches++
+			cl := mustCluster()
+			if deleted {
+				cl.DeletedTime = "2024-01-02T00:00:00Z"
+			}
+			return []ClusterEntry{{Cluster: cl}}, nil
+		},
 		Deleter: func(target PatchTarget, f bool) (string, error) {
 			deleted = true
 			force = f
@@ -325,6 +356,15 @@ func TestModelDeleteConfirm(t *testing.T) {
 	if !deleted || force {
 		t.Fatalf("deleter called with force=%v", force)
 	}
+
+	updated, _ = m2.Update(msg.(deleteResultMsg))
+	m3 := updated.(Model)
+	if m3.snapshot.Entries[0].Cluster.DeletedTime == "" {
+		t.Fatal("expected immediate refresh after delete")
+	}
+	if fetches != 1 {
+		t.Fatalf("expected one immediate fetch after delete, got %d", fetches)
+	}
 }
 
 func TestModelForceDeleteConfirm(t *testing.T) {
@@ -332,6 +372,9 @@ func TestModelForceDeleteConfirm(t *testing.T) {
 	m := NewModel(Options{
 		RefreshSecs: 5,
 		NoColor:     true,
+		Fetcher: func() ([]ClusterEntry, error) {
+			return []ClusterEntry{{Cluster: mustCluster()}}, nil
+		},
 		Deleter: func(_ PatchTarget, f bool) (string, error) {
 			force = f
 			return "[INFO] force-deleted", nil
@@ -388,6 +431,34 @@ func TestModelPortForwardToggle(t *testing.T) {
 	}
 	if !toggled {
 		t.Fatal("toggler not called")
+	}
+}
+
+func TestModelSpinnerTickRefreshesAdapterCells(t *testing.T) {
+	recent := time.Now().UTC().Format(time.RFC3339)
+	entries := []ClusterEntry{{
+		Cluster: resource.Cluster{ID: "c1", Name: "cluster-1", Generation: 1},
+		AdapterStatuses: []resource.AdapterStatus{{
+			Adapter:            "sentinel",
+			ObservedGeneration: 1,
+			LastReportTime:     recent,
+			Conditions:         []resource.AdapterCondition{{Type: "Available", Status: "True"}},
+		}},
+	}}
+
+	m := NewModel(Options{RefreshSecs: 5, NoColor: true})
+	m.snapshot = BuildSnapshot(entries, 0, 5, true)
+	adIdx := len(m.snapshot.Headers) - 1
+	before := m.snapshot.Rows[0][adIdx]
+
+	updated, _ := m.Update(spinnerTickMsg{})
+	m1 := updated.(Model)
+	after := m1.snapshot.Rows[0][adIdx]
+	if before == after {
+		t.Fatalf("adapter cell should update on spinner tick: %q", before)
+	}
+	if m1.tick != 1 {
+		t.Fatalf("tick = %d, want 1", m1.tick)
 	}
 }
 

@@ -24,6 +24,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -199,16 +200,18 @@ type PortForwardResolution struct {
 	DisplayName string
 }
 
-// podForService returns a backing pod name from Service Endpoints for remotePort.
+// podForService returns a backing pod name from EndpointSlices for remotePort.
 func podForService(ctx context.Context, cs kubernetes.Interface, namespace, serviceName string, remotePort int) (string, error) {
-	ep, err := cs.CoreV1().Endpoints(namespace).Get(ctx, serviceName, metav1.GetOptions{})
+	slices, err := cs.DiscoveryV1().EndpointSlices(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: discoveryv1.LabelServiceName + "=" + serviceName,
+	})
 	if err != nil {
 		return "", err
 	}
-	for _, subset := range ep.Subsets {
-		portOK := len(subset.Ports) == 0
-		for _, p := range subset.Ports {
-			if int(p.Port) == remotePort {
+	for _, slice := range slices.Items {
+		portOK := len(slice.Ports) == 0
+		for _, p := range slice.Ports {
+			if p.Port != nil && int(*p.Port) == remotePort {
 				portOK = true
 				break
 			}
@@ -216,9 +219,9 @@ func podForService(ctx context.Context, cs kubernetes.Interface, namespace, serv
 		if !portOK {
 			continue
 		}
-		for _, addr := range subset.Addresses {
-			if addr.TargetRef != nil && addr.TargetRef.Kind == "Pod" && addr.TargetRef.Name != "" {
-				return addr.TargetRef.Name, nil
+		for _, ep := range slice.Endpoints {
+			if ep.TargetRef != nil && ep.TargetRef.Kind == "Pod" && ep.TargetRef.Name != "" {
+				return ep.TargetRef.Name, nil
 			}
 		}
 	}

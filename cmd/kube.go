@@ -376,10 +376,16 @@ func checkPortForwardConnectivity(name string, localPort int, s configGetter) er
 	}
 }
 
-// resolvedKubeconfig returns the kubeconfig path from the persistent flag or empty string
-// (kube.BuildConfig resolves KUBECONFIG env / ~/.kube/config when empty).
-func resolvedKubeconfig(_ interface{ Get(string, string) string }) string {
-	return kubeConfigFlag
+// resolvedKubeconfig returns the kubeconfig path using precedence:
+// --kubeconfig flag → kubernetes.kubeconfig config (incl. HF_KUBECONFIG) → KUBECONFIG → ~/.kube/config.
+func resolvedKubeconfig(s interface{ Get(string, string) string }) string {
+	if kubeConfigFlag != "" {
+		return kubeConfigFlag
+	}
+	if v := s.Get("kubernetes", "kubeconfig"); v != "" {
+		return v
+	}
+	return kube.ResolveKubeconfig("")
 }
 
 type serviceSpec struct {

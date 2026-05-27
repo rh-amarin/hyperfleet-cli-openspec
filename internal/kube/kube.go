@@ -79,7 +79,7 @@ func (e *PodNotReadyError) Error() string {
 // If contextName is non-empty it is returned after verifying the context exists in the kubeconfig.
 // If contextName is empty the kubeconfig's current-context name is returned.
 func ResolvedContext(kubeconfigPath, contextName string) (string, error) {
-	resolved := resolveKubeconfig(kubeconfigPath)
+	resolved := ResolveKubeconfig(kubeconfigPath)
 	loadingRules := &clientcmd.ClientConfigLoadingRules{ExplicitPath: resolved}
 	rawCfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		loadingRules, &clientcmd.ConfigOverrides{},
@@ -103,9 +103,9 @@ func ResolvedContext(kubeconfigPath, contextName string) (string, error) {
 // Resolution order: kubeconfigPath arg → KUBECONFIG env → ~/.kube/config.
 // contextName selects a specific context; empty string uses the kubeconfig's current-context.
 func BuildConfig(kubeconfigPath, contextName string) (*rest.Config, error) {
-	resolved := resolveKubeconfig(kubeconfigPath)
+	resolved := ResolveKubeconfig(kubeconfigPath)
 	if _, err := os.Stat(resolved); os.IsNotExist(err) {
-		return nil, fmt.Errorf("[ERROR] kubeconfig not found at %s. Set KUBECONFIG or use --kubeconfig.", resolved)
+		return nil, fmt.Errorf("[ERROR] kubeconfig not found at %s. Set kubernetes.kubeconfig, KUBECONFIG, or use --kubeconfig.", resolved)
 	}
 	loadingRules := &clientcmd.ClientConfigLoadingRules{ExplicitPath: resolved}
 	overrides := &clientcmd.ConfigOverrides{}
@@ -307,7 +307,7 @@ func StartPortForward(kubeconfigPath, namespace, name, serviceName, podPattern s
 	if err != nil {
 		return StartResult{}, fmt.Errorf("cannot find executable: %w", err)
 	}
-	resolved := resolveKubeconfig(kubeconfigPath)
+	resolved := ResolveKubeconfig(kubeconfigPath)
 	cmd := exec.Command(exe, "kube", "port-forward", "_daemon",
 		resolved, namespace, res.PodName,
 		strconv.Itoa(localPort), strconv.Itoa(remotePort), contextName)
@@ -774,7 +774,9 @@ func checkHTTP(url string) error {
 
 // ---- private helpers ----
 
-func resolveKubeconfig(path string) string {
+// ResolveKubeconfig returns the kubeconfig path to use.
+// When path is non-empty it is returned as-is; otherwise KUBECONFIG env or ~/.kube/config is used.
+func ResolveKubeconfig(path string) string {
 	if path != "" {
 		return path
 	}

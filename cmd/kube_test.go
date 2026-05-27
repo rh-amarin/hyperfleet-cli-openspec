@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+
+	"github.com/rh-amarin/hyperfleet-cli/internal/config"
 )
 
 // ---- K8s API response fixtures ----
@@ -296,4 +298,33 @@ func TestPortForwardNoArgs_NoForwards(t *testing.T) {
 	if !strings.Contains(out, "No port-forwards tracked.") {
 		t.Errorf("expected 'No port-forwards tracked.' in output, got: %q", out)
 	}
+}
+
+func TestResolvedKubeconfig_Precedence(t *testing.T) {
+	dir := t.TempDir()
+	makeEnvRaw(t, dir, "dev", "kubernetes:\n  kubeconfig: /from/env-file\n")
+	if err := os.WriteFile(filepath.Join(dir, "state.yaml"), []byte("active-environment: dev\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	s := config.New(dir)
+	if err := s.Load(); err != nil {
+		t.Fatal(err)
+	}
+
+	resetKubeFlags()
+	t.Setenv("KUBECONFIG", "/from/kubecfg-env")
+	if got := resolvedKubeconfig(s); got != "/from/env-file" {
+		t.Errorf("config over KUBECONFIG: got %q, want /from/env-file", got)
+	}
+
+	t.Setenv("HF_KUBECONFIG", "/from/hf-env")
+	if got := resolvedKubeconfig(s); got != "/from/hf-env" {
+		t.Errorf("HF_KUBECONFIG over env file: got %q, want /from/hf-env", got)
+	}
+
+	kubeConfigFlag = "/from/flag"
+	if got := resolvedKubeconfig(s); got != "/from/flag" {
+		t.Errorf("flag over HF_KUBECONFIG: got %q, want /from/flag", got)
+	}
+	resetKubeFlags()
 }

@@ -391,7 +391,7 @@ func TestParseLogfmt(t *testing.T) {
 }
 
 func TestResolveKubeconfig_ExplicitPath(t *testing.T) {
-	got := resolveKubeconfig("/my/path")
+	got := ResolveKubeconfig("/my/path")
 	if got != "/my/path" {
 		t.Errorf("expected /my/path, got %s", got)
 	}
@@ -399,7 +399,7 @@ func TestResolveKubeconfig_ExplicitPath(t *testing.T) {
 
 func TestResolveKubeconfig_EnvVar(t *testing.T) {
 	t.Setenv("KUBECONFIG", "/env/path")
-	got := resolveKubeconfig("")
+	got := ResolveKubeconfig("")
 	if got != "/env/path" {
 		t.Errorf("expected /env/path, got %s", got)
 	}

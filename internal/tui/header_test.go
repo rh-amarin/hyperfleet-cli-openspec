@@ -36,6 +36,27 @@ func TestRenderHeaderShowsViewAndConfig(t *testing.T) {
 	}
 }
 
+func TestRenderHeaderShowsAutoPortForward(t *testing.T) {
+	m := NewModel(Options{RefreshSecs: 5, NoColor: true})
+	m.width = 100
+	m.context = ContextInfo{
+		AutoPortForward: true,
+		PortForwards: []PortForwardLine{
+			{Name: "hyperfleet-api", LocalPort: 49152, Connected: true},
+			{Name: "maestro-http", LocalPort: 49153, Connected: true},
+			{Name: "maestro-grpc", LocalPort: 49154, Connected: false},
+		},
+	}
+
+	out := m.renderHeader()
+	if !strings.Contains(out, autoPortForwardNotice) {
+		t.Errorf("expected auto port-forward notice: %s", out)
+	}
+	if !strings.Contains(out, "hyperfleet-api:49152") {
+		t.Errorf("expected auto tunnel port in header: %s", out)
+	}
+}
+
 func TestRenderHeaderSeparator(t *testing.T) {
 	m := NewModel(Options{RefreshSecs: 5, NoColor: true})
 	m.width = 40

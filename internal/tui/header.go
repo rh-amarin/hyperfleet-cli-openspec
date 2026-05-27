@@ -9,10 +9,14 @@ import (
 )
 
 func (m Model) headerLineCount() int {
+	lines := 3
 	if m.detailOpen || m.viewMode == ViewPicker || m.viewMode == ViewFilter {
-		return 4
+		lines = 4
 	}
-	return 3
+	if m.context.AutoPortForward {
+		lines++
+	}
+	return lines
 }
 
 func (m Model) renderHeader() string {
@@ -21,6 +25,9 @@ func (m Model) renderHeader() string {
 		if rl := m.headerResourceLine(); rl != "" {
 			lines = append(lines, rl)
 		}
+	}
+	if autoLine := m.headerAutoPortForwardLine(); autoLine != "" {
+		lines = append(lines, autoLine)
 	}
 	lines = append(lines, m.headerConfigLine(), m.headerPortForwardLine())
 	return strings.Join(lines, "\n")
@@ -116,13 +123,28 @@ func (m Model) headerConfigLine() string {
 	}, "  ")
 }
 
+const autoPortForwardNotice = "using auto port-forward ⚠️"
+
+func (m Model) headerAutoPortForwardLine() string {
+	if !m.context.AutoPortForward {
+		return ""
+	}
+	style := lipgloss.NewStyle().Bold(true)
+	if !m.opts.NoColor {
+		style = style.Foreground(lipgloss.Color("11"))
+	}
+	return style.Render(autoPortForwardNotice)
+}
+
 func (m Model) headerPortForwardLine() string {
 	ctx := m.context
 	faint := lipgloss.NewStyle().Faint(true)
 	parts := []string{faint.Render("pf:")}
 
 	if len(ctx.PortForwards) == 0 {
-		parts = append(parts, faint.Render("(none configured)"))
+		if !ctx.AutoPortForward {
+			parts = append(parts, faint.Render("(none configured)"))
+		}
 		return strings.Join(parts, " ")
 	}
 

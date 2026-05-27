@@ -138,6 +138,40 @@ func TestGet_EnvVarOverridesActiveEnvFile(t *testing.T) {
 	}
 }
 
+func TestGet_KubeconfigFromEnvFile(t *testing.T) {
+	dir := t.TempDir()
+	writeEnv(t, dir, "dev", "kubernetes:\n  kubeconfig: /path/to/kubeconfig\n")
+	if err := os.WriteFile(filepath.Join(dir, "state.yaml"), []byte("active-environment: dev\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	s := config.New(dir)
+	if err := s.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.Get("kubernetes", "kubeconfig"); got != "/path/to/kubeconfig" {
+		t.Errorf("kubeconfig from env file: got %q", got)
+	}
+}
+
+func TestGet_HF_KUBECONFIGOverridesEnvFile(t *testing.T) {
+	dir := t.TempDir()
+	writeEnv(t, dir, "dev", "kubernetes:\n  kubeconfig: /from/file\n")
+	if err := os.WriteFile(filepath.Join(dir, "state.yaml"), []byte("active-environment: dev\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	s := config.New(dir)
+	if err := s.Load(); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("HF_KUBECONFIG", "/from/env")
+	if got := s.Get("kubernetes", "kubeconfig"); got != "/from/env" {
+		t.Errorf("HF_KUBECONFIG override: got %q, want /from/env", got)
+	}
+}
+
 // ---- Set ----
 
 func TestSet_WritesToActiveEnvFile(t *testing.T) {

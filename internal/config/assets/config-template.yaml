@@ -8,6 +8,7 @@ hyperfleet:
 
 kubernetes:
   context: ""
+  kubeconfig: ""
 
 maestro:
   consumer: "cluster1"

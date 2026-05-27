@@ -310,7 +310,7 @@ func knownKeysForSection(section string) []string {
 	case "hyperfleet":
 		return []string{"api-url", "api-version", "token", "gcp-project", "namespace"}
 	case "kubernetes":
-		return []string{"context"}
+		return []string{"context", "kubeconfig"}
 	case "maestro":
 		return []string{"consumer", "http-endpoint", "grpc-endpoint", "namespace"}
 	case "port-forward":

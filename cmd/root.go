@@ -151,6 +151,9 @@ func isBypassCommand(cmd *cobra.Command) bool {
 
 // Execute runs the root command and returns any error to main.
 func Execute() error {
+	if err := preloadResourceCommands(os.Args[1:]); err != nil {
+		return err
+	}
 	return rootCmd.Execute()
 }
 
@@ -173,7 +176,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&outputFmt, "output", "o", "json", "output format: json, table, yaml")
 	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "disable colored output")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose/debug logging")
-	rootCmd.PersistentFlags().BoolVar(&curlMode, "curl", false, "print equivalent curl command for each API request")
+	rootCmd.PersistentFlags().BoolVar(&curlMode, "curl", false, "print equivalent curl command and skip API requests (dry-run)")
 	rootCmd.PersistentFlags().StringVar(&apiURL, "api-url", "", "override HyperFleet API URL for this invocation")
 	rootCmd.PersistentFlags().StringVar(&apiToken, "api-token", "", "override API bearer token for this invocation")
 

@@ -123,6 +123,14 @@ var configShowCmd = &cobra.Command{
 			return err
 		}
 
+		if names, err := s.ResourceTypeNames(); err == nil && len(names) > 0 {
+			fmt.Fprintln(w, output.SectionSeparator(nc))
+			fmt.Fprintln(w, "resource-types:")
+			for _, name := range names {
+				fmt.Fprintf(w, "  - %s\n", name)
+			}
+		}
+
 		if len(stateVals) > 0 {
 			fmt.Fprintln(w, output.SectionSeparator(nc))
 			stateMap := map[string]map[string]string{"state": stateVals}

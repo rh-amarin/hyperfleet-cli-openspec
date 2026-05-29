@@ -34,6 +34,7 @@ Complete requirements specification for the HyperFleet CLI tool (`hf`), reverse-
 | T5 | [Config Template](config-template/spec.md) | Bundled environment template embedding and consistency requirements |
 | T6 | [Resource Types](resource-types/spec.md) | Canonical resource type definitions for clusters, nodepools, adapter statuses |
 | T7 | [API Client](api-client/spec.md) | HTTP client contract, RFC 7807 error parsing, request/response conventions |
+| T8 | [Generic Resource Lifecycle](generic-resource-lifecycle/spec.md) | Config-driven `hf resource` / `hf rs` CRUD for arbitrary API types (channels, versions, etc.) |
 
 ## Technology Decisions
 

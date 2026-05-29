@@ -92,14 +92,43 @@ func (s *Store) Load() error {
 		profPath := filepath.Join(s.dir, "environments", active+".yaml")
 		raw, err := os.ReadFile(profPath)
 		if err == nil {
-			var prof map[string]map[string]string
-			if err := yaml.Unmarshal(raw, &prof); err == nil {
-				s.profile = prof
-			}
+			s.profile = parseEnvProfile(raw)
 		}
 	}
 
 	return nil
+}
+
+// parseEnvProfile extracts flat string sections from an environment YAML file,
+// skipping structured sections such as resource-types.
+func parseEnvProfile(raw []byte) map[string]map[string]string {
+	var doc map[string]any
+	if err := yaml.Unmarshal(raw, &doc); err != nil {
+		return nil
+	}
+	prof := make(map[string]map[string]string)
+	for section, val := range doc {
+		if section == "resource-types" {
+			continue
+		}
+		secMap, ok := val.(map[string]any)
+		if !ok {
+			continue
+		}
+		inner := make(map[string]string, len(secMap))
+		for k, v := range secMap {
+			if sv, ok := v.(string); ok {
+				inner[k] = sv
+			}
+		}
+		if len(inner) > 0 {
+			prof[section] = inner
+		}
+	}
+	if len(prof) == 0 {
+		return nil
+	}
+	return prof
 }
 
 // Get returns a configuration value using the precedence chain:

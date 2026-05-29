@@ -3,9 +3,7 @@
 ## Purpose
 
 Define the Cobra command tree, Go module structure, shared library contracts, and developer tooling for the HyperFleet CLI. The architecture prioritizes a self-contained binary with no external tool dependencies for core operations.
-
 ## Requirements
-
 ### Requirement: Go Module Structure
 
 The CLI SHALL be organized as a single Go module with internal packages following domain-driven boundaries.
@@ -57,99 +55,22 @@ The CLI SHALL use [spf13/cobra](https://github.com/spf13/cobra) for command rout
 
 - GIVEN Cobra is the CLI framework
 - WHEN commands are registered
-- THEN the command tree MUST follow this structure:
+- THEN the command tree MUST include:
   ```
   hf
-  ├── cluster
-  │   ├── create    [--name <name>] [--file <path>]
-  │   ├── get       [cluster_id]
-  │   ├── list
-  │   ├── search    [name]
-  │   ├── patch     {spec|labels} [cluster_id]
-  │   ├── delete    [cluster_id]
-  │   ├── id
-  │   ├── conditions      [cluster_id]
-  │   ├── statuses        [cluster_id]
-  │   └── adapter
-  │       └── post-status <adapter> <status> <generation>
-  ├── nodepool
-  │   ├── create    [--name <name>] [--file <path>]
-  │   ├── get       [nodepool_id]
-  │   ├── list
-  │   ├── search    [name]
-  │   ├── patch     {spec|labels} [nodepool_id]
-  │   ├── delete    [nodepool_id]
-  │   ├── id
-  │   ├── conditions      [nodepool_id]
-  │   ├── statuses        [nodepool_id]
-  │   └── adapter
-  │       └── post-status <adapter> <status> <generation> [nodepool_id]
-  ├── config
-  │   ├── show      [env-name]
-  │   └── set       <key> <value>
-  ├── env
-  │   ├── create   [name]
-  │   ├── list
-  │   ├── show     <name>
-  │   ├── activate <name>
-  │   ├── delete   <name>
-  │   └── rm       <name>     (alias for delete)
-  ├── resources                (default: JSON; --output table for table view)
-  ├── table                    (alias for resources)
-  ├── db
-  │   ├── query     <sql> | -f <file>
-  │   ├── delete    <clusters|nodepools|adapter_statuses> | --all
-  │   └── config
-  ├── maestro
-  │   ├── list
-  │   ├── get       [name]
-  │   ├── delete    [name]
-  │   ├── bundles
-  │   └── consumers
-  ├── pubsub
-  │   ├── list      [filter]
-  │   └── publish
-  │       ├── cluster  <topic>
-  │       └── nodepool <topic>
-  ├── rabbitmq
-  │   └── publish
-  │       ├── cluster  <exchange> [routing-key]
-  │       └── nodepool <exchange> [routing-key]
-  ├── kube
-  │   ├── port-forward  start|stop|status [name]
-  │   ├── curl       [options] <url>
-  │   └── debug      <deployment>
-  ├── logs           [pattern]
-  │   ├── adapter    [pattern]
-  │   └── insights   [-s <duration>]
-  ├── repos
-  ├── version
-  └── completion     bash|zsh|fish|powershell
+  ├── resource | rs
+  │   ├── types
+  │   └── <type-name>          # dynamically registered from resource-types config
+  │       ├── list
+  │       ├── get
+  │       ├── create
+  │       ├── search
+  │       ├── patch
+  │       ├── delete
+  │       └── id
   ```
-
-NOTE: `hf resources` and `hf table` default to JSON output. Pass `--output table` to render the combined cluster+nodepool table. The `--output` flag is the universal mechanism for format selection — there is no `--table` flag.
-
-#### Scenario: Command stub registration
-
-- WHEN the user runs `hf --help`
-- THEN the following commands MUST appear in the output: `cluster`, `nodepool`, `config`, `env`, `db`, `maestro`, `pubsub`, `rabbitmq`, `kube`, `logs`, `repos`, `resources`, `table`, `version`, `completion`
-
-#### Scenario: Stub group commands show help when invoked directly
-
-- WHEN the user runs `hf cluster` (or any other command group) with no subcommand
-- THEN the CLI MUST print help text for that command and exit 0
-
-#### Scenario: Global flags
-
-- GIVEN the root command is defined
-- WHEN global flags are registered
-- THEN the following persistent flags MUST be available on every command:
-  - `--output <format>` / `-o`: output format (`json`, `table`, `yaml`); default varies per command
-  - `--no-color`: disable colored output
-  - `--verbose` / `-v`: enable verbose/debug logging
-  - `--api-url <url>`: override API URL for this invocation
-  - `--api-token <token>`: override API token for this invocation
-- NOTE: There is no `--force-color` flag. Color is enabled when stdout is a TTY, disabled otherwise.
+- AND dynamic `<type-name>` groups MUST be registered after the active environment is loaded
+- AND existing `hf cluster`, `hf nodepool`, and `hf resources` commands MUST remain unchanged
 
 ### Requirement: Version Package
 
@@ -353,3 +274,55 @@ The CLI SHALL support configurable verbosity.
 - WHEN the CLI executes
 - THEN only warnings, errors, and command output MUST be displayed
 - AND no debug information MUST appear
+
+### Requirement: Generic Resource Command Group
+
+The CLI SHALL provide a top-level command group `hf resource` with alias `hf rs` for config-defined HyperFleet API resource types.
+
+#### Scenario: Command group registration
+
+- GIVEN the root command is initialized
+- WHEN the user runs `hf resource --help` or `hf rs --help`
+- THEN the CLI MUST show the `resource` command group
+- AND `hf rs` MUST be a registered alias for `hf resource`
+- AND this group MUST NOT be named `resources` (that name is reserved for the cluster+nodepool overview)
+
+#### Scenario: Distinction from hf resources
+
+- GIVEN `hf resources` displays combined cluster and nodepool overview
+- WHEN a user runs `hf resource <type> list`
+- THEN the CLI MUST operate on config-defined API resource types
+- AND MUST NOT invoke the cluster+nodepool overview command
+
+#### Scenario: Dynamic type subcommands
+
+- GIVEN the active environment defines resource types under `resource-types`
+- WHEN the user runs `hf resource --help` after config load
+- THEN the CLI MUST register one subcommand group per configured type name (e.g. `channels`, `versions`)
+- AND each type group MUST expose subcommands: `list`, `get`, `create`, `search`, `patch`, `delete`, `id`
+
+#### Scenario: No configured types
+
+- GIVEN the active environment has no `resource-types` section or an empty map
+- WHEN the user runs `hf resource --help`
+- THEN the CLI MUST show at minimum the `types` subcommand
+- AND MUST NOT fail with a parse error
+
+### Requirement: Resource Types Subcommand
+
+The CLI SHALL provide `hf resource types` to display configured resource types and their relationships.
+
+#### Scenario: List configured types
+
+- GIVEN resource types are defined in the active environment
+- WHEN the user runs `hf resource types`
+- THEN the CLI MUST print each type name, its API path template, its parent (if any), and its state-key
+- AND MUST indicate whether each state-key is currently set in `state.yaml`
+
+#### Scenario: Parent chain display
+
+- GIVEN a child type with `parent: channels`
+- WHEN the user runs `hf resource types`
+- THEN the output MUST show the parent relationship
+- AND MUST indicate which parent state-key is required before child commands can run
+

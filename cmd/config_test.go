@@ -14,6 +14,9 @@ import (
 func runCmd(t *testing.T, dir string, args ...string) (string, error) {
 	t.Helper()
 	t.Setenv("HF_CONFIG_DIR", dir)
+	if err := preloadResourceCommands(args); err != nil {
+		return "", err
+	}
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)

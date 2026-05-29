@@ -40,3 +40,5 @@ rabbitmq:
 
 registry:
   name: ""
+
+resource-types: {}

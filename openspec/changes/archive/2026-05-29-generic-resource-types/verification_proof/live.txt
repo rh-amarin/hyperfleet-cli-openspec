@@ -1,0 +1,163 @@
+# Live verification against http://localhost:8000
+# HF_CONFIG_DIR=/var/folders/mv/d24cnjtx20n5mgsmbcl4xc5m0000gn/T/tmp.n8t4gwuuFJ
+
+## hf resource types
+channels  path: channels  state: channel-id=<not set>
+  └─ versions  path: channels/{channel_id}/versions  state: version-id=<not set>
+     requires: channel-id
+
+## hf resource channels list
+{
+  "items": [
+    {
+      "created_by": "system@hyperfleet.local",
+      "created_time": "2026-05-29T09:17:17.550515Z",
+      "generation": 1,
+      "href": "/api/hyperfleet/v1/channels/019e7306-0f6e-77da-876e-a89e9fbf175d",
+      "id": "019e7306-0f6e-77da-876e-a89e9fbf175d",
+      "kind": "Channel",
+      "name": "hf-cli-live-test",
+      "spec": {},
+      "status": {
+        "conditions": null
+      },
+      "updated_by": "system@hyperfleet.local",
+      "updated_time": "2026-05-29T09:17:17.550515Z"
+    }
+  ],
+  "kind": "ResourceList",
+  "page": 1,
+  "size": 1,
+  "total": 1
+}
+
+## hf resource channels create --name hf-cli-live-1780046245
+[INFO] channels context set to '019e7306-2e54-78b0-820b-2ae9d5ce18d1'
+{
+  "created_by": "system@hyperfleet.local",
+  "created_time": "2026-05-29T09:17:25.460570137Z",
+  "generation": 1,
+  "href": "/api/hyperfleet/v1/channels/019e7306-2e54-78b0-820b-2ae9d5ce18d1",
+  "id": "019e7306-2e54-78b0-820b-2ae9d5ce18d1",
+  "kind": "Channel",
+  "name": "hf-cli-live-1780046245",
+  "spec": {},
+  "status": {
+    "conditions": null
+  },
+  "updated_by": "system@hyperfleet.local",
+  "updated_time": "2026-05-29T09:17:25.460570137Z"
+}
+
+## hf resource channels search hf-cli-live-1780046245
+[INFO] channels context set to '019e7306-2e54-78b0-820b-2ae9d5ce18d1'
+[
+  {
+    "created_by": "system@hyperfleet.local",
+    "created_time": "2026-05-29T09:17:25.46057Z",
+    "generation": 1,
+    "href": "/api/hyperfleet/v1/channels/019e7306-2e54-78b0-820b-2ae9d5ce18d1",
+    "id": "019e7306-2e54-78b0-820b-2ae9d5ce18d1",
+    "kind": "Channel",
+    "name": "hf-cli-live-1780046245",
+    "spec": {},
+    "status": {
+      "conditions": null
+    },
+    "updated_by": "system@hyperfleet.local",
+    "updated_time": "2026-05-29T09:17:25.46057Z"
+  }
+]
+
+## state.yaml after channel search
+active-environment: live-local
+channel-id: 019e7306-2e54-78b0-820b-2ae9d5ce18d1
+
+## hf resource channels get
+{
+  "created_by": "system@hyperfleet.local",
+  "created_time": "2026-05-29T09:17:25.46057Z",
+  "generation": 1,
+  "href": "/api/hyperfleet/v1/channels/019e7306-2e54-78b0-820b-2ae9d5ce18d1",
+  "id": "019e7306-2e54-78b0-820b-2ae9d5ce18d1",
+  "kind": "Channel",
+  "name": "hf-cli-live-1780046245",
+  "spec": {},
+  "status": {
+    "conditions": null
+  },
+  "updated_by": "system@hyperfleet.local",
+  "updated_time": "2026-05-29T09:17:25.46057Z"
+}
+
+## hf resource versions list (with channel-id set)
+{
+  "items": [],
+  "kind": "ResourceList",
+  "page": 1,
+  "size": 0,
+  "total": 0
+}
+
+## hf resource versions create
+[INFO] versions context set to '019e7306-306d-7ab5-916f-b3abacbc7d13'
+{
+  "created_by": "system@hyperfleet.local",
+  "created_time": "2026-05-29T09:17:25.997702613Z",
+  "generation": 1,
+  "href": "/api/hyperfleet/v1/channels/019e7306-2e54-78b0-820b-2ae9d5ce18d1/versions/019e7306-306d-7ab5-916f-b3abacbc7d13",
+  "id": "019e7306-306d-7ab5-916f-b3abacbc7d13",
+  "kind": "Version",
+  "name": "hf-cli-ver-1780046245",
+  "owner_references": {
+    "href": "/api/hyperfleet/v1/channels/019e7306-2e54-78b0-820b-2ae9d5ce18d1",
+    "id": "019e7306-2e54-78b0-820b-2ae9d5ce18d1",
+    "kind": "Channel"
+  },
+  "spec": {},
+  "status": {
+    "conditions": null
+  },
+  "updated_by": "system@hyperfleet.local",
+  "updated_time": "2026-05-29T09:17:25.997702613Z"
+}
+
+## hf resource versions list (after create)
+{
+  "items": [
+    {
+      "created_by": "system@hyperfleet.local",
+      "created_time": "2026-05-29T09:17:25.997703Z",
+      "generation": 1,
+      "href": "/api/hyperfleet/v1/channels/019e7306-2e54-78b0-820b-2ae9d5ce18d1/versions/019e7306-306d-7ab5-916f-b3abacbc7d13",
+      "id": "019e7306-306d-7ab5-916f-b3abacbc7d13",
+      "kind": "Version",
+      "name": "hf-cli-ver-1780046245",
+      "owner_references": {
+        "href": "/api/hyperfleet/v1/channels/019e7306-2e54-78b0-820b-2ae9d5ce18d1",
+        "id": "019e7306-2e54-78b0-820b-2ae9d5ce18d1",
+        "kind": "Channel"
+      },
+      "spec": {},
+      "status": {
+        "conditions": null
+      },
+      "updated_by": "system@hyperfleet.local",
+      "updated_time": "2026-05-29T09:17:25.997703Z"
+    }
+  ],
+  "kind": "ResourceList",
+  "page": 1,
+  "size": 1,
+  "total": 1
+}
+
+## hf rs channels list (alias)
+{
+  "items": [
+    {
+      "created_by": "system@hyperfleet.local",
+      "created_time": "2026-05-29T09:17:25.46057Z",
+
+## hf resource versions list without channel-id (fresh state)
+[ERROR] No channel-id set in state. Run 'hf resource channels search <name>' first.

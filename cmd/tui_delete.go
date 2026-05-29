@@ -25,6 +25,9 @@ func tuiDeleteResource(target tui.PatchTarget, force bool) (string, error) {
 		if force {
 			_, err := api.Post[resource.NodePool](ctx, client, path+"/force-delete",
 				map[string]string{"reason": tuiForceDeleteReason})
+			if errors.Is(err, api.ErrDryRun) {
+				return "", nil
+			}
 			if err != nil {
 				var apiErr *api.APIError
 				if errors.As(err, &apiErr) && apiErr.Status == 404 {
@@ -35,6 +38,9 @@ func tuiDeleteResource(target tui.PatchTarget, force bool) (string, error) {
 			return fmt.Sprintf("[INFO] NodePool '%s' force-deleted", target.NodePoolID), nil
 		}
 		_, err := api.Delete[resource.NodePool](ctx, client, path)
+		if errors.Is(err, api.ErrDryRun) {
+			return "", nil
+		}
 		if err != nil {
 			var apiErr *api.APIError
 			if errors.As(err, &apiErr) && apiErr.Status == 404 {
@@ -48,6 +54,9 @@ func tuiDeleteResource(target tui.PatchTarget, force bool) (string, error) {
 	if force {
 		_, err := api.Post[resource.Cluster](ctx, client, "clusters/"+target.ClusterID+"/force-delete",
 			map[string]string{"reason": tuiForceDeleteReason})
+		if errors.Is(err, api.ErrDryRun) {
+			return "", nil
+		}
 		if err != nil {
 			var apiErr *api.APIError
 			if errors.As(err, &apiErr) && apiErr.Status == 404 {
@@ -59,6 +68,9 @@ func tuiDeleteResource(target tui.PatchTarget, force bool) (string, error) {
 	}
 
 	_, err = api.Delete[resource.Cluster](ctx, client, "clusters/"+target.ClusterID)
+	if errors.Is(err, api.ErrDryRun) {
+		return "", nil
+	}
 	if err != nil {
 		var apiErr *api.APIError
 		if errors.As(err, &apiErr) && apiErr.Status == 404 {

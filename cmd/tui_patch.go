@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"strconv"
@@ -31,6 +32,9 @@ func tuiPatchResource(target tui.PatchTarget, section string) (string, error) {
 func patchClusterCounter(ctx context.Context, client *api.Client, id, section string) (string, error) {
 	cluster, err := api.Get[resource.Cluster](ctx, client, "clusters/"+id)
 	if err != nil {
+		if errors.Is(err, api.ErrDryRun) {
+			return "", nil
+		}
 		return "", err
 	}
 	oldVal, newVal := bumpCounter(section, cluster.Spec, cluster.Labels)
@@ -44,6 +48,9 @@ func patchClusterCounter(ctx context.Context, client *api.Client, id, section st
 func patchNodePoolCounter(ctx context.Context, client *api.Client, clusterID, npID, section string) (string, error) {
 	np, err := api.Get[resource.NodePool](ctx, client, npBase(clusterID)+"/"+npID)
 	if err != nil {
+		if errors.Is(err, api.ErrDryRun) {
+			return "", nil
+		}
 		return "", err
 	}
 	oldVal, newVal := bumpCounter(section, np.Spec, np.Labels)

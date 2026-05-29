@@ -4,6 +4,7 @@ package maestro
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +14,9 @@ import (
 
 	"github.com/rh-amarin/hyperfleet-cli/internal/config"
 )
+
+// ErrDryRun is returned when curlMode is enabled and the request was not sent.
+var ErrDryRun = errors.New("dry-run")
 
 // ManifestSummary is a lightweight summary of a single Kubernetes manifest.
 type ManifestSummary struct {
@@ -89,6 +93,7 @@ func (c *Client) get(ctx context.Context, path string, v any) error {
 
 	if c.curlMode {
 		fmt.Fprintf(os.Stderr, "[CURL] curl -s \"%s\" \\\n  -H 'Accept: application/json'\n", url)
+		return ErrDryRun
 	}
 
 	resp, err := c.http.Do(req)
@@ -114,6 +119,7 @@ func (c *Client) delete(ctx context.Context, path string) error {
 
 	if c.curlMode {
 		fmt.Fprintf(os.Stderr, "[CURL] curl -s -X DELETE \"%s\"\n", url)
+		return ErrDryRun
 	}
 
 	resp, err := c.http.Do(req)

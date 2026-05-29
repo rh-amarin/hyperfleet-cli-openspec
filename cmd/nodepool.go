@@ -120,6 +120,9 @@ var nodepoolListCmd = &cobra.Command{
 	Short: "List all nodepools",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if nodepoolListWatch && outputFmt == "table" {
+			if curlMode {
+				return fetchAndRenderNodepoolList(cmd, 0, 0)
+			}
 			ctx, cancel := watchContext(context.Background())
 			defer cancel()
 			return runWatch(ctx, cmd.OutOrStdout(), nodepoolListWatchSecs, func(tick int) error {
@@ -335,14 +338,15 @@ var nodepoolCreateCmd = &cobra.Command{
 		client := newAPIClient(s)
 		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
-		// Duplicate check.
-		existing, err := api.Get[resource.ListResponse[resource.NodePool]](
-			context.Background(), client,
-			npBase(clusterID)+"?search=name='"+name+"'",
-		)
-		if err == nil && len(existing.Items) > 0 {
-			p.Warn(fmt.Sprintf("NodePool '%s' already exists, skipping creation", name))
-			return nil
+		if !curlMode {
+			existing, err := api.Get[resource.ListResponse[resource.NodePool]](
+				context.Background(), client,
+				npBase(clusterID)+"?search=name='"+name+"'",
+			)
+			if err == nil && len(existing.Items) > 0 {
+				p.Warn(fmt.Sprintf("NodePool '%s' already exists, skipping creation", name))
+				return nil
+			}
 		}
 
 		np, err := api.Post[resource.NodePool](context.Background(), client, npBase(clusterID), body)
@@ -769,6 +773,9 @@ var nodepoolIDInteractive bool
 var nodepoolIDSel selector.Selector = selector.FuzzySelector{}
 
 func pickNodepoolInteractive(cmd *cobra.Command, s *config.Store, clusterID string) (string, error) {
+	if err := errCurlInteractive(true); err != nil {
+		return "", err
+	}
 	client := newAPIClient(s)
 	list, err := api.Get[resource.ListResponse[resource.NodePool]](context.Background(), client, npBase(clusterID))
 	if err != nil {
@@ -819,6 +826,9 @@ var nodepoolIDCmd = &cobra.Command{
 }
 
 func runNodepoolIDInteractive(cmd *cobra.Command, s *config.Store, sel selector.Selector) error {
+	if err := errCurlInteractive(true); err != nil {
+		return err
+	}
 	clusterID, err := requireClusterID(s)
 	if err != nil {
 		return err

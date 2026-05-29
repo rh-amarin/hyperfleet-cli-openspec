@@ -1,0 +1,17 @@
+?   	github.com/rh-amarin/hyperfleet-cli	[no test files]
+ok  	github.com/rh-amarin/hyperfleet-cli/cmd	2.781s
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/api	1.279s
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/config	0.904s
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/db	1.021s
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/insights	1.743s
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/kube	2.314s
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/maestro	2.228s
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/output	2.343s
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/pubsub	1.477s
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/repos	1.620s
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/resource	1.801s
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/selector	1.613s
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/server	1.016s
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/tui	1.045s
+?   	github.com/rh-amarin/hyperfleet-cli/internal/ui	[no test files]
+ok  	github.com/rh-amarin/hyperfleet-cli/internal/version	1.128s

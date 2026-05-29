@@ -17,9 +17,7 @@ AND exit with code 1 before making any API call.
 [ERROR] No nodepool-id set in state. Run 'hf nodepool create' or 'hf nodepool search <name>' first.
 ```
 AND exit with code 1.
-
 ## Requirements
-
 ### Requirement: Create NodePool
 
 `hf nodepool create` SHALL load the request body from a JSON template. The binary embeds a built-in default template (`cmd/assets/nodepool-template.json`). When no `--file` flag is given, the CLI MUST use the embedded default bytes directly in memory — it MUST NOT read from or write to `<config-dir>`. The `--name` flag overrides only the `name` field in the template.
@@ -354,3 +352,18 @@ ID                                    NAME      REPLICAS  TYPE           GEN  Av
 019dc049-e79e-72a9-94f8-0056a11193cd  workers-2  1        n2-standard-4  1    ● 1(red)   ● 1(red)    -
 019dc049-e76c-7be1-b201-0db50e2c8ecb  workers-1  1        n2-standard-4  2    ● 2(green) ● 2(green)  ● 2(green)
 ```
+
+### Requirement: NodePool Create Dry-Run
+
+`hf nodepool create` SHALL support dry-run via the global `--curl` flag.
+
+#### Scenario: Create with curl prints POST only
+
+- GIVEN the active environment is configured with a valid `cluster-id`
+- WHEN the user runs `hf nodepool create [--name <name>] --curl`
+- THEN the CLI MUST print a POST curl for the nodepool create endpoint with the resolved template body to stderr
+- AND MUST NOT perform any HTTP request (including duplicate-check GET)
+- AND MUST NOT print created nodepool JSON to stdout
+- AND MUST NOT update `nodepool-id` in state
+- AND exit with code 0
+

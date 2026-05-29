@@ -63,6 +63,7 @@ func resetMaestroFlags() {
 	outputFmt = "json"
 	noColor = false
 	verbose = false
+	curlMode = false
 	deleteAllBundles = false
 }
 
@@ -104,6 +105,36 @@ func TestMaestroList(t *testing.T) {
 	}
 	if !strings.Contains(out, "mw-cluster1") {
 		t.Errorf("expected bundle name in output, got: %q", out)
+	}
+}
+
+func TestMaestroList_CurlDryRun(t *testing.T) {
+	var reqCount int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqCount++
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, bundleListJSON)
+	}))
+	defer srv.Close()
+
+	dir := setupMaestroEnv(t, "http://localhost:9999", srv.URL)
+	var stdout string
+	stderr := captureStderr(t, func() {
+		var err error
+		stdout, err = runMaestroCmd(t, dir, "maestro", "list", "--curl")
+		if err != nil {
+			t.Fatalf("maestro list --curl: %v", err)
+		}
+	})
+
+	if reqCount != 0 {
+		t.Errorf("expected no HTTP requests in dry-run, got %d", reqCount)
+	}
+	if !strings.Contains(stderr, "[CURL]") {
+		t.Errorf("expected curl on stderr, got: %s", stderr)
+	}
+	if strings.Contains(stdout, bundleID) {
+		t.Errorf("expected no bundle data on stdout, got: %s", stdout)
 	}
 }
 

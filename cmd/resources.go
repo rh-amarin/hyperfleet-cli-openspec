@@ -50,6 +50,9 @@ func runResources(cmd *cobra.Command, _ []string) error {
 	}
 
 	if resourcesWatchMode && effectiveFmt == "table" {
+		if curlMode {
+			return fetchAndRenderResources(cmd, effectiveFmt, 0, 0)
+		}
 		ctx, cancel := watchContext(context.Background())
 		defer cancel()
 

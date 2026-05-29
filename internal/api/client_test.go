@@ -3,8 +3,11 @@ package api_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -308,5 +311,62 @@ func TestTimeoutErrorFormat(t *testing.T) {
 	}
 	if !strings.Contains(errStr, "timed out after 30s") {
 		t.Errorf("timeout error missing 'timed out after 30s': got %q", errStr)
+	}
+}
+
+func TestCurlModeDryRun(t *testing.T) {
+	var reqCount int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqCount++
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(testResource{ID: "1"})
+	}))
+	defer srv.Close()
+
+	var stderr strings.Builder
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	done := make(chan struct{})
+	go func() {
+		_, _ = io.Copy(&stderr, r)
+		close(done)
+	}()
+
+	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "tok", false, true)
+	_, err = api.Get[testResource](context.Background(), c, "resources/1")
+
+	w.Close()
+	os.Stderr = old
+	<-done
+
+	if !errors.Is(err, api.ErrDryRun) {
+		t.Fatalf("expected ErrDryRun, got %v", err)
+	}
+	if reqCount != 0 {
+		t.Errorf("expected no HTTP requests in curl mode, got %d", reqCount)
+	}
+	if !strings.Contains(stderr.String(), "[CURL]") {
+		t.Errorf("expected curl output on stderr, got: %q", stderr.String())
+	}
+}
+
+func TestCurlModeDryRunPost(t *testing.T) {
+	var reqCount int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqCount++
+	}))
+	defer srv.Close()
+
+	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "", false, true)
+	_, err := api.Post[testResource](context.Background(), c, "clusters", map[string]string{"name": "x"})
+	if !errors.Is(err, api.ErrDryRun) {
+		t.Fatalf("expected ErrDryRun, got %v", err)
+	}
+	if reqCount != 0 {
+		t.Errorf("expected no HTTP requests, got %d", reqCount)
 	}
 }

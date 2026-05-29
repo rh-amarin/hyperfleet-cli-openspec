@@ -4,6 +4,7 @@ package cmd
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -13,6 +14,13 @@ import (
 	"github.com/rh-amarin/hyperfleet-cli/internal/output"
 	"github.com/spf13/cobra"
 )
+
+func handleMaestroError(err error) error {
+	if errors.Is(err, maestro.ErrDryRun) {
+		return nil
+	}
+	return err
+}
 
 // maestroCmd is the top-level group for Maestro API operations.
 var maestroCmd = &cobra.Command{
@@ -54,7 +62,7 @@ var maestroListCmd = &cobra.Command{
 			list, err = c.ListResourceBundles(context.Background())
 		}
 		if err != nil {
-			return err
+			return handleMaestroError(err)
 		}
 		if outputFmt == "table" {
 			return printMaestroListTable(cmd.OutOrStdout(), list)
@@ -93,7 +101,7 @@ var maestroBundlesCmd = &cobra.Command{
 
 		list, err := c.ListResourceBundles(context.Background())
 		if err != nil {
-			return err
+			return handleMaestroError(err)
 		}
 		return p.Print(list)
 	},
@@ -113,7 +121,7 @@ var maestroConsumersCmd = &cobra.Command{
 
 		list, err := c.ListConsumers(context.Background())
 		if err != nil {
-			return err
+			return handleMaestroError(err)
 		}
 		return p.Print(list)
 	},
@@ -141,7 +149,7 @@ var maestroGetCmd = &cobra.Command{
 			// Interactive selection.
 			list, err := c.ListResourceBundles(context.Background())
 			if err != nil {
-				return err
+				return handleMaestroError(err)
 			}
 			if len(list.Items) == 0 {
 				p.Warn("No resource bundles available")
@@ -155,7 +163,7 @@ var maestroGetCmd = &cobra.Command{
 
 		rb, err := c.GetResourceBundle(context.Background(), name)
 		if err != nil {
-			return err
+			return handleMaestroError(err)
 		}
 		if rb == nil {
 			fmt.Fprintf(cmd.ErrOrStderr(), "[WARN] No resource bundle found matching '%s'\n", name)
@@ -186,7 +194,7 @@ var maestroDeleteCmd = &cobra.Command{
 			}
 			list, err := c.ListResourceBundles(context.Background())
 			if err != nil {
-				return err
+				return handleMaestroError(err)
 			}
 			if len(list.Items) == 0 {
 				p.Warn("No resource bundles to delete")
@@ -205,7 +213,9 @@ var maestroDeleteCmd = &cobra.Command{
 			}
 			for _, rb := range list.Items {
 				if err := c.DeleteResourceBundle(context.Background(), rb.ID); err != nil {
-					fmt.Fprintf(cmd.ErrOrStderr(), "[ERROR] Failed to delete '%s': %v\n", rb.Name, err)
+					if err := handleMaestroError(err); err != nil {
+						fmt.Fprintf(cmd.ErrOrStderr(), "[ERROR] Failed to delete '%s': %v\n", rb.Name, err)
+					}
 					continue
 				}
 				p.Info(fmt.Sprintf("Deleted resource bundle '%s' (%s)", rb.Name, rb.ID))
@@ -220,7 +230,7 @@ var maestroDeleteCmd = &cobra.Command{
 
 		list, listErr := c.ListResourceBundles(context.Background())
 		if listErr != nil {
-			return listErr
+			return handleMaestroError(listErr)
 		}
 
 		if name == "" {
@@ -248,7 +258,7 @@ var maestroDeleteCmd = &cobra.Command{
 		}
 
 		if err := c.DeleteResourceBundle(context.Background(), target.ID); err != nil {
-			return err
+			return handleMaestroError(err)
 		}
 		p.Info(fmt.Sprintf("Deleted resource bundle '%s' (%s)", name, target.ID))
 		return nil

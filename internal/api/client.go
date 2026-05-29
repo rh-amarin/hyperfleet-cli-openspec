@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -15,6 +16,9 @@ import (
 	"strings"
 	"time"
 )
+
+// ErrDryRun is returned when curlMode is enabled and the request was not sent.
+var ErrDryRun = errors.New("dry-run")
 
 // Client is an HTTP client configured for the HyperFleet API.
 type Client struct {
@@ -82,6 +86,7 @@ func (c *Client) do(ctx context.Context, method, path string, body any) (*http.R
 
 	if c.curlMode {
 		printCurlCommand(os.Stderr, method, url, c.token, bodyBytes)
+		return nil, ErrDryRun
 	}
 
 	start := time.Now()
@@ -169,7 +174,6 @@ func Delete[T any](ctx context.Context, c *Client, path string) (T, error) {
 	return decode[T](resp)
 }
 
-// printCurlCommand writes a copy-pasteable curl invocation to w.
 // URLs are double-quoted to avoid conflicts with single quotes in query parameters.
 func printCurlCommand(w io.Writer, method, url, token string, body []byte) {
 	fmt.Fprintf(w, "[CURL] curl -s -X %s \"%s\"", method, url)

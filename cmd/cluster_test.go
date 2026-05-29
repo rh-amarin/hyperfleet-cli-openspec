@@ -92,6 +92,7 @@ func resetClusterFlags() {
 	outputFmt = "json"
 	noColor = false
 	verbose = false
+	curlMode = false
 	// Cluster-specific flags
 	clusterCreateName = ""
 	clusterCreateFile = ""
@@ -417,6 +418,113 @@ func TestClusterCreate_DuplicateGuard(t *testing.T) {
 	if postCalled {
 		t.Error("POST should not have been called for duplicate cluster")
 	}
+}
+
+func TestClusterList_CurlDryRun(t *testing.T) {
+	resetClusterFlags()
+	var reqCount int
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqCount++
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, clusterListJSON)
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	var stdout string
+	stderr := captureStderr(t, func() {
+		var err error
+		stdout, err = runClusterCmd(t, dir, "cluster", "list", "--curl")
+		if err != nil {
+			t.Fatalf("cluster list --curl: %v", err)
+		}
+	})
+
+	if reqCount != 0 {
+		t.Errorf("expected no HTTP requests in dry-run, got %d", reqCount)
+	}
+	if !strings.Contains(stderr, "[CURL] curl -s -X GET") {
+		t.Errorf("expected GET curl on stderr, got: %s", stderr)
+	}
+	if strings.Contains(stdout, `"items"`) {
+		t.Errorf("expected no list JSON on stdout, got: %s", stdout)
+	}
+}
+
+func TestClusterCreate_CurlModeDryRunPostOnly(t *testing.T) {
+	resetClusterFlags()
+	var getCount, postCount int
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			getCount++
+		case http.MethodPost:
+			postCount++
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	dir := setupClusterEnv(t, ts)
+	var stdout string
+	stderr := captureStderr(t, func() {
+		var err error
+		stdout, err = runClusterCmd(t, dir, "cluster", "create", "--name", "test-cluster", "--curl")
+		if err != nil {
+			t.Fatalf("cluster create --curl: %v", err)
+		}
+	})
+
+	if getCount != 0 {
+		t.Errorf("duplicate-check GET should be skipped in dry-run, got %d", getCount)
+	}
+	if postCount != 0 {
+		t.Errorf("POST should not execute in dry-run, got %d", postCount)
+	}
+	if strings.Contains(stderr, "search=name") {
+		t.Errorf("should not print search GET curl, got stderr: %s", stderr)
+	}
+	if !strings.Contains(stderr, "[CURL] curl -s -X POST") {
+		t.Errorf("expected POST create curl in stderr, got: %s", stderr)
+	}
+	if strings.TrimSpace(stdout) != "" {
+		t.Errorf("expected empty stdout, got: %q", stdout)
+	}
+}
+
+func TestClusterGet_CurlRejectsInteractive(t *testing.T) {
+	resetClusterFlags()
+	ts := httptest.NewServer(http.NotFoundHandler())
+	defer ts.Close()
+	dir := setupClusterEnv(t, ts)
+	_, err := runClusterCmd(t, dir, "cluster", "get", "-i", "--curl")
+	if err == nil {
+		t.Fatal("expected error for --curl with -i")
+	}
+	if !strings.Contains(err.Error(), "--curl cannot be used with interactive mode") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := os.Stderr
+	os.Stderr = w
+	done := make(chan string)
+	go func() {
+		var buf strings.Builder
+		_, _ = io.Copy(&buf, r)
+		done <- buf.String()
+	}()
+	fn()
+	w.Close()
+	os.Stderr = old
+	return <-done
 }
 
 func TestClusterCreate_Defaults(t *testing.T) {

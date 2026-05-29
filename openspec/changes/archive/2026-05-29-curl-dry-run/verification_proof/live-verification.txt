@@ -1,0 +1,31 @@
+$ ./bin/hf cluster list --curl
+exit: 0
+
+stderr:
+[CURL] curl -s -X GET "http://localhost:8000/api/hyperfleet/v1/clusters" \
+  -H 'Accept: application/json'
+
+stdout:
+(empty)
+
+$ ./bin/hf cluster create --curl
+exit: 0
+
+stderr:
+[CURL] curl -s -X POST "http://localhost:8000/api/hyperfleet/v1/clusters" \
+  -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{"kind":"Cluster","labels":{"counter":"1"},"name":"my-cluster","spec":{"counter":"1","region":"us-east-1","replicas":"1","version":"4.15.0"}}'
+
+stdout:
+(empty)
+
+$ ./bin/hf maestro list --curl
+exit: 0
+
+stderr:
+[CURL] curl -s "http://localhost:8100/api/maestro/v1/resource-bundles?search=consumer_name='cluster1'" \
+  -H 'Accept: application/json'
+
+stdout:
+(empty)

@@ -3,10 +3,13 @@ package maestro_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/rh-amarin/hyperfleet-cli/internal/config"
@@ -194,5 +197,59 @@ func TestHTTPError(t *testing.T) {
 	_, err := c.ListResourceBundles(context.Background())
 	if err == nil {
 		t.Fatal("expected error for non-2xx response")
+	}
+}
+
+func TestCurlModeDryRun(t *testing.T) {
+	var reqCount int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqCount++
+	}))
+	defer srv.Close()
+
+	dir := t.TempDir()
+	envDir := filepath.Join(dir, "environments")
+	if err := os.MkdirAll(envDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(envDir, "test.yaml"), []byte("maestro:\n  http-endpoint: "+srv.URL+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "state.yaml"), []byte("active-environment: test\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	s := config.New(dir)
+	if err := s.Load(); err != nil {
+		t.Fatal(err)
+	}
+	c := maestro.NewFromConfig(s, true)
+
+	var stderr strings.Builder
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	done := make(chan struct{})
+	go func() {
+		_, _ = io.Copy(&stderr, r)
+		close(done)
+	}()
+
+	err = c.DeleteResourceBundle(context.Background(), "id-1")
+
+	w.Close()
+	os.Stderr = old
+	<-done
+
+	if !errors.Is(err, maestro.ErrDryRun) {
+		t.Fatalf("expected ErrDryRun, got %v", err)
+	}
+	if reqCount != 0 {
+		t.Errorf("expected no HTTP requests, got %d", reqCount)
+	}
+	if !strings.Contains(stderr.String(), "[CURL] curl -s -X DELETE") {
+		t.Errorf("expected DELETE curl, got: %s", stderr.String())
 	}
 }

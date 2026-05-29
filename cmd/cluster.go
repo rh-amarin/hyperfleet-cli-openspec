@@ -66,12 +66,22 @@ func loadConfig() (*config.Store, error) {
 // handleAPIError prints RFC 7807 errors as JSON (exit 0) and returns nil.
 // Non-API errors are returned as-is (exit 1).
 func handleAPIError(p *output.Printer, err error) error {
+	if errors.Is(err, api.ErrDryRun) {
+		return nil
+	}
 	var apiErr *api.APIError
 	if errors.As(err, &apiErr) {
 		_ = p.Print(apiErr)
 		return nil
 	}
 	return err
+}
+
+func errCurlInteractive(interactive bool) error {
+	if curlMode && interactive {
+		return fmt.Errorf("[ERROR] --curl cannot be used with interactive mode")
+	}
+	return nil
 }
 
 // clusterOverallStatus derives a table status from cluster conditions.
@@ -109,6 +119,9 @@ var clusterListCmd = &cobra.Command{
 	Short: "List all clusters",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if clusterListWatch && outputFmt == "table" {
+			if curlMode {
+				return fetchAndRenderClusterList(cmd, 0, 0)
+			}
 			ctx, cancel := watchContext(context.Background())
 			defer cancel()
 			return runWatch(ctx, cmd.OutOrStdout(), clusterListWatchSecs, func(tick int) error {
@@ -305,14 +318,15 @@ var clusterCreateCmd = &cobra.Command{
 		client := newAPIClient(s)
 		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
-		// Duplicate check.
-		existing, err := api.Get[resource.ListResponse[resource.Cluster]](
-			context.Background(), client,
-			"clusters?search=name='"+name+"'",
-		)
-		if err == nil && len(existing.Items) > 0 {
-			p.Warn(fmt.Sprintf("Cluster '%s' already exists, skipping creation", name))
-			return nil
+		if !curlMode {
+			existing, err := api.Get[resource.ListResponse[resource.Cluster]](
+				context.Background(), client,
+				"clusters?search=name='"+name+"'",
+			)
+			if err == nil && len(existing.Items) > 0 {
+				p.Warn(fmt.Sprintf("Cluster '%s' already exists, skipping creation", name))
+				return nil
+			}
 		}
 
 		cluster, err := api.Post[resource.Cluster](context.Background(), client, "clusters", body)
@@ -662,6 +676,9 @@ var clusterIDInteractive bool
 var clusterIDSel selector.Selector = selector.FuzzySelector{}
 
 func pickClusterInteractive(cmd *cobra.Command, s *config.Store) (string, error) {
+	if err := errCurlInteractive(true); err != nil {
+		return "", err
+	}
 	client := newAPIClient(s)
 	list, err := api.Get[resource.ListResponse[resource.Cluster]](context.Background(), client, "clusters")
 	if err != nil {
@@ -712,6 +729,9 @@ var clusterIDCmd = &cobra.Command{
 }
 
 func runClusterIDInteractive(cmd *cobra.Command, s *config.Store, sel selector.Selector) error {
+	if err := errCurlInteractive(true); err != nil {
+		return err
+	}
 	client := newAPIClient(s)
 	list, err := api.Get[resource.ListResponse[resource.Cluster]](context.Background(), client, "clusters")
 	if err != nil {

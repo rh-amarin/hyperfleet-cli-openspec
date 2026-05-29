@@ -3,9 +3,7 @@
 ## Purpose
 
 Provide CLI commands for full CRUD lifecycle management of HyperFleet clusters, including creation, retrieval, listing, searching, patching, and deletion. All cluster operations interact with the HyperFleet API at `/api/hyperfleet/v1/clusters`.
-
 ## Requirements
-
 ### Requirement: Create Cluster
 
 `hf cluster create` SHALL load the request body from a JSON template. The binary embeds a built-in default template (`cmd/assets/cluster-template.json`). When no `--file` flag is given, the CLI MUST use the embedded default bytes directly in memory — it MUST NOT read from or write to `<config-dir>`. The `--name` flag overrides only the `name` field in the template.
@@ -343,3 +341,18 @@ The CLI SHALL list all clusters via GET /clusters.
 - WHEN the user runs `hf cluster list --output table`
 - THEN the CLI MUST output a table with columns: ID, NAME, GEN, STATUS
 - AND STATUS MUST be derived from conditions: green dot if Available=True AND Reconciled=True, otherwise red dot (or plain text in no-color mode)
+
+### Requirement: Cluster Create Dry-Run
+
+`hf cluster create` SHALL support dry-run via the global `--curl` flag.
+
+#### Scenario: Create with curl prints POST only
+
+- GIVEN the active environment is configured
+- WHEN the user runs `hf cluster create [--name <name>] --curl`
+- THEN the CLI MUST print a POST curl for `clusters` with the resolved template body to stderr
+- AND MUST NOT perform any HTTP request (including duplicate-check GET)
+- AND MUST NOT print created cluster JSON to stdout
+- AND MUST NOT update `cluster-id` in state
+- AND exit with code 0
+

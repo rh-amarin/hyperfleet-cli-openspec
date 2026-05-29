@@ -148,7 +148,7 @@ func TestConfigShow(t *testing.T) {
 	makeEnv(t, dir, "staging", "http://staging:8000")
 	setActiveEnv(t, dir, "staging")
 
-	out, err := runCmd(t, dir, "config", "show")
+	out, err := runCmd(t, dir, "config", "show", "--no-color")
 	if err != nil {
 		t.Fatalf("config show: %v", err)
 	}
@@ -171,9 +171,12 @@ func TestConfigShow_StateVariables(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := runCmd(t, dir, "config", "show")
+	out, err := runCmd(t, dir, "config", "show", "--no-color")
 	if err != nil {
 		t.Fatalf("config show with state: %v", err)
+	}
+	if !strings.Contains(out, "state:") {
+		t.Errorf("output missing state section: %q", out)
 	}
 	if !strings.Contains(out, "cluster-id: cl-123") {
 		t.Errorf("output missing cluster-id from state: %q", out)

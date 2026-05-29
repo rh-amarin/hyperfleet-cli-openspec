@@ -231,11 +231,13 @@ func TestConfigShow_ListsResourceTypes(t *testing.T) {
 	dir := t.TempDir()
 	makeResourceEnv(t, dir, "http://localhost:8000")
 
-	out, err := runCmd(t, dir, "config", "show")
+	out, err := runCmd(t, dir, "config", "show", "--no-color")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "resource-types:") || !strings.Contains(out, "channels") {
-		t.Fatalf("expected resource-types in config show: %q", out)
+	for _, want := range []string{"resource-types:", "channels:", "path: channels", "state-key: channel-id", "versions:", "parent: channels"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %q in config show output:\n%s", want, out)
+		}
 	}
 }

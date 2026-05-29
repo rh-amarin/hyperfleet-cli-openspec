@@ -199,6 +199,23 @@ func (s *Store) GetState(key string) string {
 	return s.state[key]
 }
 
+// NonEmptyState returns all non-empty state.yaml entries.
+func (s *Store) NonEmptyState() map[string]string {
+	if len(s.state) == 0 {
+		return nil
+	}
+	out := make(map[string]string)
+	for k, v := range s.state {
+		if v != "" {
+			out[k] = v
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 // SetState writes a state value to state.yaml and updates in-memory state.
 func (s *Store) SetState(key, value string) error {
 	if s.state == nil {

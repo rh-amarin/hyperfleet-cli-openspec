@@ -15,7 +15,6 @@ import (
 	"github.com/rh-amarin/hyperfleet-cli/internal/output"
 	"github.com/rh-amarin/hyperfleet-cli/internal/selector"
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 	"gopkg.in/yaml.v3"
 )
 
@@ -56,11 +55,10 @@ Subcommands: show, get, set, env.`,
 	},
 }
 
-// configShowCmd prints the resolved configuration of the active environment.
-// With an optional env-name argument it displays that environment profile instead.
+// configShowCmd prints the active environment file, or a named profile when given.
 var configShowCmd = &cobra.Command{
 	Use:   "show [env-name]",
-	Short: "Show the active configuration, or a named environment profile",
+	Short: "Show the environment config file and active state (colorized YAML)",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := config.NewFromEnv()
@@ -68,82 +66,14 @@ var configShowCmd = &cobra.Command{
 			return fmt.Errorf("[ERROR] loading config: %w", err)
 		}
 
+		envName := s.ActiveEnvironment()
 		if len(args) == 1 {
-			return showEnvProfile(cmd, s, args[0])
+			envName = args[0]
 		}
-
-		active := s.ActiveEnvironment()
-		if active == "" {
+		if envName == "" {
 			return fmt.Errorf("[ERROR] no active environment\n  → run 'hf config env create <name>' to create one\n  → run 'hf config env activate <name>' to activate an existing one")
 		}
-
-		w := cmd.OutOrStdout()
-
-		// Determine whether to suppress ANSI color codes.
-		nc := noColor
-		if !nc {
-			if f, ok := w.(*os.File); ok {
-				if !term.IsTerminal(int(f.Fd())) {
-					nc = true
-				}
-			} else {
-				nc = true
-			}
-			if os.Getenv("NO_COLOR") != "" {
-				nc = true
-			}
-		}
-
-		stateKeys := []string{"active-environment", "cluster-id", "cluster-name", "nodepool-id"}
-		stateVals := make(map[string]string)
-		for _, k := range stateKeys {
-			if v := s.GetState(k); v != "" {
-				stateVals[k] = v
-			}
-		}
-
-		fmt.Fprintln(w, s.EnvFilePath(active))
-
-		// Marshal config sections and state block separately.
-		configSections := []string{"hyperfleet", "kubernetes", "maestro", "port-forward", "database", "rabbitmq", "registry"}
-		cfgMap := make(map[string]map[string]string, len(configSections))
-		for _, sec := range configSections {
-			vals := resolvedSection(s, sec)
-			if len(vals) > 0 {
-				cfgMap[sec] = vals
-			}
-		}
-
-		cfgBytes, err := marshalYAMLOrdered(cfgMap, configSections)
-		if err != nil {
-			return err
-		}
-		_, err = fmt.Fprint(w, output.ColorizeYAMLSections(string(cfgBytes), nc))
-		if err != nil {
-			return err
-		}
-
-		if names, err := s.ResourceTypeNames(); err == nil && len(names) > 0 {
-			fmt.Fprintln(w, output.SectionSeparator(nc))
-			fmt.Fprintln(w, "resource-types:")
-			for _, name := range names {
-				fmt.Fprintf(w, "  - %s\n", name)
-			}
-		}
-
-		if len(stateVals) > 0 {
-			fmt.Fprintln(w, output.SectionSeparator(nc))
-			stateMap := map[string]map[string]string{"state": stateVals}
-			stateBytes, err := marshalYAMLOrdered(stateMap, []string{"state"})
-			if err != nil {
-				return err
-			}
-			_, err = fmt.Fprint(w, output.ColorizeYAMLSections(string(stateBytes), nc))
-			if err != nil {
-				return err
-			}
-		}
-		return nil
+		return showEnvProfile(cmd, s, envName)
 	},
 }
 
@@ -275,22 +205,21 @@ func init() {
 
 // ---- helpers ----
 
-// renderConfigPreview renders the active configuration as colorized YAML for use
-// in picker preview panels. Reuses resolvedSection, marshalYAMLOrdered, and
-// output.ColorizeYAMLSections so the output matches hf config show.
+// renderConfigPreview renders the active environment file as colorized YAML for picker previews.
 func renderConfigPreview(s *config.Store) string {
-	configSections := []string{"hyperfleet", "kubernetes", "maestro", "port-forward", "database", "rabbitmq", "registry"}
-	cfgMap := make(map[string]map[string]string, len(configSections))
-	for _, sec := range configSections {
-		if vals := resolvedSection(s, sec); len(vals) > 0 {
-			cfgMap[sec] = vals
-		}
+	active := s.ActiveEnvironment()
+	if active == "" {
+		return ""
 	}
-	b, err := marshalYAMLOrdered(cfgMap, configSections)
+	raw, err := os.ReadFile(s.EnvFilePath(active))
 	if err != nil {
-		return "[ERROR] failed to render config"
+		return err.Error()
 	}
-	return output.ColorizeYAMLSections(string(b), noColor)
+	display, err := formatEnvFileForDisplay(raw, noColor)
+	if err != nil {
+		return fmt.Sprintf("[ERROR] %v", err)
+	}
+	return display
 }
 
 // resolvedSection returns all key/value pairs for a section with secrets masked.
@@ -333,33 +262,51 @@ func knownKeysForSection(section string) []string {
 	return nil
 }
 
-// marshalYAMLOrdered marshals a section map to YAML with a stable section order.
-func marshalYAMLOrdered(m map[string]map[string]string, order []string) ([]byte, error) {
+// formatEnvFileForDisplay returns environment file YAML with secrets redacted and syntax coloring.
+func formatEnvFileForDisplay(raw []byte, nc bool) (string, error) {
+	redacted, err := redactEnvFileYAML(raw)
+	if err != nil {
+		return "", err
+	}
+	return output.ColorizeYAMLSections(string(redacted), nc), nil
+}
+
+// formatStateForDisplay returns a colorized state: block for non-empty runtime state, or "" if none.
+func formatStateForDisplay(s *config.Store, nc bool) (string, error) {
+	vals := s.NonEmptyState()
+	if len(vals) == 0 {
+		return "", nil
+	}
+	raw, err := marshalStateBlock(vals)
+	if err != nil {
+		return "", err
+	}
+	return output.ColorizeYAMLSections(string(raw), nc), nil
+}
+
+func marshalStateBlock(vals map[string]string) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)
 	enc.SetIndent(2)
 
-	root := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
-	for _, sec := range order {
-		vals, ok := m[sec]
-		if !ok {
-			continue
-		}
-		root.Content = append(root.Content, &yaml.Node{Kind: yaml.ScalarNode, Value: sec})
-		secNode := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
-		keys := make([]string, 0, len(vals))
-		for k := range vals {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			secNode.Content = append(secNode.Content,
-				&yaml.Node{Kind: yaml.ScalarNode, Value: k},
-				&yaml.Node{Kind: yaml.ScalarNode, Value: vals[k]},
-			)
-		}
-		root.Content = append(root.Content, secNode)
+	stateNode := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	keys := make([]string, 0, len(vals))
+	for k := range vals {
+		keys = append(keys, k)
 	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		stateNode.Content = append(stateNode.Content,
+			&yaml.Node{Kind: yaml.ScalarNode, Value: k},
+			&yaml.Node{Kind: yaml.ScalarNode, Value: vals[k]},
+		)
+	}
+
+	root := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	root.Content = append(root.Content,
+		&yaml.Node{Kind: yaml.ScalarNode, Value: "state"},
+		stateNode,
+	)
 	doc := &yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{root}}
 	if err := enc.Encode(doc); err != nil {
 		return nil, err
@@ -370,17 +317,52 @@ func marshalYAMLOrdered(m map[string]map[string]string, order []string) ([]byte,
 	return buf.Bytes(), nil
 }
 
-// redactSecrets masks secret values in a profile map in-place.
-func redactSecrets(prof map[string]map[string]string) {
-	for _, sec := range prof {
-		for k, v := range sec {
-			if secretConfigKeys[k] {
-				if v != "" {
-					sec[k] = "<set>"
+// redactEnvFileYAML returns env file bytes with secret scalar values masked.
+func redactEnvFileYAML(raw []byte) ([]byte, error) {
+	var doc yaml.Node
+	if err := yaml.Unmarshal(raw, &doc); err != nil {
+		return nil, err
+	}
+	if len(doc.Content) > 0 {
+		redactSecretsYAMLNode(doc.Content[0])
+	}
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(&doc); err != nil {
+		return nil, err
+	}
+	if err := enc.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func redactSecretsYAMLNode(n *yaml.Node) {
+	if n == nil {
+		return
+	}
+	switch n.Kind {
+	case yaml.MappingNode:
+		for i := 0; i+1 < len(n.Content); i += 2 {
+			keyNode := n.Content[i]
+			valNode := n.Content[i+1]
+			if keyNode.Kind == yaml.ScalarNode && secretConfigKeys[keyNode.Value] && valNode.Kind == yaml.ScalarNode {
+				if valNode.Value != "" {
+					valNode.Value = "<set>"
 				} else {
-					sec[k] = "<not set>"
+					valNode.Value = "<not set>"
 				}
 			}
+			redactSecretsYAMLNode(valNode)
+		}
+	case yaml.SequenceNode:
+		for _, child := range n.Content {
+			redactSecretsYAMLNode(child)
+		}
+	case yaml.DocumentNode:
+		for _, child := range n.Content {
+			redactSecretsYAMLNode(child)
 		}
 	}
 }

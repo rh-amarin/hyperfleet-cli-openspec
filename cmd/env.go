@@ -11,7 +11,7 @@ import (
 	"github.com/rh-amarin/hyperfleet-cli/internal/output"
 	"github.com/rh-amarin/hyperfleet-cli/internal/selector"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
+	"golang.org/x/term"
 )
 
 // envSel is the injectable PreviewSelector used by the bare hf env picker.
@@ -62,7 +62,11 @@ Selecting an environment activates it and shows the full config.`,
 			if err != nil {
 				return err.Error()
 			}
-			return output.ColorizeYAMLSections(string(raw), noColor)
+			display, err := formatEnvFileForDisplay(raw, noColor)
+			if err != nil {
+				return err.Error()
+			}
+			return display
 		}
 
 		idx, err := envSel.SelectWithPreview(items, previewFn, envPickerHeader)
@@ -228,15 +232,32 @@ func showEnvProfile(cmd *cobra.Command, s *config.Store, name string) error {
 		fmt.Fprintln(w, profPath)
 	}
 
-	var prof map[string]map[string]string
-	if err := yaml.Unmarshal(raw, &prof); err != nil {
-		return err
+	nc := noColor
+	if !nc {
+		if f, ok := w.(*os.File); ok && !term.IsTerminal(int(f.Fd())) {
+			nc = true
+		}
 	}
-	redactSecrets(prof)
-	b, err := yaml.Marshal(prof)
+	display, err := formatEnvFileForDisplay(raw, nc)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write(b)
-	return err
+	if _, err = fmt.Fprint(w, display); err != nil {
+		return err
+	}
+
+	if s.ActiveEnvironment() == name {
+		stateDisplay, err := formatStateForDisplay(s, nc)
+		if err != nil {
+			return err
+		}
+		if stateDisplay != "" {
+			fmt.Fprintln(w, output.SectionSeparator(nc))
+			_, err = fmt.Fprint(w, stateDisplay)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

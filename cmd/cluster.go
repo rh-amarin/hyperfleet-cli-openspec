@@ -226,11 +226,11 @@ var clusterSearchCmd = &cobra.Command{
 		}
 		p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
-		// No name arg: behave like `hf cluster get` using the state cluster-id.
+		// No name arg: behave like `hf cluster get` using the state clusters.
 		if len(args) == 0 {
-			id := s.GetState("cluster-id")
+			id := s.GetState("clusters")
 			if id == "" {
-				return fmt.Errorf("[ERROR] No cluster-id set in state. Run 'hf cluster create' or 'hf cluster search <name>' first.")
+				return fmt.Errorf("[ERROR] No clusters set in state. Run 'hf cluster create' or 'hf cluster search <name>' first.")
 			}
 			client := newAPIClient(s)
 			cluster, err := api.Get[resource.Cluster](context.Background(), client, "clusters/"+id)
@@ -261,8 +261,8 @@ var clusterSearchCmd = &cobra.Command{
 		}
 
 		first := list.Items[0]
-		if setErr := s.SetState("cluster-id", first.ID); setErr != nil {
-			fmt.Fprintf(cmd.ErrOrStderr(), "[WARN] Failed to persist cluster-id: %v\n", setErr)
+		if setErr := s.SetState("clusters", first.ID); setErr != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "[WARN] Failed to persist clusters: %v\n", setErr)
 		} else {
 			p.Info(fmt.Sprintf("Cluster context set to '%s'", first.ID))
 		}
@@ -334,8 +334,8 @@ var clusterCreateCmd = &cobra.Command{
 			return handleAPIError(p, err)
 		}
 
-		if setErr := s.SetState("cluster-id", cluster.ID); setErr != nil {
-			fmt.Fprintf(cmd.ErrOrStderr(), "[WARN] Failed to persist cluster-id: %v\n", setErr)
+		if setErr := s.SetState("clusters", cluster.ID); setErr != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "[WARN] Failed to persist clusters: %v\n", setErr)
 		} else {
 			p.Info(fmt.Sprintf("Cluster context set to '%s'", cluster.ID))
 		}
@@ -699,7 +699,7 @@ func pickClusterInteractive(cmd *cobra.Command, s *config.Store) (string, error)
 	if idx < 0 {
 		return "", nil
 	}
-	if err := s.SetState("cluster-id", items[idx].ID); err != nil {
+	if err := s.SetState("clusters", items[idx].ID); err != nil {
 		return "", err
 	}
 	p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
@@ -719,9 +719,9 @@ var clusterIDCmd = &cobra.Command{
 		if clusterIDInteractive {
 			return runClusterIDInteractive(cmd, s, clusterIDSel)
 		}
-		id := s.GetState("cluster-id")
+		id := s.GetState("clusters")
 		if id == "" {
-			return fmt.Errorf("[ERROR] No cluster-id set in state. Run 'hf cluster create' or 'hf cluster search <name>' first.")
+			return fmt.Errorf("[ERROR] No clusters set in state. Run 'hf cluster create' or 'hf cluster search <name>' first.")
 		}
 		fmt.Fprintln(cmd.OutOrStdout(), id)
 		return nil
@@ -752,7 +752,7 @@ func runClusterIDInteractive(cmd *cobra.Command, s *config.Store, sel selector.S
 	if idx < 0 {
 		return nil
 	}
-	if err := s.SetState("cluster-id", items[idx].ID); err != nil {
+	if err := s.SetState("clusters", items[idx].ID); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Active cluster set to: %s (%s)\n", items[idx].Name, items[idx].ID)

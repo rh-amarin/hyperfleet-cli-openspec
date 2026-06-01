@@ -45,7 +45,7 @@ func injectMockGCP(t *testing.T, mock pubsub.GCPPublisher) {
 func setFullState(t *testing.T, dir, envName, cid, npid string) {
 	t.Helper()
 	statePath := filepath.Join(dir, "state.yaml")
-	content := fmt.Sprintf("active-environment: %s\ncluster-id: %s\nnodepool-id: %s\n", envName, cid, npid)
+	content := fmt.Sprintf("active-environment: %s\nclusters: %s\nnodepools: %s\n", envName, cid, npid)
 	if err := os.WriteFile(statePath, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -133,13 +133,13 @@ func TestPubSubList_Filter(t *testing.T) {
 func TestPubSubPublishCluster_MissingClusterID(t *testing.T) {
 	injectMockGCP(t, &mockGCPPublisher{})
 	dir := setupPubSubEnv(t)
-	// No cluster-id in state
+	// No clusters in state
 	_, err := runCmd(t, dir, "pubsub", "publish", "cluster", "my-topic")
 	if err == nil {
 		t.Fatal("expected error for missing cluster-id")
 	}
-	if !strings.Contains(err.Error(), "No cluster-id") {
-		t.Errorf("error = %q, want to contain 'No cluster-id'", err.Error())
+	if !strings.Contains(err.Error(), "No clusters") {
+		t.Errorf("error = %q, want to contain 'No clusters'", err.Error())
 	}
 }
 
@@ -179,8 +179,8 @@ func TestPubSubPublishNodePool_MissingClusterID(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing cluster-id")
 	}
-	if !strings.Contains(err.Error(), "No cluster-id") {
-		t.Errorf("error = %q, want 'No cluster-id'", err.Error())
+	if !strings.Contains(err.Error(), "No clusters") {
+		t.Errorf("error = %q, want 'No clusters'", err.Error())
 	}
 }
 
@@ -193,8 +193,8 @@ func TestPubSubPublishNodePool_MissingNodePoolID(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing nodepool-id")
 	}
-	if !strings.Contains(err.Error(), "No nodepool-id") {
-		t.Errorf("error = %q, want 'No nodepool-id'", err.Error())
+	if !strings.Contains(err.Error(), "No nodepools") {
+		t.Errorf("error = %q, want 'No nodepools'", err.Error())
 	}
 }
 

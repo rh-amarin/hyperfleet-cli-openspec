@@ -260,15 +260,15 @@ Add a `resource-types` map to `~/.config/hf/environments/<name>.yaml`. New envir
 | Field | Required | Description |
 |---|---|---|
 | `path` | yes | API path relative to `{api-url}/api/hyperfleet/{api-version}/` (e.g. `channels` or `channels/{channel_id}/versions`) |
-| `state-key` | yes | Flat key in `~/.config/hf/state.yaml` holding the active resource ID for this type (e.g. `channel-id`) |
 | `parent` | no | Name of the immediate parent type; required for nested paths |
-| `path-param` | no | Placeholder in child paths filled by the parent's ID (defaults from `state-key`: `channel-id` → `{channel_id}`) |
+| `path-param` | no | Placeholder name this type's ID fills in child paths (defaults from entity name: `clusters` → `{cluster_id}`) |
 | `create-template` | no | JSON filename under `~/.config/hf/templates/` used by `hf rs <type> create` |
+
+The map key (entity name) is also the key in `state.yaml` when a resource is selected (e.g. type `channels` → state key `channels`).
 
 Validation rules:
 
 - `parent` must reference another defined type; cycles are rejected
-- Each `state-key` must be unique across types
 - Root types (no `parent`) must not contain unresolved `{placeholders}` in `path`
 
 ### Example: root and nested types
@@ -277,16 +277,13 @@ Validation rules:
 resource-types:
   channels:
     path: channels
-    state-key: channel-id
     create-template: channels.json
   versions:
     parent: channels
     path: "channels/{channel_id}/versions"
-    state-key: version-id
   releases:
     parent: versions
     path: "channels/{channel_id}/versions/{version_id}/releases"
-    state-key: release-id
 ```
 
 Place create payloads next to other templates:
@@ -307,14 +304,15 @@ Child types resolve ancestor IDs from `state.yaml`. If `channel-id` is missing, 
 
 ### State
 
-`hf rs <type> search <name>` writes the matched ID to the type's `state-key`. Generic keys coexist with `cluster-id`, `nodepool-id`, and `active-environment`:
+`hf rs <type> search <name>` writes the matched ID to `state.yaml` under the entity name. Generic keys coexist with `clusters`, `nodepools`, and `active-environment`:
 
 ```yaml
 # ~/.config/hf/state.yaml
 active-environment: eu
-cluster-id: e3f2a1b0-...
-channel-id: abc-123
-version-id: ver-456
+clusters: e3f2a1b0-...
+cluster-name: my-cluster
+channels: abc-123
+versions: ver-456
 ```
 
 Inspect configured types and current state:

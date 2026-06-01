@@ -1,7 +1,7 @@
 // Package config manages the HyperFleet CLI configuration.
 // Configuration is split across two concerns:
 //   - environments/<name>.yaml: complete, self-contained settings for one environment
-//   - state.yaml: runtime state (flat top-level keys: active-environment, cluster-id, cluster-name, nodepool-id)
+//   - state.yaml: runtime state (flat top-level keys: active-environment, clusters, cluster-name, nodepools)
 //
 // There is no config.yaml. Each environment file contains all sections.
 package config
@@ -250,9 +250,9 @@ func (s *Store) ClusterID(explicit string) (string, error) {
 	if explicit != "" {
 		return explicit, nil
 	}
-	id := s.GetState("cluster-id")
+	id := s.GetState("clusters")
 	if id == "" {
-		return "", fmt.Errorf("[ERROR] no active cluster — run 'hf cluster use <id>' or pass --cluster-id")
+		return "", fmt.Errorf("[ERROR] no active cluster — run 'hf rs clusters search <name>' or pass --cluster-id")
 	}
 	return id, nil
 }
@@ -262,9 +262,9 @@ func (s *Store) NodePoolID(explicit string) (string, error) {
 	if explicit != "" {
 		return explicit, nil
 	}
-	id := s.GetState("nodepool-id")
+	id := s.GetState("nodepools")
 	if id == "" {
-		return "", fmt.Errorf("[ERROR] no active nodepool — run 'hf nodepool use <id>' or pass --nodepool-id")
+		return "", fmt.Errorf("[ERROR] no active nodepool — run 'hf rs nodepools search <name>' or pass --nodepool-id")
 	}
 	return id, nil
 }

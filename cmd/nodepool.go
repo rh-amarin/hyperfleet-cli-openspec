@@ -94,11 +94,11 @@ func npBase(clusterID string) string {
 	return "clusters/" + clusterID + "/nodepools"
 }
 
-// requireClusterID reads cluster-id from state and returns the spec-mandated error if absent.
+// requireClusterID reads clusters from state and returns the spec-mandated error if absent.
 func requireClusterID(s interface{ GetState(string) string }) (string, error) {
-	id := s.GetState("cluster-id")
+	id := s.GetState("clusters")
 	if id == "" {
-		return "", fmt.Errorf("[ERROR] No cluster-id set in state. Run 'hf cluster create' or 'hf cluster search <name>' first.")
+		return "", fmt.Errorf("[ERROR] No clusters set in state. Run 'hf cluster create' or 'hf cluster search <name>' first.")
 	}
 	return id, nil
 }
@@ -244,11 +244,11 @@ var nodepoolSearchCmd = &cobra.Command{
 			return err
 		}
 
-		// No name arg: behave like `hf nodepool get` using the state nodepool-id.
+		// No name arg: behave like `hf nodepool get` using the state nodepools.
 		if len(args) == 0 {
-			id := s.GetState("nodepool-id")
+			id := s.GetState("nodepools")
 			if id == "" {
-				return fmt.Errorf("[ERROR] No nodepool-id set in state. Run 'hf nodepool create' or 'hf nodepool search <name>' first.")
+				return fmt.Errorf("[ERROR] No nodepools set in state. Run 'hf nodepool create' or 'hf nodepool search <name>' first.")
 			}
 			client := newAPIClient(s)
 			np, err := api.Get[resource.NodePool](context.Background(), client, npBase(clusterID)+"/"+id)
@@ -279,8 +279,8 @@ var nodepoolSearchCmd = &cobra.Command{
 		}
 
 		first := list.Items[0]
-		if setErr := s.SetState("nodepool-id", first.ID); setErr != nil {
-			fmt.Fprintf(cmd.ErrOrStderr(), "[WARN] Failed to persist nodepool-id: %v\n", setErr)
+		if setErr := s.SetState("nodepools", first.ID); setErr != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "[WARN] Failed to persist nodepools: %v\n", setErr)
 		} else {
 			p.Info(fmt.Sprintf("NodePool context set to '%s'", first.ID))
 		}
@@ -354,8 +354,8 @@ var nodepoolCreateCmd = &cobra.Command{
 			return handleAPIError(p, err)
 		}
 
-		if setErr := s.SetState("nodepool-id", np.ID); setErr != nil {
-			fmt.Fprintf(cmd.ErrOrStderr(), "[WARN] Failed to persist nodepool-id: %v\n", setErr)
+		if setErr := s.SetState("nodepools", np.ID); setErr != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "[WARN] Failed to persist nodepools: %v\n", setErr)
 		} else {
 			p.Info(fmt.Sprintf("NodePool context set to '%s'", np.ID))
 		}
@@ -796,7 +796,7 @@ func pickNodepoolInteractive(cmd *cobra.Command, s *config.Store, clusterID stri
 	if idx < 0 {
 		return "", nil
 	}
-	if err := s.SetState("nodepool-id", items[idx].ID); err != nil {
+	if err := s.SetState("nodepools", items[idx].ID); err != nil {
 		return "", err
 	}
 	p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
@@ -816,9 +816,9 @@ var nodepoolIDCmd = &cobra.Command{
 		if nodepoolIDInteractive {
 			return runNodepoolIDInteractive(cmd, s, nodepoolIDSel)
 		}
-		id := s.GetState("nodepool-id")
+		id := s.GetState("nodepools")
 		if id == "" {
-			return fmt.Errorf("[ERROR] No nodepool-id set in state. Run 'hf nodepool create' or 'hf nodepool search <name>' first.")
+			return fmt.Errorf("[ERROR] No nodepools set in state. Run 'hf nodepool create' or 'hf nodepool search <name>' first.")
 		}
 		fmt.Fprintln(cmd.OutOrStdout(), id)
 		return nil
@@ -853,7 +853,7 @@ func runNodepoolIDInteractive(cmd *cobra.Command, s *config.Store, sel selector.
 	if idx < 0 {
 		return nil
 	}
-	if err := s.SetState("nodepool-id", items[idx].ID); err != nil {
+	if err := s.SetState("nodepools", items[idx].ID); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Active nodepool set to: %s (%s)\n", items[idx].Name, items[idx].ID)

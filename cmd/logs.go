@@ -81,7 +81,7 @@ Lines are displayed as: [pod] <time>  <LEVEL>  <msg>`,
 
 		clusterID := logsClusterID
 		if clusterID == "" {
-			clusterID = s.GetState("cluster-id")
+			clusterID = s.GetState("clusters")
 		}
 
 		cs, err := kube.NewClientset(resolvedKubeconfig(s), "")

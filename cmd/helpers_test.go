@@ -45,12 +45,10 @@ func makeReconciledClusterEnv(t *testing.T, dir, name, apiURL string) {
 resource-types:
   clusters:
     path: clusters
-    state-key: cluster-id
     create-template: clusters.json
   nodepools:
     parent: clusters
     path: "clusters/{cluster_id}/nodepools"
-    state-key: nodepool-id
     create-template: nodepools.json
 `, apiURL))
 }

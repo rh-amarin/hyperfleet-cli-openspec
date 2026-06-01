@@ -269,7 +269,7 @@ func TestClusterIDResolution(t *testing.T) {
 		t.Errorf("explicit: got %q, %v", id, err)
 	}
 
-	if err := s.SetState("cluster-id", "state-id"); err != nil {
+	if err := s.SetState("clusters", "state-id"); err != nil {
 		t.Fatal(err)
 	}
 	id, err = s.ClusterID("")

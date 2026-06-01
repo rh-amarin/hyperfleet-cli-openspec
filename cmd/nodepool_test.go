@@ -70,7 +70,7 @@ var npAdapterStatusesJSON = `{
 func setBothIDsInState(t *testing.T, dir, envName, cid, npid string) {
 	t.Helper()
 	statePath := filepath.Join(dir, "state.yaml")
-	content := fmt.Sprintf("active-environment: %s\ncluster-id: %s\nnodepool-id: %s\n", envName, cid, npid)
+	content := fmt.Sprintf("active-environment: %s\nclusters: %s\nnodepools: %s\n", envName, cid, npid)
 	if err := os.WriteFile(statePath, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -384,7 +384,7 @@ func TestNodepoolCreate(t *testing.T) {
 	// Verify nodepool-id persisted to state.yaml
 	stateRaw, _ := os.ReadFile(filepath.Join(dir, "state.yaml"))
 	if !strings.Contains(string(stateRaw), nodepoolID) {
-		t.Errorf("nodepool-id not persisted to state.yaml: %q", string(stateRaw))
+		t.Errorf("nodepools not persisted to state.yaml: %q", string(stateRaw))
 	}
 }
 
@@ -662,7 +662,7 @@ func TestNodepoolSearch_ByName_Found(t *testing.T) {
 	// Verify nodepool-id persisted to state.
 	stateRaw, _ := os.ReadFile(filepath.Join(dir, "state.yaml"))
 	if !strings.Contains(string(stateRaw), nodepoolID) {
-		t.Errorf("nodepool-id not persisted after search: %q", string(stateRaw))
+		t.Errorf("nodepools not persisted after search: %q", string(stateRaw))
 	}
 }
 
@@ -717,7 +717,7 @@ func TestNodepoolSearch_NoArgs_WithoutState(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when no nodepool-id in state")
 	}
-	if !strings.Contains(err.Error(), "No nodepool-id set in state") {
+	if !strings.Contains(err.Error(), "No nodepools set in state") {
 		t.Errorf("error message: got %q", err.Error())
 	}
 }
@@ -1015,7 +1015,7 @@ func TestNodepoolID(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error when nodepool-id is not set")
 		}
-		if !strings.Contains(err.Error(), "No nodepool-id set in state") {
+		if !strings.Contains(err.Error(), "No nodepools set in state") {
 			t.Errorf("unexpected error message: %v", err)
 		}
 	})
@@ -1073,7 +1073,7 @@ func TestPickNodepoolInteractive_Select(t *testing.T) {
 	}
 	state, _ := os.ReadFile(filepath.Join(dir, "state.yaml"))
 	if !strings.Contains(string(state), secondNodepoolID) {
-		t.Errorf("nodepool-id %q not found in state.yaml:\n%s", secondNodepoolID, state)
+		t.Errorf("nodepools %q not found in state.yaml:\n%s", secondNodepoolID, state)
 	}
 }
 
@@ -1200,7 +1200,7 @@ func TestNodepoolIDInteractive_Select(t *testing.T) {
 		t.Fatalf("reading state.yaml: %v", err)
 	}
 	if !strings.Contains(string(state), secondNodepoolID) {
-		t.Errorf("nodepool-id %q not found in state.yaml:\n%s", secondNodepoolID, state)
+		t.Errorf("nodepools %q not found in state.yaml:\n%s", secondNodepoolID, state)
 	}
 }
 
@@ -1262,7 +1262,7 @@ func TestNodepoolIDInteractive_NoCluster(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when cluster-id is not set")
 	}
-	if !strings.Contains(err.Error(), "No cluster-id set in state") {
+	if !strings.Contains(err.Error(), "No clusters set in state") {
 		t.Errorf("unexpected error message: %v", err)
 	}
 	if apiCalled {

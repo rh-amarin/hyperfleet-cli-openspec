@@ -13,11 +13,9 @@ func TestParseResourceTypes_RootAndChild(t *testing.T) {
 resource-types:
   channels:
     path: channels
-    state-key: channel-id
   versions:
     parent: channels
     path: "channels/{channel_id}/versions"
-    state-key: version-id
 `
 	writeEnv(t, dir, "dev", content)
 
@@ -37,6 +35,11 @@ resource-types:
 		t.Fatalf("expected 2 types, got %d", len(types))
 	}
 
+	ch, err := s.ResourceType("channels")
+	if err != nil || ch.StateKey != "channels" {
+		t.Fatalf("channels StateKey: %+v err=%v", ch, err)
+	}
+
 	path, err := s.ResolveResourcePath("channels")
 	if err != nil {
 		t.Fatal(err)
@@ -50,7 +53,7 @@ resource-types:
 		t.Fatal("expected error without parent state")
 	}
 
-	if err := s.SetState("channel-id", "abc-123"); err != nil {
+	if err := s.SetState("channels", "abc-123"); err != nil {
 		t.Fatal(err)
 	}
 	path, err = s.ResolveResourcePath("versions")
@@ -67,17 +70,12 @@ func TestResolveResourcePath_ThreeLevelChain(t *testing.T) {
 	content := `resource-types:
   channels:
     path: channels
-    state-key: channel-id
   versions:
     parent: channels
     path: "channels/{channel_id}/versions"
-    state-key: version-id
-    path-param: channel_id
   releases:
     parent: versions
     path: "channels/{channel_id}/versions/{version_id}/releases"
-    state-key: release_id
-    path-param: version_id
 `
 	writeEnv(t, dir, "dev", content)
 
@@ -88,10 +86,10 @@ func TestResolveResourcePath_ThreeLevelChain(t *testing.T) {
 	if err := s.SetState("active-environment", "dev"); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SetState("channel-id", "chan-1"); err != nil {
+	if err := s.SetState("channels", "chan-1"); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SetState("version-id", "ver-1"); err != nil {
+	if err := s.SetState("versions", "ver-1"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -111,7 +109,6 @@ func TestParseResourceTypes_UnknownParent(t *testing.T) {
   versions:
     parent: missing
     path: versions
-    state-key: version-id
 `
 	writeEnv(t, dir, "dev", content)
 	s := config.New(dir)
@@ -127,15 +124,15 @@ func TestParseResourceTypes_UnknownParent(t *testing.T) {
 	}
 }
 
-func TestParseResourceTypes_DuplicateStateKey(t *testing.T) {
+func TestParseResourceTypes_PathParamOverride(t *testing.T) {
 	dir := t.TempDir()
 	content := `resource-types:
-  a:
-    path: a
-    state-key: same-id
-  b:
-    path: b
-    state-key: same-id
+  widgets:
+    path: widgets
+    path-param: widget_uuid
+  parts:
+    parent: widgets
+    path: "widgets/{widget_uuid}/parts"
 `
 	writeEnv(t, dir, "dev", content)
 	s := config.New(dir)
@@ -145,9 +142,16 @@ func TestParseResourceTypes_DuplicateStateKey(t *testing.T) {
 	if err := s.SetState("active-environment", "dev"); err != nil {
 		t.Fatal(err)
 	}
-	_, err := s.ResourceTypes()
-	if err == nil {
-		t.Fatal("expected duplicate state-key error")
+	if err := s.SetState("widgets", "w-1"); err != nil {
+		t.Fatal(err)
+	}
+
+	path, err := s.ResolveResourcePath("parts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != "widgets/w-1/parts" {
+		t.Fatalf("parts path: got %q", path)
 	}
 }
 
@@ -159,7 +163,6 @@ func TestLoad_MixedEnvProfileWithResourceTypes(t *testing.T) {
 resource-types:
   channels:
     path: channels
-    state-key: channel-id
 `)
 	s := config.New(dir)
 	if err := s.Load(); err != nil {
@@ -181,11 +184,9 @@ func TestResolveResourceStatusPath(t *testing.T) {
 	writeEnv(t, dir, "dev", `resource-types:
   channels:
     path: channels
-    state-key: channel-id
   versions:
     parent: channels
     path: "channels/{channel_id}/versions"
-    state-key: version-id
 `)
 	s := config.New(dir)
 	if err := s.Load(); err != nil {
@@ -194,7 +195,7 @@ func TestResolveResourceStatusPath(t *testing.T) {
 	if err := s.SetState("active-environment", "dev"); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SetState("channel-id", "chan-42"); err != nil {
+	if err := s.SetState("channels", "chan-42"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -220,11 +221,9 @@ func TestResolveListPath_WithAncestorIDs(t *testing.T) {
 	writeEnv(t, dir, "dev", `resource-types:
   channels:
     path: channels
-    state-key: channel-id
   versions:
     parent: channels
     path: "channels/{channel_id}/versions"
-    state-key: version-id
 `)
 	s := config.New(dir)
 	if err := s.Load(); err != nil {
@@ -234,7 +233,7 @@ func TestResolveListPath_WithAncestorIDs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	path, err := s.ResolveListPath("versions", map[string]string{"channel-id": "chan-42"})
+	path, err := s.ResolveListPath("versions", map[string]string{"channels": "chan-42"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,9 +244,9 @@ func TestResolveListPath_WithAncestorIDs(t *testing.T) {
 
 func TestRootAndChildResourceTypes(t *testing.T) {
 	types := []config.ResourceTypeDef{
-		{Name: "versions", Parent: "channels"},
-		{Name: "channels"},
-		{Name: "releases", Parent: "versions"},
+		{Name: "versions", Parent: "channels", StateKey: "versions"},
+		{Name: "channels", StateKey: "channels"},
+		{Name: "releases", Parent: "versions", StateKey: "releases"},
 	}
 	roots := config.RootResourceTypes(types)
 	if len(roots) != 1 || roots[0].Name != "channels" {
@@ -264,7 +263,6 @@ func TestResourceID_ExplicitWins(t *testing.T) {
 	writeEnv(t, dir, "dev", `resource-types:
   channels:
     path: channels
-    state-key: channel-id
 `)
 	s := config.New(dir)
 	if err := s.Load(); err != nil {
@@ -276,5 +274,20 @@ func TestResourceID_ExplicitWins(t *testing.T) {
 	id, err := s.ResourceID("channels", "explicit")
 	if err != nil || id != "explicit" {
 		t.Fatalf("ResourceID: got %q err=%v", id, err)
+	}
+}
+
+func TestDerivePathParamFromTypeName(t *testing.T) {
+	t.Parallel()
+	cases := map[string]string{
+		"clusters":  "cluster_id",
+		"nodepools": "nodepool_id",
+		"channels":  "channel_id",
+		"widget":    "widget_id",
+	}
+	for name, want := range cases {
+		if got := config.DerivePathParamFromTypeName(name); got != want {
+			t.Errorf("%s: got %q want %q", name, got, want)
+		}
 	}
 }

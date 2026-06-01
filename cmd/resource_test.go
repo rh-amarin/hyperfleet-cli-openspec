@@ -48,12 +48,10 @@ func makeResourceEnv(t *testing.T, dir, apiURL string) {
 resource-types:
   channels:
     path: channels
-    state-key: channel-id
     create-template: channels.json
   versions:
     parent: channels
     path: "channels/{channel_id}/versions"
-    state-key: version-id
 `, apiURL)
 	makeEnvRaw(t, dir, "test", content)
 	setActiveEnv(t, dir, "test")
@@ -115,9 +113,9 @@ func TestResourceVersionsList_RequiresParentState(t *testing.T) {
 
 	_, err := runResourceCmd(t, dir, "resource", "versions", "list")
 	if err == nil {
-		t.Fatal("expected error without channel-id")
+		t.Fatal("expected error without channels")
 	}
-	if !strings.Contains(err.Error(), "channel-id") {
+	if !strings.Contains(err.Error(), "channels") {
 		t.Fatalf("error: %v", err)
 	}
 }
@@ -134,7 +132,7 @@ func TestResourceVersionsList_WithParentState(t *testing.T) {
 	dir := t.TempDir()
 	makeResourceEnv(t, dir, ts.URL)
 	statePath := filepath.Join(dir, "state.yaml")
-	if err := os.WriteFile(statePath, []byte("active-environment: test\nchannel-id: "+testChannelID+"\n"), 0600); err != nil {
+	if err := os.WriteFile(statePath, []byte("active-environment: test\nchannels: "+testChannelID+"\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -166,7 +164,7 @@ func TestResourceChannelsSearch_SetsState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(state), "channel-id: "+testChannelID) {
+	if !strings.Contains(string(state), "channels: "+testChannelID) {
 		t.Fatalf("state not updated: %q", state)
 	}
 }
@@ -236,7 +234,7 @@ func TestResourceChannelsAdapterReport(t *testing.T) {
 	dir := t.TempDir()
 	makeResourceEnv(t, dir, ts.URL)
 	statePath := filepath.Join(dir, "state.yaml")
-	if err := os.WriteFile(statePath, []byte("active-environment: test\nchannel-id: "+testChannelID+"\n"), 0600); err != nil {
+	if err := os.WriteFile(statePath, []byte("active-environment: test\nchannels: "+testChannelID+"\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -272,7 +270,7 @@ func TestResourceChannelsAdapterReport_InvalidStatus(t *testing.T) {
 	dir := t.TempDir()
 	makeResourceEnv(t, dir, ts.URL)
 	statePath := filepath.Join(dir, "state.yaml")
-	if err := os.WriteFile(statePath, []byte("active-environment: test\nchannel-id: "+testChannelID+"\n"), 0600); err != nil {
+	if err := os.WriteFile(statePath, []byte("active-environment: test\nchannels: "+testChannelID+"\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -312,7 +310,7 @@ func TestEnvShow_ListsResourceTypes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"resource-types:", "channels:", "path: channels", "state-key: channel-id", "versions:", "parent: channels"} {
+	for _, want := range []string{"resource-types:", "channels:", "path: channels", "versions:", "parent: channels"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("expected %q in env show output:\n%s", want, out)
 		}

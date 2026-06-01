@@ -70,10 +70,10 @@ The CLI SHALL maintain a `state.yaml` file for runtime state separate from envir
 
 #### Scenario: Generic resource state keys
 
-- GIVEN a resource type with `state-key: channel-id`
-- WHEN the user runs `hf resource channels search <name>` and a match is found
-- THEN the CLI MUST write the matched resource ID to `state.yaml` under `channel-id`
-- AND generic resource state keys MUST coexist with existing keys (`cluster-id`, `nodepool-id`, `active-environment`)
+- GIVEN a resource type named `channels`
+- WHEN the user runs `hf rs channels search <name>` and a match is found
+- THEN the CLI MUST write the matched resource ID to `state.yaml` under the key `channels`
+- AND generic resource state keys MUST coexist with `clusters`, `nodepools`, and `active-environment`
 
 ### Requirement: Environment Variable Overrides
 
@@ -147,11 +147,11 @@ The CLI SHALL support a structured `resource-types` section in environment YAML 
 - WHEN a resource type is defined under `resource-types.<type-name>`
 - THEN it MUST support fields:
   - `path` (required): API path relative to `{api-url}/api/hyperfleet/{api-version}/`
-  - `state-key` (required): flat key written to `state.yaml` when the type is selected
   - `parent` (optional): name of the immediate parent resource type
-  - `path-param` (optional): placeholder name this type's ID fills in child paths; defaults to `state-key` with `-id` replaced by `_id`
+  - `path-param` (optional): placeholder name this type's ID fills in child paths; when omitted, derived from the entity name (e.g. `clusters` → `cluster_id`)
   - `create-template` (optional): filename under `<config-dir>/templates/` for create payloads
-- AND the map key `<type-name>` MUST be used as the CLI subcommand name
+- AND the map key `<type-name>` MUST be used as both the CLI subcommand name and the flat key in `state.yaml` when the type is selected
+- AND `state-key` MUST NOT be a supported configuration field
 
 #### Scenario: Config template default
 
@@ -162,13 +162,11 @@ The CLI SHALL support a structured `resource-types` section in environment YAML 
   resource-types:
     clusters:
       path: clusters
-      state-key: cluster-id
       create-template: clusters.json
     nodepools:
       parent: clusters
       path: "clusters/{cluster_id}/nodepools"
-      state-key: nodepool-id
-      path-param: cluster_id
+      create-template: nodepools.json
   ```
 
 ### Requirement: State File Path

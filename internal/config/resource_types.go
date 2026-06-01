@@ -15,7 +15,7 @@ type ResourceTypeDef struct {
 	Name           string
 	Path           string `yaml:"path"`
 	Parent         string `yaml:"parent"`
-	StateKey       string `yaml:"state-key"`
+	StateKey       string // always equal to Name; key in state.yaml
 	PathParam      string `yaml:"path-param"`
 	CreateTemplate string `yaml:"create-template"`
 }
@@ -23,7 +23,6 @@ type ResourceTypeDef struct {
 type resourceTypeFields struct {
 	Path           string `yaml:"path"`
 	Parent         string `yaml:"parent"`
-	StateKey       string `yaml:"state-key"`
 	PathParam      string `yaml:"path-param"`
 	CreateTemplate string `yaml:"create-template"`
 }
@@ -81,7 +80,7 @@ func (s *Store) ResourceType(name string) (ResourceTypeDef, error) {
 }
 
 // ResolveListPath substitutes explicit ancestor resource IDs into the type's path.
-// Keys in ancestorIDs are state-key values (e.g. channel-id).
+// Keys in ancestorIDs are entity names (e.g. channels).
 func (s *Store) ResolveListPath(typeName string, ancestorIDs map[string]string) (string, error) {
 	def, err := s.ResourceType(typeName)
 	if err != nil {
@@ -177,7 +176,7 @@ func (s *Store) ResolveResourcePath(typeName string) (string, error) {
 	return path, nil
 }
 
-// ResourceID resolves an explicit ID or the type's state-key value.
+// ResourceID resolves an explicit ID or the type's entity-name state value.
 func (s *Store) ResourceID(typeName, explicit string) (string, error) {
 	if explicit != "" {
 		return explicit, nil
@@ -247,27 +246,19 @@ func parseResourceTypes(envPath string) (map[string]ResourceTypeDef, error) {
 	}
 
 	out := make(map[string]ResourceTypeDef, len(doc.ResourceTypes))
-	stateKeys := map[string]string{}
 
 	for name, fields := range doc.ResourceTypes {
 		def := ResourceTypeDef{
 			Name:           name,
 			Path:           strings.TrimSpace(fields.Path),
 			Parent:         strings.TrimSpace(fields.Parent),
-			StateKey:       strings.TrimSpace(fields.StateKey),
+			StateKey:       name,
 			PathParam:      strings.TrimSpace(fields.PathParam),
 			CreateTemplate: strings.TrimSpace(fields.CreateTemplate),
 		}
 		if def.Path == "" {
 			return nil, fmt.Errorf("[ERROR] resource-types.%s.path is required", name)
 		}
-		if def.StateKey == "" {
-			return nil, fmt.Errorf("[ERROR] resource-types.%s.state-key is required", name)
-		}
-		if other, dup := stateKeys[def.StateKey]; dup {
-			return nil, fmt.Errorf("[ERROR] duplicate state-key %q on resource-types.%s and %s", def.StateKey, name, other)
-		}
-		stateKeys[def.StateKey] = name
 		if def.Parent == "" && placeholderRE.MatchString(def.Path) {
 			return nil, fmt.Errorf("[ERROR] resource-types.%s.path contains placeholders but type has no parent", name)
 		}
@@ -308,19 +299,20 @@ func validateNoCycle(start string, defs map[string]ResourceTypeDef) ([]string, e
 	}
 }
 
-// placeholderInChildPaths returns the {placeholder} name an ancestor's state-key
-// fills in descendant API paths (e.g. version-id → version_id).
+// placeholderInChildPaths returns the {placeholder} name an ancestor's ID fills
+// in descendant API paths (e.g. clusters → cluster_id).
 func placeholderInChildPaths(def ResourceTypeDef) string {
-	return derivePathParam(def.StateKey)
+	if def.PathParam != "" {
+		return def.PathParam
+	}
+	return DerivePathParamFromTypeName(def.Name)
 }
 
-func derivePathParam(stateKey string) string {
-	if strings.HasSuffix(stateKey, "-id") {
-		base := strings.TrimSuffix(stateKey, "-id")
-		return strings.ReplaceAll(base, "-", "_") + "_id"
+// DerivePathParamFromTypeName maps an entity name to a path placeholder (clusters → cluster_id).
+func DerivePathParamFromTypeName(name string) string {
+	base := name
+	if strings.HasSuffix(name, "s") && len(name) > 1 {
+		base = name[:len(name)-1]
 	}
-	if strings.HasSuffix(stateKey, "_id") {
-		return stateKey
-	}
-	return strings.ReplaceAll(stateKey, "-", "_")
+	return strings.ReplaceAll(base, "-", "_") + "_id"
 }

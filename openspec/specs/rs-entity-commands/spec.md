@@ -28,24 +28,11 @@ Types that support force-delete (`clusters`, `nodepools` in the bundled template
 
 For entities `clusters` and `nodepools`, list/table output with `--output table` SHALL follow the Table Column Architecture in `tables-and-lists` (fixed columns, dynamic condition columns, dynamic adapter columns, GEN deletion marker, watch spinners).
 
-#### Scenario: Cluster list table fetches statuses
-
-- GIVEN clusters exist
-- WHEN the user runs `hf rs clusters list --output table`
-- THEN the CLI MUST GET the cluster collection and GET each `clusters/{id}/statuses`
-- AND MUST render `ID`, `NAME`, `GEN`, dynamic condition columns, and dynamic adapter columns with dot rendering
-
 #### Scenario: Nodepool list table columns
 
-- GIVEN `cluster-id` is set and nodepools exist
+- GIVEN `clusters` is set in state and nodepools exist
 - WHEN the user runs `hf rs nodepools table`
 - THEN fixed columns MUST include `ID`, `NAME`, `TYPE`, `GEN`, `REPLICAS` where `TYPE` is `spec.platform.type` and `REPLICAS` is `spec.replicas`
-
-#### Scenario: Generic entity simple table
-
-- GIVEN a non-reconciled entity such as `channels`
-- WHEN the user runs `hf rs channels list --output table`
-- THEN columns MUST be `ID`, `NAME`, `KIND`, `GEN` with ` ❌` on GEN when `deleted_time` is set
 
 ### Requirement: Conditions Subcommand
 

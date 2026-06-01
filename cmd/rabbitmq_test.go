@@ -47,9 +47,9 @@ func setupRabbitEnv(t *testing.T) string {
 func setRabbitState(t *testing.T, dir, cid, npid string) {
 	t.Helper()
 	statePath := filepath.Join(dir, "state.yaml")
-	content := fmt.Sprintf("active-environment: test\ncluster-id: %s\n", cid)
+	content := fmt.Sprintf("active-environment: test\nclusters: %s\n", cid)
 	if npid != "" {
-		content += "nodepool-id: " + npid + "\n"
+		content += "nodepools: " + npid + "\n"
 	}
 	if err := os.WriteFile(statePath, []byte(content), 0600); err != nil {
 		t.Fatal(err)
@@ -65,8 +65,8 @@ func TestRabbitPublishCluster_MissingClusterID(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing cluster-id")
 	}
-	if !strings.Contains(err.Error(), "No cluster-id") {
-		t.Errorf("error = %q, want 'No cluster-id'", err.Error())
+	if !strings.Contains(err.Error(), "No clusters") {
+		t.Errorf("error = %q, want 'No clusters'", err.Error())
 	}
 }
 
@@ -132,8 +132,8 @@ func TestRabbitPublishNodePool_MissingClusterID(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing cluster-id")
 	}
-	if !strings.Contains(err.Error(), "No cluster-id") {
-		t.Errorf("error = %q, want 'No cluster-id'", err.Error())
+	if !strings.Contains(err.Error(), "No clusters") {
+		t.Errorf("error = %q, want 'No clusters'", err.Error())
 	}
 }
 
@@ -145,8 +145,8 @@ func TestRabbitPublishNodePool_MissingNodePoolID(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing nodepool-id")
 	}
-	if !strings.Contains(err.Error(), "No nodepool-id") {
-		t.Errorf("error = %q, want 'No nodepool-id'", err.Error())
+	if !strings.Contains(err.Error(), "No nodepools") {
+		t.Errorf("error = %q, want 'No nodepools'", err.Error())
 	}
 }
 

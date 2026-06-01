@@ -102,9 +102,9 @@ var pubsubPublishClusterCmd = &cobra.Command{
 			return err
 		}
 
-		clusterID := s.GetState("cluster-id")
+		clusterID := s.GetState("clusters")
 		if clusterID == "" {
-			return fmt.Errorf("[ERROR] No cluster-id set in state. Run 'hf cluster create' or 'hf cluster search <name>' first.")
+			return fmt.Errorf("[ERROR] No clusters set in state. Run 'hf cluster create' or 'hf cluster search <name>' first.")
 		}
 
 		apiURL := s.Get("hyperfleet", "api-url")
@@ -143,13 +143,13 @@ var pubsubPublishNodePoolCmd = &cobra.Command{
 			return err
 		}
 
-		clusterID := s.GetState("cluster-id")
+		clusterID := s.GetState("clusters")
 		if clusterID == "" {
-			return fmt.Errorf("[ERROR] No cluster-id set in state. Run 'hf cluster create' or 'hf cluster search <name>' first.")
+			return fmt.Errorf("[ERROR] No clusters set in state. Run 'hf cluster create' or 'hf cluster search <name>' first.")
 		}
-		nodepoolID := s.GetState("nodepool-id")
+		nodepoolID := s.GetState("nodepools")
 		if nodepoolID == "" {
-			return fmt.Errorf("[ERROR] No nodepool-id set in state. Run 'hf nodepool create' or 'hf nodepool use <id>' first.")
+			return fmt.Errorf("[ERROR] No nodepools set in state. Run 'hf nodepool create' or 'hf nodepool use <id>' first.")
 		}
 
 		apiURL := s.Get("hyperfleet", "api-url")

@@ -70,7 +70,7 @@ var adapterStatusesJSON = `{
 func setClusterIDInState(t *testing.T, dir, envName, id string) {
 	t.Helper()
 	statePath := filepath.Join(dir, "state.yaml")
-	content := fmt.Sprintf("active-environment: %s\ncluster-id: %s\n", envName, id)
+	content := fmt.Sprintf("active-environment: %s\nclusters: %s\n", envName, id)
 	if err := os.WriteFile(statePath, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -390,7 +390,7 @@ func TestClusterCreate(t *testing.T) {
 	// Verify cluster-id persisted to state.yaml
 	stateRaw, _ := os.ReadFile(filepath.Join(dir, "state.yaml"))
 	if !strings.Contains(string(stateRaw), clusterID) {
-		t.Errorf("cluster-id not persisted to state.yaml: %q", string(stateRaw))
+		t.Errorf("clusters not persisted to state.yaml: %q", string(stateRaw))
 	}
 }
 
@@ -802,7 +802,7 @@ func TestClusterSearch_ByName_Found(t *testing.T) {
 	// Verify cluster-id persisted to state.
 	stateRaw, _ := os.ReadFile(filepath.Join(dir, "state.yaml"))
 	if !strings.Contains(string(stateRaw), clusterID) {
-		t.Errorf("cluster-id not persisted after search: %q", string(stateRaw))
+		t.Errorf("clusters not persisted after search: %q", string(stateRaw))
 	}
 }
 
@@ -876,7 +876,7 @@ func TestClusterSearch_NoArgs_WithoutState(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when no cluster-id in state")
 	}
-	if !strings.Contains(err.Error(), "No cluster-id set in state") {
+	if !strings.Contains(err.Error(), "No clusters set in state") {
 		t.Errorf("error message: got %q", err.Error())
 	}
 }
@@ -1253,7 +1253,7 @@ func TestClusterID(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error when cluster-id is not set")
 		}
-		if !strings.Contains(err.Error(), "No cluster-id set in state") {
+		if !strings.Contains(err.Error(), "No clusters set in state") {
 			t.Errorf("unexpected error message: %v", err)
 		}
 	})
@@ -1313,7 +1313,7 @@ func TestClusterIDInteractive_Select(t *testing.T) {
 		t.Fatalf("reading state.yaml: %v", err)
 	}
 	if !strings.Contains(string(state), secondClusterID) {
-		t.Errorf("cluster-id %q not found in state.yaml:\n%s", secondClusterID, state)
+		t.Errorf("clusters %q not found in state.yaml:\n%s", secondClusterID, state)
 	}
 }
 
@@ -1383,7 +1383,7 @@ func TestPickClusterInteractive_Select(t *testing.T) {
 	}
 	state, _ := os.ReadFile(filepath.Join(dir, "state.yaml"))
 	if !strings.Contains(string(state), secondClusterID) {
-		t.Errorf("cluster-id %q not found in state.yaml:\n%s", secondClusterID, state)
+		t.Errorf("clusters %q not found in state.yaml:\n%s", secondClusterID, state)
 	}
 }
 

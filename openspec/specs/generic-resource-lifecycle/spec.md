@@ -33,75 +33,31 @@ TBD - created by archiving change generic-resource-types. Update Purpose after a
 
 `hf resource <type> get [id]` SHALL fetch a single resource by ID.
 
-#### Scenario: Get with explicit ID
+#### Scenario: Get uses state when ID omitted
 
-- GIVEN a resource ID argument is provided
-- WHEN the user runs `hf resource channels get <id>`
-- THEN the CLI MUST GET `{collection-path}/{id}`
-
-#### Scenario: Get with state ID
-
-- GIVEN no ID argument and the type's state-key is set
+- GIVEN no ID argument and state for the entity name is set (e.g. `channels` in `state.yaml`)
 - WHEN the user runs `hf resource channels get`
-- THEN the CLI MUST use the state-key value as the ID
-
-#### Scenario: Interactive get
-
-- GIVEN `-i` flag and no ID argument
-- WHEN the user runs `hf resource channels get -i`
-- THEN the CLI MUST list resources and prompt for fuzzy selection
-- AND `-i --curl` MUST return `[ERROR] --curl cannot be used with interactive mode`
+- THEN the CLI MUST use the entity-name state value as the ID
 
 ### Requirement: Create Generic Resource
 
-`hf resource <type> create` SHALL POST a JSON body to the resolved collection path.
+`hf resource <type> create` SHALL create a resource and optionally persist its ID to state.
 
-#### Scenario: Create with template file
+#### Scenario: Create persists entity state key
 
-- GIVEN `create-template: channels.json` in config
-- AND a file exists at `<config-dir>/templates/channels.json`
-- WHEN the user runs `hf resource channels create`
-- THEN the CLI MUST POST the template body to the collection path
-- AND `--name` MAY override the `name` field in the body
-
-#### Scenario: Create with --file
-
-- WHEN the user runs `hf resource channels create --file <path>`
-- THEN the CLI MUST use the file content as the request body
-
-#### Scenario: Create sets state
-
-- GIVEN a successful create response includes an `id` field
+- GIVEN a successful create for type `channels`
 - WHEN create completes
-- THEN the CLI MUST write the new ID to the type's state-key in `state.yaml`
-- AND MUST print `[INFO] <type> context set to '<id>'` on stderr
-
-#### Scenario: Create dry-run
-
-- GIVEN `--curl` is set
-- WHEN the user runs `hf resource channels create`
-- THEN the CLI MUST print the POST curl command
-- AND MUST NOT send an HTTP request
-- AND MUST exit 0
+- THEN the CLI MUST write the new ID to `state.yaml` under the key `channels`
 
 ### Requirement: Search Generic Resource
 
-`hf resource <type> search [name]` SHALL find resources by name and set active state.
+`hf resource <type> search [name]` SHALL find a resource by name and set active context.
 
-#### Scenario: Search by name
+#### Scenario: Search persists entity state key
 
-- GIVEN resources exist in the API
-- WHEN the user runs `hf resource channels search <name>`
-- THEN the CLI MUST query with `search=name='<name>'`
-- AND on match MUST persist the first match ID to the type's state-key
-- AND MUST print `[INFO] <type> context set to '<id>'` on stderr
-
-#### Scenario: Search no match
-
-- GIVEN no resource matches
-- WHEN the user runs `hf resource channels search <name>`
-- THEN the CLI MUST print `[WARN] No <type> found matching '<name>'`
-- AND exit 0
+- GIVEN a search match for type `channels`
+- WHEN search succeeds
+- THEN the CLI MUST persist the first match ID to `state.yaml` under the key `channels`
 
 ### Requirement: Patch Generic Resource
 
@@ -138,30 +94,29 @@ When `--file` is omitted, the CLI SHALL perform counter increment patch (legacy 
 
 ### Requirement: Generic Resource ID Command
 
-`hf resource <type> id` SHALL print or interactively set the active ID for the type.
+`hf resource <type> id` SHALL display or interactively set the active ID for the type.
 
-#### Scenario: Print current ID
+#### Scenario: ID prints entity state key
 
-- GIVEN the type's state-key is set
+- GIVEN state for the entity name is set
 - WHEN the user runs `hf resource channels id`
-- THEN the CLI MUST print the state-key value to stdout
+- THEN the CLI MUST print the value stored under `channels` in `state.yaml`
 
-#### Scenario: Interactive set ID
+#### Scenario: Interactive ID sets entity state key
 
-- WHEN the user runs `hf resource channels id -i`
-- THEN the CLI MUST fuzzy-select from listed resources
-- AND MUST write the selected ID to the type's state-key
+- WHEN the user runs `hf resource channels id -i` and selects a resource
+- THEN the CLI MUST write the selected ID to `state.yaml` under `channels`
 
 ### Requirement: Active Environment Required
 
 All `hf resource` commands SHALL require an active environment except `hf env *` lifecycle commands.
 
-#### Scenario: No active environment
+#### Scenario: Child type requires parent entity state
 
-- GIVEN no active environment is configured
-- WHEN the user runs `hf resource channels list`
-- THEN the CLI MUST fail with the standard `[ERROR] no active environment` message
-- AND exit with code 1
+- GIVEN type `nodepools` with parent `clusters`
+- AND `clusters` is not set in `state.yaml`
+- WHEN the user runs `hf rs nodepools list`
+- THEN the CLI MUST fail with an error referencing the parent entity name `clusters`
 
 ### Requirement: API Error Handling
 

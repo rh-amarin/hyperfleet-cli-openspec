@@ -142,12 +142,33 @@ func renderResourcesTable(cmd *cobra.Command, entries []clusterEntry, adapterCol
 	rows := make([][]string, 0)
 	for _, e := range entries {
 		rows = append(rows, buildClusterRow(e.cluster, e.adapterStatuses, adapterCols, tick, frequencySecs))
-		for _, np := range e.nodepools {
-			rows = append(rows, buildNodePoolRow(np, e.npStatuses[np.ID], adapterCols, tick, frequencySecs))
+		for i, np := range e.nodepools {
+			idPrefix := "  "
+			namePrefix := "  "
+			if treeOverview {
+				idPrefix = treeLinePrefix(1, i == len(e.nodepools)-1)
+				namePrefix = idPrefix
+			}
+			rows = append(rows, buildNodePoolRowPrefixed(np, e.npStatuses[np.ID], adapterCols, tick, frequencySecs, idPrefix, namePrefix))
 		}
 	}
 
 	return p.PrintTable(headers, rows)
+}
+
+var treeOverview bool
+
+func buildNodePoolRowPrefixed(np resource.NodePool, statuses []resource.AdapterStatus, adapterCols []string, tick, frequencySecs int, idPrefix, namePrefix string) []string {
+	row := buildNodePoolRow(np, statuses, adapterCols, tick, frequencySecs)
+	row[0] = idPrefix + np.ID
+	row[1] = namePrefix + np.Name
+	return row
+}
+
+func fetchAndRenderReconciledOverview(cmd *cobra.Command, effectiveFmt string, tick, frequencySecs int) error {
+	treeOverview = effectiveFmt == "table"
+	defer func() { treeOverview = false }()
+	return fetchAndRenderResources(cmd, effectiveFmt, tick, frequencySecs)
 }
 
 func fetchAndRenderResources(cmd *cobra.Command, effectiveFmt string, tick, frequencySecs int) error {
@@ -302,12 +323,4 @@ func secsUntil(t time.Time) int {
 	return int((d + time.Second - 1) / time.Second)
 }
 
-func init() {
-	rootCmd.AddCommand(resourcesCmd)
-	rootCmd.AddCommand(tableCmd)
-
-	for _, cmd := range []*cobra.Command{resourcesCmd, tableCmd} {
-		cmd.Flags().BoolVar(&resourcesWatchMode, "watch", false, "continuously refresh the table")
-		cmd.Flags().IntVarP(&resourcesWatchSecs, "seconds", "s", 5, "refresh interval in seconds (used with --watch)")
-	}
-}
+// Legacy resourcesCmd/tableCmd are unregistered; use hf rs for the combined overview.

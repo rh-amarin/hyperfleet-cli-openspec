@@ -54,23 +54,36 @@ The CLI SHALL use [spf13/cobra](https://github.com/spf13/cobra) for command rout
 #### Scenario: Command hierarchy
 
 - GIVEN Cobra is the CLI framework
-- WHEN commands are registered
+- WHEN commands are registered after migration is complete
 - THEN the command tree MUST include:
   ```
   hf
-  ├── resource | rs
+  ├── resource | rs              # overview when invoked with no subcommand
   │   ├── types
-  │   └── <type-name>          # dynamically registered from resource-types config
+  │   └── <entity>               # from resource-types (includes clusters, nodepools)
   │       ├── list
+  │       ├── table
   │       ├── get
   │       ├── create
   │       ├── search
   │       ├── patch
   │       ├── delete
+  │       ├── force-delete       # nodepools; clusters use delete --force
+  │       ├── conditions
+  │       ├── statuses
+  │       ├── adapter-report
   │       └── id
   ```
-- AND dynamic `<type-name>` groups MUST be registered after the active environment is loaded
-- AND existing `hf cluster`, `hf nodepool`, and `hf resources` commands MUST remain unchanged
+- AND dynamic `<entity>` groups MUST be registered after the active environment is loaded
+- AND `hf cluster`, `hf nodepool`, `hf resources`, and `hf table` MUST NOT be registered
+
+#### Scenario: Legacy commands removed from root help
+
+- GIVEN this change is complete
+- WHEN the user runs `hf --help`
+- THEN `hf cluster` and `hf nodepool` MUST NOT appear
+- AND `hf table` and `hf resources` MUST NOT appear
+- AND cluster/nodepool operations MUST appear only under `hf rs`
 
 ### Requirement: Version Package
 
@@ -277,7 +290,7 @@ The CLI SHALL support configurable verbosity.
 
 ### Requirement: Generic Resource Command Group
 
-The CLI SHALL provide a top-level command group `hf resource` with alias `hf rs` for config-defined HyperFleet API resource types.
+The CLI SHALL provide a top-level command group `hf resource` with alias `hf rs` for config-defined HyperFleet API resource types. This group is the **canonical** interface for cluster and nodepool operations when those types appear in `resource-types`.
 
 #### Scenario: Command group registration
 
@@ -285,27 +298,28 @@ The CLI SHALL provide a top-level command group `hf resource` with alias `hf rs`
 - WHEN the user runs `hf resource --help` or `hf rs --help`
 - THEN the CLI MUST show the `resource` command group
 - AND `hf rs` MUST be a registered alias for `hf resource`
-- AND this group MUST NOT be named `resources` (that name is reserved for the cluster+nodepool overview)
+- AND the root command MUST NOT register a separate `resources` command (former combined overview)
 
-#### Scenario: Distinction from hf resources
+#### Scenario: Overview is hf rs with no subcommand
 
-- GIVEN `hf resources` displays combined cluster and nodepool overview
-- WHEN a user runs `hf resource <type> list`
-- THEN the CLI MUST operate on config-defined API resource types
-- AND MUST NOT invoke the cluster+nodepool overview command
+- GIVEN `clusters` and `nodepools` are configured under `resource-types`
+- WHEN the user runs `hf rs` with no subcommand
+- THEN the CLI MUST render the combined cluster+nodepool operational overview
+- AND MUST NOT require `hf table` or `hf resources`
 
 #### Scenario: Dynamic type subcommands
 
 - GIVEN the active environment defines resource types under `resource-types`
 - WHEN the user runs `hf resource --help` after config load
-- THEN the CLI MUST register one subcommand group per configured type name (e.g. `channels`, `versions`)
-- AND each type group MUST expose subcommands: `list`, `get`, `create`, `search`, `patch`, `delete`, `id`
+- THEN the CLI MUST register one subcommand group per configured type name (e.g. `clusters`, `nodepools`, `channels`)
+- AND each type group MUST expose: `list`, `table`, `get`, `create`, `search`, `patch`, `delete`, `conditions`, `statuses`, `adapter-report`, `id`
+- AND MUST expose `force-delete` for types that support it (`clusters` via `delete --force`, `nodepools` via `force-delete`)
 
 #### Scenario: No configured types
 
 - GIVEN the active environment has no `resource-types` section or an empty map
 - WHEN the user runs `hf resource --help`
-- THEN the CLI MUST show at minimum the `types` subcommand
+- THEN the CLI MUST show at minimum the `types` subcommand and support `hf rs` overview when types are empty
 - AND MUST NOT fail with a parse error
 
 ### Requirement: Resource Types Subcommand
@@ -374,4 +388,20 @@ When `--curl` is set, commands that call the HyperFleet or Maestro HTTP clients 
 - WHEN a command would normally persist state (e.g. `SetState` after create)
 - THEN the CLI MUST NOT mutate `state.yaml` or environment files
 - AND MUST exit with code 0 after printing curl (when the command's primary API call is reached)
+
+### Requirement: Deprecation of Legacy Commands (transition release)
+
+During the transition release before removal, legacy commands MAY remain registered. If present, they SHALL delegate to `hf rs` and print a deprecation warning on stderr.
+
+#### Scenario: Deprecated cluster list
+
+- WHEN the user runs `hf cluster list`
+- THEN stderr MUST include a deprecation warning naming `hf rs clusters list`
+- AND stdout MUST match `hf rs clusters list` for the same flags and environment
+
+#### Scenario: Deprecated hf table
+
+- WHEN the user runs `hf table --watch`
+- THEN stderr MUST include a deprecation warning naming `hf rs --watch`
+- AND table output MUST match `hf rs --watch`
 

@@ -87,7 +87,7 @@ func setNodepoolIDInState(t *testing.T, dir, envName, id string) {
 func setupNodepoolEnv(t *testing.T, ts *httptest.Server) string {
 	t.Helper()
 	dir := t.TempDir()
-	makeEnv(t, dir, "test", ts.URL)
+	makeReconciledClusterEnv(t, dir, "test", ts.URL)
 	setActiveEnv(t, dir, "test")
 	setBothIDsInState(t, dir, "test", clusterID, "")
 	return dir
@@ -115,7 +115,10 @@ func resetNodepoolFlags() {
 func runNodepoolCmd(t *testing.T, dir string, args ...string) (string, error) {
 	t.Helper()
 	resetNodepoolFlags()
-	return runCmd(t, dir, args...)
+	resetGenericFlags()
+	resetResourceRegistrationForTest()
+	full := append([]string{"rs", "nodepools"}, args...)
+	return runCmd(t, dir, full...)
 }
 
 // ---- nodepool list ----
@@ -132,7 +135,7 @@ func TestNodepoolList(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	out, err := runNodepoolCmd(t, dir, "nodepool", "list")
+	out, err := runNodepoolCmd(t, dir, "list")
 	if err != nil {
 		t.Fatalf("nodepool list: %v", err)
 	}
@@ -152,7 +155,7 @@ func TestNodepoolList_Table(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	out, err := runNodepoolCmd(t, dir, "nodepool", "list", "--output", "table")
+	out, err := runNodepoolCmd(t, dir, "list", "--output", "table")
 	if err != nil {
 		t.Fatalf("nodepool list --output table: %v", err)
 	}
@@ -181,11 +184,11 @@ func TestNodepoolTable(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	out, err := runNodepoolCmd(t, dir, "nodepool", "table")
+	out, err := runNodepoolCmd(t, dir, "table")
 	if err != nil {
 		t.Fatalf("nodepool table: %v", err)
 	}
-	for _, header := range []string{"ID", "NAME", "TYPE", "GEN", "REPLICAS", "STATUS"} {
+	for _, header := range []string{"ID", "NAME", "TYPE", "GEN", "REPLICAS", "RECONCILED"} {
 		if !strings.Contains(out, header) {
 			t.Errorf("expected table header %q in output, got: %q", header, out)
 		}
@@ -207,7 +210,7 @@ func TestNodepoolList_Search_NoFlag(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	_, err := runNodepoolCmd(t, dir, "nodepool", "list")
+	_, err := runNodepoolCmd(t, dir, "list")
 	if err != nil {
 		t.Fatalf("nodepool list (no flag): %v", err)
 	}
@@ -227,7 +230,7 @@ func TestNodepoolList_Search_OwnerID(t *testing.T) {
 
 	dir := setupNodepoolEnv(t, ts)
 	expr := "owner_id='" + clusterID + "'"
-	_, err := runNodepoolCmd(t, dir, "nodepool", "list", "--search", expr)
+	_, err := runNodepoolCmd(t, dir, "list", "--search", expr)
 	if err != nil {
 		t.Fatalf("nodepool list --search owner_id: %v", err)
 	}
@@ -250,7 +253,7 @@ func TestNodepoolList_Search_CompoundExpr(t *testing.T) {
 
 	dir := setupNodepoolEnv(t, ts)
 	expr := "labels.role='worker' and name='test-nodepool'"
-	_, err := runNodepoolCmd(t, dir, "nodepool", "list", "--search", expr)
+	_, err := runNodepoolCmd(t, dir, "list", "--search", expr)
 	if err != nil {
 		t.Fatalf("nodepool list --search compound: %v", err)
 	}
@@ -272,7 +275,7 @@ func TestNodepoolList_Search_APIError400(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	out, err := runNodepoolCmd(t, dir, "nodepool", "list", "--search", "not status.conditions.Ready='True'")
+	out, err := runNodepoolCmd(t, dir, "list", "--search", "not status.conditions.Ready='True'")
 	if err != nil {
 		t.Fatalf("nodepool list --search API 400 should exit 0, got error: %v", err)
 	}
@@ -295,7 +298,7 @@ func TestNodepoolGet(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	out, err := runNodepoolCmd(t, dir, "nodepool", "get", nodepoolID)
+	out, err := runNodepoolCmd(t, dir, "get", nodepoolID)
 	if err != nil {
 		t.Fatalf("nodepool get: %v", err)
 	}
@@ -321,7 +324,7 @@ func TestNodepoolGet_FromState(t *testing.T) {
 	dir := setupNodepoolEnv(t, ts)
 	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
 
-	out, err := runNodepoolCmd(t, dir, "nodepool", "get")
+	out, err := runNodepoolCmd(t, dir, "get")
 	if err != nil {
 		t.Fatalf("nodepool get (from state): %v", err)
 	}
@@ -340,7 +343,7 @@ func TestNodepoolGet_NotFound(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	out, err := runNodepoolCmd(t, dir, "nodepool", "get", "00000000-0000-0000-0000-000000000000")
+	out, err := runNodepoolCmd(t, dir, "get", "00000000-0000-0000-0000-000000000000")
 	// API errors exit 0
 	if err != nil {
 		t.Fatalf("nodepool get 404 should exit 0, got error: %v", err)
@@ -370,7 +373,7 @@ func TestNodepoolCreate(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	out, err := runNodepoolCmd(t, dir, "nodepool", "create", "--name", "test-nodepool")
+	out, err := runNodepoolCmd(t, dir, "create", "--name", "test-nodepool")
 	if err != nil {
 		t.Fatalf("nodepool create: %v", err)
 	}
@@ -404,7 +407,7 @@ func TestNodepoolCreate_DuplicateGuard(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	_, err := runNodepoolCmd(t, dir, "nodepool", "create", "--name", "test-nodepool")
+	_, err := runNodepoolCmd(t, dir, "create", "--name", "test-nodepool")
 	if err != nil {
 		t.Fatalf("nodepool create duplicate: %v", err)
 	}
@@ -433,7 +436,7 @@ func TestNodepoolCreate_Defaults(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	_, err := runNodepoolCmd(t, dir, "nodepool", "create")
+	_, err := runNodepoolCmd(t, dir, "create")
 	if err != nil {
 		t.Fatalf("nodepool create defaults: %v", err)
 	}
@@ -458,7 +461,7 @@ func TestNodepoolDelete(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	out, err := runNodepoolCmd(t, dir, "nodepool", "delete", nodepoolID)
+	out, err := runNodepoolCmd(t, dir, "delete", nodepoolID)
 	if err != nil {
 		t.Fatalf("nodepool delete: %v", err)
 	}
@@ -478,7 +481,7 @@ func TestNodepoolDelete_NotFound(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	_, err := runNodepoolCmd(t, dir, "nodepool", "delete", "00000000-0000-0000-0000-000000000000")
+	_, err := runNodepoolCmd(t, dir, "delete", "00000000-0000-0000-0000-000000000000")
 	if err == nil {
 		t.Fatal("expected error for nodepool delete 404")
 	}
@@ -501,7 +504,7 @@ func TestNodepoolConditions(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	out, err := runNodepoolCmd(t, dir, "nodepool", "conditions", nodepoolID)
+	out, err := runNodepoolCmd(t, dir, "conditions", nodepoolID)
 	if err != nil {
 		t.Fatalf("nodepool conditions: %v", err)
 	}
@@ -530,7 +533,7 @@ func TestNodepoolConditions_FromState(t *testing.T) {
 	dir := setupNodepoolEnv(t, ts)
 	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
 
-	_, err := runNodepoolCmd(t, dir, "nodepool", "conditions")
+	_, err := runNodepoolCmd(t, dir, "conditions")
 	if err != nil {
 		t.Fatalf("nodepool conditions (from state): %v", err)
 	}
@@ -548,7 +551,7 @@ func TestNodepoolConditions_Table(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	out, err := runNodepoolCmd(t, dir, "nodepool", "conditions", nodepoolID, "--output", "table")
+	out, err := runNodepoolCmd(t, dir, "conditions", nodepoolID, "--output", "table")
 	if err != nil {
 		t.Fatalf("nodepool conditions --output table: %v", err)
 	}
@@ -576,7 +579,7 @@ func TestNodepoolStatuses(t *testing.T) {
 	dir := setupNodepoolEnv(t, ts)
 	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
 
-	out, err := runNodepoolCmd(t, dir, "nodepool", "statuses")
+	out, err := runNodepoolCmd(t, dir, "statuses")
 	if err != nil {
 		t.Fatalf("nodepool statuses: %v", err)
 	}
@@ -602,7 +605,7 @@ func TestNodepoolStatuses_Table(t *testing.T) {
 	dir := setupNodepoolEnv(t, ts)
 	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
 
-	out, err := runNodepoolCmd(t, dir, "nodepool", "statuses", "--output", "table")
+	out, err := runNodepoolCmd(t, dir, "statuses", "--output", "table")
 	if err != nil {
 		t.Fatalf("nodepool statuses --output table: %v", err)
 	}
@@ -626,7 +629,7 @@ func TestNodepoolStatuses_ExplicitID(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	out, err := runNodepoolCmd(t, dir, "nodepool", "statuses", nodepoolID)
+	out, err := runNodepoolCmd(t, dir, "statuses", nodepoolID)
 	if err != nil {
 		t.Fatalf("nodepool statuses (explicit id): %v", err)
 	}
@@ -649,7 +652,7 @@ func TestNodepoolSearch_ByName_Found(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	out, err := runNodepoolCmd(t, dir, "nodepool", "search", "test-nodepool")
+	out, err := runNodepoolCmd(t, dir, "search", "test-nodepool")
 	if err != nil {
 		t.Fatalf("nodepool search: %v", err)
 	}
@@ -671,7 +674,7 @@ func TestNodepoolSearch_ByName_NotFound(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	out, err := runNodepoolCmd(t, dir, "nodepool", "search", "nonexistent")
+	out, err := runNodepoolCmd(t, dir, "search", "nonexistent")
 	if err != nil {
 		t.Fatalf("nodepool search not-found should exit 0, got: %v", err)
 	}
@@ -694,7 +697,7 @@ func TestNodepoolSearch_NoArgs_WithState(t *testing.T) {
 	dir := setupNodepoolEnv(t, ts)
 	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
 
-	out, err := runNodepoolCmd(t, dir, "nodepool", "search")
+	out, err := runNodepoolCmd(t, dir, "search")
 	if err != nil {
 		t.Fatalf("nodepool search (no args, with state): %v", err)
 	}
@@ -710,7 +713,7 @@ func TestNodepoolSearch_NoArgs_WithoutState(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	_, err := runNodepoolCmd(t, dir, "nodepool", "search")
+	_, err := runNodepoolCmd(t, dir, "search")
 	if err == nil {
 		t.Fatal("expected error when no nodepool-id in state")
 	}
@@ -741,7 +744,7 @@ func TestNodepoolPatch_Spec(t *testing.T) {
 	dir := setupNodepoolEnv(t, ts)
 	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
 
-	_, err := runNodepoolCmd(t, dir, "nodepool", "patch", "spec")
+	_, err := runNodepoolCmd(t, dir, "patch", "spec")
 	if err != nil {
 		t.Fatalf("nodepool patch spec: %v", err)
 	}
@@ -777,7 +780,7 @@ func TestNodepoolPatch_Labels(t *testing.T) {
 	dir := setupNodepoolEnv(t, ts)
 	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
 
-	_, err := runNodepoolCmd(t, dir, "nodepool", "patch", "labels")
+	_, err := runNodepoolCmd(t, dir, "patch", "labels")
 	if err != nil {
 		t.Fatalf("nodepool patch labels: %v", err)
 	}
@@ -800,12 +803,12 @@ func TestNodepoolPatch_NoArgs(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	out, err := runNodepoolCmd(t, dir, "nodepool", "patch")
+	out, err := runNodepoolCmd(t, dir, "patch")
 	if err == nil {
 		t.Fatal("expected error for nodepool patch with no args")
 	}
-	if !strings.Contains(out, "Usage: hf nodepool patch") {
-		t.Errorf("expected usage message in stdout, got: %q", out)
+	if err != nil && !strings.Contains(err.Error(), "usage: hf rs nodepools patch") {
+		t.Errorf("expected usage in error, got err=%v out=%q", err, out)
 	}
 }
 
@@ -840,7 +843,7 @@ func TestNodePoolAdapterPostStatus(t *testing.T) {
 	dir := setupNodepoolEnv(t, ts)
 	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
 
-	out, err := runNodepoolCmd(t, dir, "nodepool", "adapter", "post-status", "np-configmap", "True", "2")
+	out, err := runNodepoolCmd(t, dir, "adapter-report", "np-configmap", "True", "2")
 	if err != nil {
 		t.Fatalf("nodepool adapter post-status: %v", err)
 	}
@@ -885,7 +888,7 @@ func TestNodepoolCreate_Template_NameFromPositionalArg(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupNodepoolEnv(t, ts)
-	_, err := runNodepoolCmd(t, dir, "nodepool", "create", "workers")
+	_, err := runNodepoolCmd(t, dir, "create", "workers")
 	if err != nil {
 		t.Fatalf("nodepool create with name arg: %v", err)
 	}
@@ -922,7 +925,7 @@ func TestNodepoolCreate_FileFlag(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := runNodepoolCmd(t, dir, "nodepool", "create", "-f", tplPath)
+	_, err := runNodepoolCmd(t, dir, "create", "-f", tplPath)
 	if err != nil {
 		t.Fatalf("nodepool create -f: %v", err)
 	}
@@ -954,7 +957,7 @@ func TestNodepoolCreate_MalformedTemplate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := runNodepoolCmd(t, dir, "nodepool", "create", "-f", tplPath)
+	_, err := runNodepoolCmd(t, dir, "create", "-f", tplPath)
 	if err == nil {
 		t.Fatal("expected error for malformed template")
 	}
@@ -997,7 +1000,7 @@ func TestNodepoolID(t *testing.T) {
 
 	t.Run("prints ID when set", func(t *testing.T) {
 		setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
-		out, err := runNodepoolCmd(t, dir, "nodepool", "id")
+		out, err := runNodepoolCmd(t, dir, "id")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -1008,7 +1011,7 @@ func TestNodepoolID(t *testing.T) {
 
 	t.Run("errors when not set", func(t *testing.T) {
 		setBothIDsInState(t, dir, "test", clusterID, "")
-		_, err := runNodepoolCmd(t, dir, "nodepool", "id")
+		_, err := runNodepoolCmd(t, dir, "id")
 		if err == nil {
 			t.Fatal("expected error when nodepool-id is not set")
 		}
@@ -1064,7 +1067,7 @@ func TestPickNodepoolInteractive_Select(t *testing.T) {
 	nodepoolIDSel = mockSel{idx: 1} // pick second nodepool
 	t.Cleanup(func() { nodepoolIDSel = orig })
 
-	_, err := runNodepoolCmd(t, dir, "nodepool", "get", "-i")
+	_, err := runNodepoolCmd(t, dir, "get", "-i")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1094,7 +1097,7 @@ func TestPickNodepoolInteractive_Abort(t *testing.T) {
 	nodepoolIDSel = mockSel{idx: -1} // abort
 	t.Cleanup(func() { nodepoolIDSel = orig })
 
-	_, err := runNodepoolCmd(t, dir, "nodepool", "get", "-i")
+	_, err := runNodepoolCmd(t, dir, "get", "-i")
 	if err != nil {
 		t.Fatalf("unexpected error on abort: %v", err)
 	}
@@ -1126,7 +1129,7 @@ func TestNodepoolGetInteractive(t *testing.T) {
 	nodepoolIDSel = mockSel{idx: 0}
 	t.Cleanup(func() { nodepoolIDSel = orig })
 
-	out, err := runNodepoolCmd(t, dir, "nodepool", "get", "-i")
+	out, err := runNodepoolCmd(t, dir, "get", "-i")
 	if err != nil {
 		t.Fatalf("nodepool get -i: %v", err)
 	}
@@ -1157,7 +1160,7 @@ func TestNodepoolDeleteInteractive(t *testing.T) {
 	nodepoolIDSel = mockSel{idx: 0}
 	t.Cleanup(func() { nodepoolIDSel = orig })
 
-	_, err := runNodepoolCmd(t, dir, "nodepool", "delete", "-i")
+	_, err := runNodepoolCmd(t, dir, "delete", "-i")
 	if err != nil {
 		t.Fatalf("nodepool delete -i: %v", err)
 	}
@@ -1182,7 +1185,7 @@ func TestNodepoolIDInteractive_Select(t *testing.T) {
 	nodepoolIDSel = mockSel{idx: 1} // pick second nodepool
 	t.Cleanup(func() { nodepoolIDSel = orig })
 
-	out, err := runNodepoolCmd(t, dir, "nodepool", "id", "--interactive")
+	out, err := runNodepoolCmd(t, dir, "id", "--interactive")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1221,7 +1224,7 @@ func TestNodepoolIDInteractive_Abort(t *testing.T) {
 	nodepoolIDSel = mockSel{idx: -1} // abort
 	t.Cleanup(func() { nodepoolIDSel = orig })
 
-	out, err := runNodepoolCmd(t, dir, "nodepool", "id", "--interactive")
+	out, err := runNodepoolCmd(t, dir, "id", "--interactive")
 	if err != nil {
 		t.Fatalf("unexpected error on abort: %v", err)
 	}
@@ -1248,14 +1251,14 @@ func TestNodepoolIDInteractive_NoCluster(t *testing.T) {
 
 	// Setup env without cluster-id in state.
 	dir := t.TempDir()
-	makeEnv(t, dir, "test", ts.URL)
+	makeReconciledClusterEnv(t, dir, "test", ts.URL)
 	setActiveEnv(t, dir, "test")
 
 	orig := nodepoolIDSel
 	nodepoolIDSel = mockSel{idx: 0}
 	t.Cleanup(func() { nodepoolIDSel = orig })
 
-	_, err := runNodepoolCmd(t, dir, "nodepool", "id", "--interactive")
+	_, err := runNodepoolCmd(t, dir, "id", "--interactive")
 	if err == nil {
 		t.Fatal("expected error when cluster-id is not set")
 	}
@@ -1286,7 +1289,7 @@ func TestNodepoolDelete_FromState(t *testing.T) {
 	dir := setupNodepoolEnv(t, ts)
 	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
 
-	_, err := runNodepoolCmd(t, dir, "nodepool", "delete")
+	_, err := runNodepoolCmd(t, dir, "delete")
 	if err != nil {
 		t.Fatalf("nodepool delete (from state): %v", err)
 	}
@@ -1307,7 +1310,7 @@ func TestNodepoolDelete_NoID_NoState_Errors(t *testing.T) {
 	dir := setupNodepoolEnv(t, ts)
 	// state has cluster-id but no nodepool-id
 
-	_, err := runNodepoolCmd(t, dir, "nodepool", "delete")
+	_, err := runNodepoolCmd(t, dir, "delete")
 	if err == nil {
 		t.Fatal("expected error when no nodepool-id in state and no arg")
 	}
@@ -1337,9 +1340,9 @@ func TestNodepoolDelete_Force(t *testing.T) {
 	dir := setupNodepoolEnv(t, ts)
 	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
 
-	_, err := runNodepoolCmd(t, dir, "nodepool", "delete", "--force")
+	_, err := runNodepoolCmd(t, dir, "force-delete", nodepoolID, "--reason", "stuck")
 	if err != nil {
-		t.Fatalf("nodepool delete --force: %v", err)
+		t.Fatalf("nodepool force-delete: %v", err)
 	}
 	if gotMethod != http.MethodPost {
 		t.Errorf("expected POST, got %s", gotMethod)
@@ -1367,9 +1370,9 @@ func TestNodepoolDelete_Force_WithReason(t *testing.T) {
 	dir := setupNodepoolEnv(t, ts)
 	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
 
-	_, err := runNodepoolCmd(t, dir, "nodepool", "delete", "--force", "--reason", "stuck in finalizing")
+	_, err := runNodepoolCmd(t, dir, "force-delete", nodepoolID, "--reason", "stuck in finalizing")
 	if err != nil {
-		t.Fatalf("nodepool delete --force --reason: %v", err)
+		t.Fatalf("nodepool force-delete --reason: %v", err)
 	}
 	if gotBody["reason"] != "stuck in finalizing" {
 		t.Errorf("expected reason 'stuck in finalizing', got %q", gotBody["reason"])
@@ -1392,7 +1395,7 @@ func TestNodepoolDelete_NoForce_StillCallsDelete(t *testing.T) {
 	dir := setupNodepoolEnv(t, ts)
 	setBothIDsInState(t, dir, "test", clusterID, nodepoolID)
 
-	_, err := runNodepoolCmd(t, dir, "nodepool", "delete")
+	_, err := runNodepoolCmd(t, dir, "delete")
 	if err != nil {
 		t.Fatalf("nodepool delete (no force): %v", err)
 	}

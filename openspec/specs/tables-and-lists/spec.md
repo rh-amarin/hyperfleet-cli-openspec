@@ -28,9 +28,7 @@ For condition columns the generation comes from `condition.observed_generation`.
 ### Deletion marker
 
 When a resource has `deleted_time` set, the generation cell MUST append a red `❌` icon (e.g., `3 ❌`). Additionally, adapter columns for that resource MUST use the `Finalized` condition (instead of `Available`) when reading the adapter's status, reflecting that the adapter is reporting on finalization rather than availability.
-
 ## Requirements
-
 ### Requirement: List Clusters (JSON)
 
 The CLI SHALL list all clusters as raw JSON.
@@ -143,20 +141,21 @@ ID                                    NAME      REPLICAS  TYPE           GEN  Av
 
 ### Requirement: Combined Resources Overview
 
-The CLI SHALL display a combined table of all clusters and their nested nodepools via `hf resources` and `hf table`.
+The CLI SHALL display a combined table of all clusters and their nested nodepools via `hf rs` (no subcommand). The former `hf resources` and `hf table` root commands are deprecated and removed.
 
-`hf table` and `hf resources` default to JSON output. Pass `--output table` to render the combined table.
+`hf rs` defaults to table output when `--output` is not set for the overview command. Pass `--output json` or `--output yaml` for structured output.
 
-#### Scenario: Display combined resources JSON (default)
+#### Scenario: Display combined resources JSON
 
 - **GIVEN** clusters exist
-- **WHEN** the user runs `hf table` or `hf resources` (no `--output` flag)
-- **THEN** the CLI MUST output the cluster list as JSON
+- **WHEN** the user runs `hf rs --output json`
+- **THEN** the CLI MUST output the cluster list as JSON (or equivalent structured overview payload)
+- AND JSON output MUST NOT require per-nodepool adapter fetches unless documented otherwise
 
 #### Scenario: Display combined resources table
 
 - **GIVEN** clusters and nodepools exist
-- **WHEN** the user runs `hf table --output table` or `hf resources --output table`
+- **WHEN** the user runs `hf rs` or `hf rs --output table`
 - **THEN** the CLI MUST:
   1. Fetch all clusters
   2. For each cluster, fetch its nodepools and adapter statuses
@@ -166,25 +165,26 @@ The CLI SHALL display a combined table of all clusters and their nested nodepool
   - Dynamic condition columns: union of all `status.conditions[].type` across clusters and nodepools, excluding types ending in `Successful`
   - Dynamic adapter columns: union of all adapter names across all cluster and nodepool statuses
 - **AND** cluster rows MUST appear with their full `id` and `name`
-- **AND** nodepool rows MUST be indented with two spaces on `id` and `name` to show hierarchy
+- **AND** nodepool rows MUST use hierarchical tree prefixes on `id` and `name` (ASCII tree, not only space indent)
 - **AND** each cluster's nodepools MUST appear immediately after their parent cluster row
 - **AND** dot rendering and the deletion marker MUST follow the rules in "Table Column Architecture"
 
-#### Scenario: hf table alias
+#### Scenario: hf table and hf resources removed
 
-- GIVEN the user runs `hf table`
-- WHEN the command executes
-- THEN it MUST produce the same output as `hf resources`
+- **GIVEN** this change is complete
+- **WHEN** the user runs `hf table` or `hf resources`
+- **THEN** the CLI MUST NOT register those commands
+- **AND** operators MUST use `hf rs` for the combined view
 
 #### Scenario: JSON output skips per-resource fetching
 
-- GIVEN the user runs `hf resources` or `hf resources --output json`
-- THEN the CLI MUST output the raw clusters list JSON response
-- AND MUST NOT fetch nodepools or adapter statuses
+- **GIVEN** the user runs `hf rs --output json` for overview
+- **THEN** the CLI MAY output the raw clusters list JSON without nodepool/adapter fetches
+- AND table/watch modes MUST fetch nested data as required for columns
 
 ### Requirement: Watch Mode for Table Commands
 
-The CLI SHALL support a `--watch` flag on `hf cluster list`, `hf nodepool list`, `hf table`, and `hf resources` that causes the table to refresh continuously at a configurable interval.
+The CLI SHALL support a `--watch` flag on `hf rs` (overview), `hf rs <entity> list`, and former-equivalent entity list commands that causes the table to refresh continuously at a configurable interval.
 
 When `--watch` is active the CLI MUST:
 1. Clear the terminal screen using ANSI escape sequences before each render.
@@ -197,23 +197,23 @@ A `-s <seconds>` flag (default `5`) controls the refresh interval. The minimum a
 
 #### Scenario: Cluster list watch mode — basic refresh
 
-- **WHEN** the user runs `hf cluster list --output table --watch`
+- **WHEN** the user runs `hf rs clusters list --output table --watch`
 - **THEN** the CLI MUST render the cluster table immediately, then re-render every 5 seconds
 - **AND** each render MUST be preceded by a terminal clear
 
 #### Scenario: Cluster list watch mode — custom frequency
 
-- **WHEN** the user runs `hf cluster list --output table --watch -s 10`
+- **WHEN** the user runs `hf rs clusters list --output table --watch -s 10`
 - **THEN** the CLI MUST refresh every 10 seconds
 
 #### Scenario: Nodepool list watch mode
 
-- **WHEN** the user runs `hf nodepool list --output table --watch`
+- **WHEN** the user runs `hf rs nodepools list --output table --watch`
 - **THEN** the CLI MUST render the nodepool table immediately, then re-render every 5 seconds
 
 #### Scenario: Combined table watch mode
 
-- **WHEN** the user runs `hf table --output table --watch`
+- **WHEN** the user runs `hf rs --watch`
 - **THEN** the CLI MUST render the combined cluster+nodepool table immediately, then re-render every 5 seconds
 
 #### Scenario: Watch mode — graceful exit
@@ -223,8 +223,9 @@ A `-s <seconds>` flag (default `5`) controls the refresh interval. The minimum a
 
 #### Scenario: Watch mode — API error during refresh
 
-- **WHEN** an API call fails during a watch refresh cycle
+- **WHEN** an API call fails during a watch refresh cycle on entity list commands
 - **THEN** the CLI MUST exit with a non-zero code and print the error message
+- **AND** overview refresh MUST tolerate partial failures per overview requirements (warnings, not hard fail)
 
 ### Requirement: Adapter Activity Indicator
 
@@ -250,3 +251,20 @@ The activity check computes `time.Since(lastReportTime) < 2 × frequencySecs`. I
 
 - **WHEN** an adapter's `last_report_time` is empty or unparseable
 - **THEN** the adapter MUST be treated as inactive (no spinner)
+
+### Requirement: RS Entity Table Views
+
+The CLI SHALL support rich table output for `hf rs clusters` and `hf rs nodepools` via `list --output table` and `table`, using the same Table Column Architecture as former cluster and nodepool list tables.
+
+#### Scenario: RS cluster table matches former cluster list table
+
+- GIVEN the same cluster data
+- WHEN the user runs `hf rs clusters table`
+- THEN column sets (fixed, condition, adapter) and dot rendering MUST match the former `hf cluster list --output table` behavior
+
+#### Scenario: RS nodepool table matches former nodepool list table
+
+- GIVEN the same nodepool data under the same cluster
+- WHEN the user runs `hf rs nodepools table`
+- THEN column sets and dot rendering MUST match the former `hf nodepool list --output table` behavior
+

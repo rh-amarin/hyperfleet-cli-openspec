@@ -58,6 +58,9 @@ database:
   name: "hyperfleet"
   user: "hyperfleet"
   password: "your-db-password"
+
+# Optional: declare extra HyperFleet API types (see "Config-defined resources")
+resource-types: {}
 ```
 
 Or set individual keys from the CLI:
@@ -141,11 +144,11 @@ hf kube port-forward start hyperfleet-api 9000:8000
 
 ### 4. Create a cluster and node pool
 
-On first run, `hf cluster create` writes a default JSON template to `~/.config/hf/cluster-template.json`. Edit it once, then reuse it for every new cluster.
+Create templates live under `~/.config/hf/templates/` (`clusters.json`, `nodepools.json` are seeded in the config template). Embedded defaults apply when a file is missing.
 
 ```bash
 # Create with positional args (name, region, version)
-hf cluster create prod-eu-west1 europe-west1 4.16.0
+hf rs clusters create prod-eu-west1 europe-west1 4.16.0
 ```
 
 ```
@@ -172,7 +175,7 @@ hf cluster create prod-eu-west1 europe-west1 4.16.0
 The newly created cluster ID is stored in state and used automatically by subsequent commands. Create a node pool under it:
 
 ```bash
-hf nodepool create workers-n2 --type n2-standard-4 --replicas 3
+hf rs nodepools create workers-n2 --type n2-standard-4 --replicas 3
 ```
 
 ```
@@ -197,17 +200,17 @@ hf nodepool create workers-n2 --type n2-standard-4 --replicas 3
 
 > **Tip:** Pass `--file path/to/template.json` to use a custom body. Any positional args or flags override template values.
 
-### 5. Watch cluster state with `hf table --watch`
+### 5. Watch cluster state with `hf rs --watch`
 
-`hf table` (alias for `hf resources`) renders a live combined view of all clusters and their node pools, with one adapter column per registered adapter. Node pool rows are indented under their parent cluster.
+`hf rs` renders a live combined view of all clusters and their node pools (when `clusters` and `nodepools` are in `resource-types`), with one adapter column per registered adapter. Node pool rows use tree prefixes under their parent cluster.
 
 ```bash
-hf table                        # one-shot snapshot
-hf table --watch                # refresh every 5 s (default)
-hf table --watch --seconds 10   # refresh every 10 s
+hf rs                           # one-shot snapshot (table default)
+hf rs --watch                   # refresh every 5 s (default)
+hf rs --watch --seconds 10      # refresh every 10 s
 ```
 
-Screenshot of `hf table --watch` against a live EU cluster:
+Screenshot of `hf rs --watch` against a live EU cluster:
 
 ```
 ID                                    NAME               GEN  AVAILABLE  RECONCILED  CL-CONFIGM  CL-DEPLOYM  NP-CONFIGM
@@ -224,8 +227,8 @@ a1b2c3d4-0002-0002-0002-000000000002  staging-eu-west1   2    ● 2        ● 2
 Other output formats are available when not in watch mode:
 
 ```bash
-hf table -o json
-hf table -o yaml
+hf rs -o json
+hf rs -o yaml
 ```
 
 ---
@@ -248,25 +251,120 @@ CLI flags  >  HF_* env vars  >  environment profile  >  config.yaml  >  defaults
 
 ---
 
+## Config-defined resources (`resource-types`)
+
+Besides built-in `cluster` and `nodepool` commands, `hf` can manage arbitrary HyperFleet API resource types declared in the active environment file. Each type becomes a subcommand under `hf resource` (alias `hf rs`).
+
+Add a `resource-types` map to `~/.config/hf/environments/<name>.yaml`. New environments created with `hf config env create` include an empty `resource-types: {}` stub you can fill in.
+
+### Fields
+
+| Field | Required | Description |
+|---|---|---|
+| `path` | yes | API path relative to `{api-url}/api/hyperfleet/{api-version}/` (e.g. `channels` or `channels/{channel_id}/versions`) |
+| `state-key` | yes | Flat key in `~/.config/hf/state.yaml` holding the active resource ID for this type (e.g. `channel-id`) |
+| `parent` | no | Name of the immediate parent type; required for nested paths |
+| `path-param` | no | Placeholder in child paths filled by the parent's ID (defaults from `state-key`: `channel-id` → `{channel_id}`) |
+| `create-template` | no | JSON filename under `~/.config/hf/templates/` used by `hf rs <type> create` |
+
+Validation rules:
+
+- `parent` must reference another defined type; cycles are rejected
+- Each `state-key` must be unique across types
+- Root types (no `parent`) must not contain unresolved `{placeholders}` in `path`
+
+### Example: root and nested types
+
+```yaml
+resource-types:
+  channels:
+    path: channels
+    state-key: channel-id
+    create-template: channels.json
+  versions:
+    parent: channels
+    path: "channels/{channel_id}/versions"
+    state-key: version-id
+  releases:
+    parent: versions
+    path: "channels/{channel_id}/versions/{version_id}/releases"
+    state-key: release-id
+```
+
+Place create payloads next to other templates:
+
+```bash
+mkdir -p ~/.config/hf/templates
+# ~/.config/hf/templates/channels.json
+```
+
+```json
+{
+  "kind": "Channel",
+  "name": "example"
+}
+```
+
+Child types resolve ancestor IDs from `state.yaml`. If `channel-id` is missing, commands such as `hf rs versions list` fail with a hint to run `hf rs channels search <name>` first.
+
+### State
+
+`hf rs <type> search <name>` writes the matched ID to the type's `state-key`. Generic keys coexist with `cluster-id`, `nodepool-id`, and `active-environment`:
+
+```yaml
+# ~/.config/hf/state.yaml
+active-environment: eu
+cluster-id: e3f2a1b0-...
+channel-id: abc-123
+version-id: ver-456
+```
+
+Inspect configured types and current state:
+
+```bash
+hf rs types
+hf config show    # lists resource-types from the active environment
+```
+
+### Commands
+
+| Command | Description |
+|---|---|
+| `hf rs` | Hierarchical overview of all configured types (table by default; `--watch` / `-s N`) |
+| `hf rs types` | List types, paths, parents, and active state keys |
+| `hf rs <type> list` / `table` | List resources (`--search`, `--watch`, `-o json\|table\|yaml`) |
+| `hf rs <type> get [id]` | Get one resource (`-i` to pick interactively) |
+| `hf rs <type> search [name]` | Find by name and set active context |
+| `hf rs <type> create [name]` | Create from template (`--file`, `--name`; clusters/nodepools have extra flags) |
+| `hf rs <type> patch spec\|labels [id]` | Counter increment (no `--file`) or file-based patch (`--file`) |
+| `hf rs <type> delete [id]` | Delete resource (`clusters delete --force --reason` for force-delete) |
+| `hf rs <type> conditions [id]` | Show status conditions (clusters, nodepools) |
+| `hf rs <type> statuses [id]` | Show adapter statuses (`--filter` for interactive filter) |
+| `hf rs nodepools force-delete [id] --reason` | Force-delete a stuck nodepool |
+| `hf rs <type> id` | Print or set (`-i`) active ID |
+| `hf rs <type> adapter-report <adapter> <True\|False\|Unknown> <gen> [id]` | Simulate adapter status reporting |
+
+Overview table example (child rows use tree prefixes; `GEN` shows `❌` when `deleted_time` is set):
+
+```
+TYPE      ID              NAME    KIND     GEN
+channels  abc-123         alpha   Channel  3
+└─ versions  ver-1        v1      Version  1
+```
+
+If some lists fail to load (missing parent state, API errors), `hf rs` still prints whatever it could fetch and shows `[WARN]` lines at the top describing each failure.
+
+> When `clusters` and `nodepools` are configured under `resource-types`, `hf rs` (no subcommand) renders the combined adapter-rich cluster + nodepool table (formerly `hf table` / `hf resources`).
+
+---
+
 ## Command reference
 
 | Command | Description |
 |---|---|
-| `hf cluster create [name] [region] [version]` | Create a cluster (uses template + flag overrides) |
-| `hf cluster list` | List all clusters |
-| `hf cluster get [id]` | Get a cluster by ID (defaults to active) |
-| `hf cluster search <name>` | Find by name and set as active context |
-| `hf cluster delete [id]` | Delete a cluster |
-| `hf cluster conditions [id]` | Show status conditions |
-| `hf cluster statuses [id]` | Show per-adapter reconciliation status |
-| `hf cluster patch spec\|labels` | Increment the `counter` field |
-| `hf nodepool create [name]` | Create a node pool under the active cluster |
-| `hf nodepool list` | List node pools for the active cluster |
-| `hf nodepool get [id]` | Get a node pool by ID |
-| `hf nodepool search <name>` | Find by name and set as active context |
-| `hf nodepool delete <id>` | Delete a node pool |
-| `hf table [--watch] [-s N]` | Combined cluster + node pool overview |
-| `hf resources [--watch] [-s N]` | Alias for `hf table` |
+| `hf rs` / `hf resource` | Combined overview (clusters + nodepools when configured) or generic type tree |
+| `hf rs clusters …` / `hf rs nodepools …` | Full cluster and nodepool lifecycle (see [resource-types](#config-defined-resources-resource-types)) |
+| `hf rs <type> …` | CRUD, conditions, statuses, adapter-report for any configured type |
 | `hf kube port-forward start [name]` | Start port-forward(s) to in-cluster services |
 | `hf kube port-forward stop [name]` | Stop port-forward(s) |
 | `hf kube port-forward status` | Show running port-forward status |

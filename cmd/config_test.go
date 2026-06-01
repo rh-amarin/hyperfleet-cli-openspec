@@ -3,6 +3,7 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,6 +35,25 @@ func runCmd(t *testing.T, dir string, args ...string) (string, error) {
 func makeEnv(t *testing.T, dir, name, apiURL string) {
 	t.Helper()
 	makeEnvRaw(t, dir, name, "hyperfleet:\n  api-url: "+apiURL+"\n")
+}
+
+// makeReconciledClusterEnv adds clusters and nodepools resource-types for hf rs tests.
+func makeReconciledClusterEnv(t *testing.T, dir, name, apiURL string) {
+	t.Helper()
+	makeEnvRaw(t, dir, name, fmt.Sprintf(`hyperfleet:
+  api-url: %s
+  api-version: v1
+resource-types:
+  clusters:
+    path: clusters
+    state-key: cluster-id
+    create-template: clusters.json
+  nodepools:
+    parent: clusters
+    path: "clusters/{cluster_id}/nodepools"
+    state-key: nodepool-id
+    create-template: nodepools.json
+`, apiURL))
 }
 
 // makeEnvRaw creates a named environment file with arbitrary content.

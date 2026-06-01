@@ -1,2 +1,8 @@
-go build -ldflags "-X github.com/rh-amarin/hyperfleet-cli/internal/version.Version=47fccef-dirty -X github.com/rh-amarin/hyperfleet-cli/internal/version.BuildTime=2026-05-16T14:48:49Z" -o bin/hf .
-47fccef-dirty (built 2026-05-16T14:48:49Z)
+channels  path: channels  state: channel-id=019e81c6-a777-7708-bc5f-7c2bc6aadc6a
+clusters  path: clusters  state: cluster-id=019e81c6-668f-7dee-8eab-6f9353aaa73a
+  └─ nodepools  path: clusters/{cluster_id}/nodepools  state: nodepool-id=019e81fb-cd48-7c87-aa7c-a4a5486859ad
+     requires: cluster-id
+  └─ releases  path: channels/{channel_id}/versions/{version_id}/releases  state: release-id=019e81e4-cb68-7a54-90be-6e18d900dda6
+     requires: version-id
+  └─ versions  path: channels/{channel_id}/versions  state: version-id=019e81c6-ca29-7236-80cd-b358cf4eb254
+     requires: channel-id

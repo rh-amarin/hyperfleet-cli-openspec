@@ -18,11 +18,15 @@ import (
 var resourceCmd = &cobra.Command{
 	Use:     "resource",
 	Aliases: []string{"rs"},
-	Short:   "Manage config-defined HyperFleet API resources",
+	Short:   "Overview and manage config-defined HyperFleet API resources",
 	Long: `Manage config-defined HyperFleet API resources.
 
 Resource types and parent/child relationships are declared under resource-types
-in the active environment file. Subcommands are registered dynamically per type.`,
+in the active environment file. Subcommands are registered dynamically per type.
+
+Run hf rs (or hf resource) with no subcommand for a hierarchical overview of all
+configured types, similar to hf table for clusters and nodepools.`,
+	RunE: runResourceOverview,
 }
 
 var resourceTypesCmd = &cobra.Command{
@@ -94,6 +98,7 @@ func resetResourceRegistrationForTest() {
 
 func newResourceTypeCmd(def config.ResourceTypeDef) *cobra.Command {
 	typeName := def.Name
+	profile := reconciledProfile(typeName)
 	cmd := &cobra.Command{
 		Use:   typeName,
 		Short: fmt.Sprintf("Manage %s resources", typeName),
@@ -103,6 +108,9 @@ func newResourceTypeCmd(def config.ResourceTypeDef) *cobra.Command {
 		Use:   "list",
 		Short: fmt.Sprintf("List %s resources", typeName),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if profile != "" {
+				return runReconciledList(cmd, typeName)
+			}
 			return runGenericList(cmd, typeName)
 		},
 	}
@@ -115,6 +123,12 @@ func newResourceTypeCmd(def config.ResourceTypeDef) *cobra.Command {
 		Short: fmt.Sprintf("Get a %s resource by ID", typeName),
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if profile == "cluster" {
+				return runReconciledClusterGet(cmd, args)
+			}
+			if profile == "nodepool" {
+				return runReconciledNodepoolGet(cmd, args)
+			}
 			explicit := ""
 			if len(args) > 0 {
 				explicit = args[0]
@@ -124,11 +138,23 @@ func newResourceTypeCmd(def config.ResourceTypeDef) *cobra.Command {
 	}
 	getCmd.Flags().BoolVarP(&genericInteractive, "interactive", "i", false, "interactively select a resource")
 
+	createArgs := cobra.MaximumNArgs(1)
+	createUse := "create [name]"
+	if profile == "cluster" {
+		createArgs = cobra.MaximumNArgs(3)
+		createUse = "create [name] [region] [version]"
+	}
 	createCmd := &cobra.Command{
-		Use:   "create [name]",
+		Use:   createUse,
 		Short: fmt.Sprintf("Create a %s resource", typeName),
-		Args:  cobra.MaximumNArgs(1),
+		Args:  createArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if profile == "cluster" {
+				return runReconciledClusterCreate(cmd, args)
+			}
+			if profile == "nodepool" {
+				return runReconciledNodepoolCreate(cmd, args)
+			}
 			name := genericCreateName
 			if len(args) > 0 {
 				name = args[0]
@@ -138,12 +164,26 @@ func newResourceTypeCmd(def config.ResourceTypeDef) *cobra.Command {
 	}
 	createCmd.Flags().StringVar(&genericCreateName, "name", "", "resource name (overrides template)")
 	createCmd.Flags().StringVarP(&genericCreateFile, "file", "f", "", "JSON template file")
+	if profile == "cluster" {
+		createCmd.Flags().IntVar(&genericCreateReplicas, "replicas", 0, "number of replicas (overrides template)")
+		createCmd.Flags().StringVar(&genericCreateNodepoolID, "nodepool-id", "", "nodepool ID")
+	}
+	if profile == "nodepool" {
+		createCmd.Flags().StringVar(&genericCreatePlatformType, "type", "", "platform type (overrides template)")
+		createCmd.Flags().IntVar(&genericCreateReplicas, "replicas", 0, "number of replicas (overrides template)")
+	}
 
 	searchCmd := &cobra.Command{
 		Use:   "search [name]",
 		Short: fmt.Sprintf("Search for a %s by name and set active context", typeName),
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if profile == "cluster" {
+				return runReconciledClusterSearch(cmd, args)
+			}
+			if profile == "nodepool" {
+				return runReconciledNodepoolSearch(cmd, args)
+			}
 			name := ""
 			if len(args) > 0 {
 				name = args[0]
@@ -158,17 +198,23 @@ func newResourceTypeCmd(def config.ResourceTypeDef) *cobra.Command {
 		Args:  cobra.MaximumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 || (args[0] != "spec" && args[0] != "labels") {
-				return fmt.Errorf("usage: hf resource %s patch {spec|labels} [id]", typeName)
+				return fmt.Errorf("usage: hf rs %s patch {spec|labels} [id]", typeName)
 			}
 			section := args[0]
 			explicit := ""
 			if len(args) == 2 {
 				explicit = args[1]
 			}
+			if profile == "cluster" {
+				return runReconciledClusterPatch(cmd, section, explicit)
+			}
+			if profile == "nodepool" {
+				return runReconciledNodepoolPatch(cmd, section, explicit)
+			}
 			return runGenericPatch(cmd, typeName, section, explicit)
 		},
 	}
-	patchCmd.Flags().StringVarP(&genericPatchFile, "file", "f", "", "JSON patch body file (required)")
+	patchCmd.Flags().StringVarP(&genericPatchFile, "file", "f", "", "JSON patch body file (omit to increment counter on reconciled types)")
 	patchCmd.Flags().BoolVarP(&genericInteractive, "interactive", "i", false, "interactively select a resource")
 
 	deleteCmd := &cobra.Command{
@@ -180,22 +226,123 @@ func newResourceTypeCmd(def config.ResourceTypeDef) *cobra.Command {
 			if len(args) > 0 {
 				explicit = args[0]
 			}
+			if profile == "cluster" {
+				return runReconciledClusterDelete(cmd, explicit)
+			}
+			if profile == "nodepool" {
+				return runReconciledNodepoolDelete(cmd, explicit)
+			}
 			return runGenericDelete(cmd, typeName, explicit)
 		},
 	}
 	deleteCmd.Flags().BoolVarP(&genericInteractive, "interactive", "i", false, "interactively select a resource")
+	if profile == "cluster" {
+		deleteCmd.Flags().BoolVar(&genericReconciledDeleteForce, "force", false, "force-delete the cluster via /force-delete endpoint")
+		deleteCmd.Flags().StringVar(&genericReconciledDeleteReason, "reason", "", "reason for force-deletion (required with --force)")
+	}
 
 	idCmd := &cobra.Command{
 		Use:   "id",
 		Short: fmt.Sprintf("Print or interactively set the active %s ID", typeName),
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if profile == "cluster" {
+				return runReconciledClusterID(cmd)
+			}
+			if profile == "nodepool" {
+				return runReconciledNodepoolID(cmd)
+			}
 			return runGenericID(cmd, typeName)
 		},
 	}
 	idCmd.Flags().BoolVarP(&genericIDInteractive, "interactive", "i", false, "interactively select and set the active resource")
 
-	cmd.AddCommand(listCmd, getCmd, createCmd, searchCmd, patchCmd, deleteCmd, idCmd)
+	adapterReportCmd := &cobra.Command{
+		Use:   "adapter-report <adapter_name> <True|False|Unknown> <generation> [id]",
+		Short: fmt.Sprintf("Report adapter status for a %s resource (simulate adapter reporting)", typeName),
+		Args:  cobra.RangeArgs(3, 4),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runGenericAdapterReport(cmd, typeName, args)
+		},
+	}
+	adapterReportCmd.Flags().BoolVarP(&genericInteractive, "interactive", "i", false, "interactively select a resource")
+
+	tableCmd := &cobra.Command{
+		Use:   "table",
+		Short: fmt.Sprintf("List %s resources in table format", typeName),
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if profile != "" {
+				return runReconciledTable(cmd, typeName)
+			}
+			prev := outputFmt
+			outputFmt = "table"
+			defer func() { outputFmt = prev }()
+			return runGenericList(cmd, typeName)
+		},
+	}
+
+	var subcmds []*cobra.Command
+	subcmds = append(subcmds, listCmd, tableCmd, getCmd, createCmd, searchCmd, patchCmd, deleteCmd, idCmd, adapterReportCmd)
+
+	if profile != "" {
+		conditionsCmd := &cobra.Command{
+			Use:   "conditions [id]",
+			Short: fmt.Sprintf("Get %s status conditions", typeName),
+			Args:  cobra.MaximumNArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				explicit := ""
+				if len(args) > 0 {
+					explicit = args[0]
+				}
+				if profile == "cluster" {
+					return runReconciledClusterConditions(cmd, explicit)
+				}
+				return runReconciledNodepoolConditions(cmd, explicit)
+			},
+		}
+		conditionsCmd.Flags().BoolVarP(&genericInteractive, "interactive", "i", false, "interactively select a resource")
+
+		statusesCmd := &cobra.Command{
+			Use:   "statuses [id]",
+			Short: fmt.Sprintf("Get %s adapter statuses", typeName),
+			Args:  cobra.MaximumNArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				explicit := ""
+				if len(args) > 0 {
+					explicit = args[0]
+				}
+				if profile == "cluster" {
+					return runReconciledClusterStatuses(cmd, explicit)
+				}
+				return runReconciledNodepoolStatuses(cmd, explicit)
+			},
+		}
+		statusesCmd.Flags().BoolVarP(&genericInteractive, "interactive", "i", false, "interactively select a resource")
+		statusesCmd.Flags().BoolVar(&genericStatusesFilter, "filter", false, "open interactive status filter UI")
+
+		subcmds = append(subcmds, conditionsCmd, statusesCmd)
+	}
+
+	if profile == "nodepool" {
+		forceDeleteCmd := &cobra.Command{
+			Use:   "force-delete [id]",
+			Short: "Force-delete a nodepool",
+			Args:  cobra.MaximumNArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				explicit := ""
+				if len(args) > 0 {
+					explicit = args[0]
+				}
+				return runReconciledNodepoolForceDelete(cmd, explicit)
+			},
+		}
+		forceDeleteCmd.Flags().StringVar(&genericReconciledForceReason, "reason", "", "reason for force-deleting the nodepool (required)")
+		forceDeleteCmd.Flags().BoolVarP(&genericInteractive, "interactive", "i", false, "interactively select a resource")
+		subcmds = append(subcmds, forceDeleteCmd)
+	}
+
+	cmd.AddCommand(subcmds...)
 	return cmd
 }
 
@@ -594,6 +741,8 @@ func pickGenericInteractive(cmd *cobra.Command, s *config.Store, typeName string
 }
 
 func resetGenericFlags() {
+	resourceOverviewWatch = false
+	resourceOverviewWatchSecs = 5
 	genericListSearch = ""
 	genericListWatch = false
 	genericListWatchSecs = 5
@@ -602,9 +751,19 @@ func resetGenericFlags() {
 	genericPatchFile = ""
 	genericInteractive = false
 	genericIDInteractive = false
+	genericReconciledDeleteForce = false
+	genericReconciledDeleteReason = ""
+	genericReconciledForceReason = ""
+	genericCreateReplicas = 0
+	genericCreateNodepoolID = ""
+	genericCreatePlatformType = ""
+	genericStatusesFilter = false
 }
 
 func init() {
 	rootCmd.AddCommand(resourceCmd)
 	resourceCmd.AddCommand(resourceTypesCmd)
+
+	resourceCmd.Flags().BoolVar(&resourceOverviewWatch, "watch", false, "continuously refresh the overview table")
+	resourceCmd.Flags().IntVarP(&resourceOverviewWatchSecs, "seconds", "s", 5, "refresh interval in seconds (used with --watch)")
 }

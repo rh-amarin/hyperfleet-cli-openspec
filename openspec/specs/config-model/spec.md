@@ -170,76 +170,21 @@ The CLI SHALL support a structured `resource-types` section in environment YAML 
   - `create-template` (optional): filename under `<config-dir>/templates/` for create payloads
 - AND the map key `<type-name>` MUST be used as the CLI subcommand name
 
-#### Scenario: Root type example
-
-- GIVEN this configuration:
-  ```yaml
-  resource-types:
-    channels:
-      path: channels
-      state-key: channel-id
-      create-template: channels.json
-  ```
-- WHEN the user runs `hf resource channels list`
-- THEN the CLI MUST call GET `{api-url}/api/hyperfleet/{api-version}/channels`
-
-#### Scenario: Child type example
-
-- GIVEN this configuration:
-  ```yaml
-  resource-types:
-    channels:
-      path: channels
-      state-key: channel-id
-    versions:
-      parent: channels
-      path: "channels/{channel_id}/versions"
-      state-key: version-id
-      path-param: channel_id
-  ```
-- AND `channel-id` is set in `state.yaml` to `abc-123`
-- WHEN the user runs `hf resource versions list`
-- THEN the CLI MUST call GET `{api-url}/api/hyperfleet/{api-version}/channels/abc-123/versions`
-
-#### Scenario: Missing parent state
-
-- GIVEN a child type requires `parent: channels` with `state-key: channel-id`
-- AND `channel-id` is not set in `state.yaml`
-- WHEN the user runs any child type command except `types`
-- THEN the CLI MUST print `[ERROR] No channel-id set in state. Run 'hf resource channels search <name>' first.`
-- AND exit with code 1
-
-#### Scenario: Config validation on load
-
-- WHEN resource types are loaded from the active environment
-- THEN the CLI MUST reject configurations where:
-  - `parent` references a non-existent type name
-  - a parent cycle exists
-  - two types share the same `state-key`
-  - a root type's `path` contains unresolved `{placeholders}`
-
-#### Scenario: Default path-param derivation
-
-- GIVEN a type with `state-key: channel-id` and no `path-param`
-- WHEN path resolution runs for a child referencing `{channel_id}`
-- THEN the CLI MUST derive `path-param` as `channel_id`
-
-#### Scenario: Multi-level parent chain
-
-- GIVEN types `channels` → `versions` → `releases` each with explicit paths and state keys
-- WHEN the user runs a command on the deepest child type
-- THEN the CLI MUST resolve all ancestor state keys from `state.yaml` and substitute all placeholders in the child path
-
 #### Scenario: Config template default
 
 - GIVEN a newly created environment from the embedded config template
 - WHEN the environment file is written
-- THEN it MUST include an empty `resource-types:` section (or omit the section entirely with empty parse result)
-
-#### Scenario: hf config show includes type names
-
-- GIVEN resource types are configured in the active environment
-- WHEN the user runs `hf config show`
-- THEN the output MUST list configured resource type names
-- AND MUST NOT require `hf config set` to manage nested resource-type fields in v1
+- THEN it MUST include `resource-types` with at least `clusters` and `nodepools` entries:
+  ```yaml
+  resource-types:
+    clusters:
+      path: clusters
+      state-key: cluster-id
+      create-template: clusters.json
+    nodepools:
+      parent: clusters
+      path: "clusters/{cluster_id}/nodepools"
+      state-key: nodepool-id
+      path-param: cluster_id
+  ```
 

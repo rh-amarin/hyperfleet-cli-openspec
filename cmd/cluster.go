@@ -760,7 +760,7 @@ func runClusterIDInteractive(cmd *cobra.Command, s *config.Store, sel selector.S
 }
 
 func init() {
-	rootCmd.AddCommand(clusterCmd)
+	// clusterCmd is not registered on root; use hf rs clusters instead.
 
 	clusterCmd.AddCommand(clusterListCmd)
 	clusterCmd.AddCommand(clusterTableCmd)

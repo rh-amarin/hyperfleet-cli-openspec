@@ -176,6 +176,89 @@ resource-types:
 	}
 }
 
+func TestResolveResourceStatusPath(t *testing.T) {
+	dir := t.TempDir()
+	writeEnv(t, dir, "dev", `resource-types:
+  channels:
+    path: channels
+    state-key: channel-id
+  versions:
+    parent: channels
+    path: "channels/{channel_id}/versions"
+    state-key: version-id
+`)
+	s := config.New(dir)
+	if err := s.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetState("active-environment", "dev"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetState("channel-id", "chan-42"); err != nil {
+		t.Fatal(err)
+	}
+
+	path, err := s.ResolveResourceStatusPath("channels", "chan-99")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != "channels/chan-99/statuses" {
+		t.Fatalf("channels statuses path: got %q", path)
+	}
+
+	path, err = s.ResolveResourceStatusPath("versions", "ver-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != "channels/chan-42/versions/ver-1/statuses" {
+		t.Fatalf("versions statuses path: got %q", path)
+	}
+}
+
+func TestResolveListPath_WithAncestorIDs(t *testing.T) {
+	dir := t.TempDir()
+	writeEnv(t, dir, "dev", `resource-types:
+  channels:
+    path: channels
+    state-key: channel-id
+  versions:
+    parent: channels
+    path: "channels/{channel_id}/versions"
+    state-key: version-id
+`)
+	s := config.New(dir)
+	if err := s.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetState("active-environment", "dev"); err != nil {
+		t.Fatal(err)
+	}
+
+	path, err := s.ResolveListPath("versions", map[string]string{"channel-id": "chan-42"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != "channels/chan-42/versions" {
+		t.Fatalf("got %q", path)
+	}
+}
+
+func TestRootAndChildResourceTypes(t *testing.T) {
+	types := []config.ResourceTypeDef{
+		{Name: "versions", Parent: "channels"},
+		{Name: "channels"},
+		{Name: "releases", Parent: "versions"},
+	}
+	roots := config.RootResourceTypes(types)
+	if len(roots) != 1 || roots[0].Name != "channels" {
+		t.Fatalf("roots: %+v", roots)
+	}
+	children := config.ChildResourceTypes(types, "channels")
+	if len(children) != 1 || children[0].Name != "versions" {
+		t.Fatalf("children: %+v", children)
+	}
+}
+
 func TestResourceID_ExplicitWins(t *testing.T) {
 	dir := t.TempDir()
 	writeEnv(t, dir, "dev", `resource-types:

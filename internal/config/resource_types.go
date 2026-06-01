@@ -80,6 +80,78 @@ func (s *Store) ResourceType(name string) (ResourceTypeDef, error) {
 	return def, nil
 }
 
+// ResolveListPath substitutes explicit ancestor resource IDs into the type's path.
+// Keys in ancestorIDs are state-key values (e.g. channel-id).
+func (s *Store) ResolveListPath(typeName string, ancestorIDs map[string]string) (string, error) {
+	def, err := s.ResourceType(typeName)
+	if err != nil {
+		return "", err
+	}
+	path := def.Path
+	ancestors, err := s.resourceAncestorChain(typeName)
+	if err != nil {
+		return "", err
+	}
+	for _, a := range ancestors {
+		id, ok := ancestorIDs[a.StateKey]
+		if !ok || id == "" {
+			return "", fmt.Errorf("[ERROR] missing ancestor %s for type %q", a.StateKey, typeName)
+		}
+		param := placeholderInChildPaths(a)
+		path = strings.ReplaceAll(path, "{"+param+"}", id)
+	}
+	if placeholderRE.MatchString(path) {
+		return "", fmt.Errorf("[ERROR] unresolved path placeholders in %q for type %q", path, typeName)
+	}
+	return path, nil
+}
+
+// RootResourceTypes returns types with no parent, sorted by name.
+func RootResourceTypes(types []ResourceTypeDef) []ResourceTypeDef {
+	var roots []ResourceTypeDef
+	for _, def := range types {
+		if def.Parent == "" {
+			roots = append(roots, def)
+		}
+	}
+	sortStringsByName(roots)
+	return roots
+}
+
+// ChildResourceTypes returns immediate child types of parentName, sorted by name.
+func ChildResourceTypes(types []ResourceTypeDef, parentName string) []ResourceTypeDef {
+	var children []ResourceTypeDef
+	for _, def := range types {
+		if def.Parent == parentName {
+			children = append(children, def)
+		}
+	}
+	sortStringsByName(children)
+	return children
+}
+
+func sortStringsByName(defs []ResourceTypeDef) {
+	for i := 0; i < len(defs); i++ {
+		for j := i + 1; j < len(defs); j++ {
+			if defs[j].Name < defs[i].Name {
+				defs[i], defs[j] = defs[j], defs[i]
+			}
+		}
+	}
+}
+
+// ResolveResourceStatusPath returns the adapter status PUT path for a resource instance.
+func (s *Store) ResolveResourceStatusPath(typeName, resourceID string) (string, error) {
+	base, err := s.ResolveResourcePath(typeName)
+	if err != nil {
+		return "", err
+	}
+	if resourceID == "" {
+		return "", fmt.Errorf("[ERROR] resource id is required")
+	}
+	return base + "/" + resourceID + "/statuses", nil
+}
+
 // ResolveResourcePath substitutes ancestor state into the type's path template.
 func (s *Store) ResolveResourcePath(typeName string) (string, error) {
 	def, err := s.ResourceType(typeName)

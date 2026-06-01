@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -205,6 +207,81 @@ func TestResourceChannelsCreate_CurlDryRun(t *testing.T) {
 	}
 	if strings.Contains(stdout, testChannelID) {
 		t.Fatalf("expected no create response on stdout: %q", stdout)
+	}
+}
+
+func TestResourceChannelsAdapterReport(t *testing.T) {
+	var capturedBody []byte
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		want := "/api/hyperfleet/v1/channels/" + testChannelID + "/statuses"
+		if r.Method == http.MethodPut && r.URL.Path == want {
+			capturedBody, _ = io.ReadAll(r.Body)
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{
+				"adapter": "ch-adapter",
+				"observed_generation": 2,
+				"observed_time": "2026-05-10T00:00:00Z",
+				"conditions": [
+					{"type": "Available", "status": "True", "reason": "ManualStatusPost", "message": "Status reported via hf rs adapter-report"}
+				],
+				"created_time": "2026-05-10T00:00:00Z",
+				"last_report_time": "2026-05-10T00:00:00Z"
+			}`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	dir := t.TempDir()
+	makeResourceEnv(t, dir, ts.URL)
+	statePath := filepath.Join(dir, "state.yaml")
+	if err := os.WriteFile(statePath, []byte("active-environment: test\nchannel-id: "+testChannelID+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runResourceCmd(t, dir, "rs", "channels", "adapter-report", "ch-adapter", "True", "2")
+	if err != nil {
+		t.Fatalf("adapter-report: %v", err)
+	}
+	if !strings.Contains(out, "ch-adapter") {
+		t.Fatalf("expected adapter in output: %q", out)
+	}
+	if len(capturedBody) == 0 {
+		t.Fatal("expected request body to be captured")
+	}
+	var body map[string]any
+	if err := json.Unmarshal(capturedBody, &body); err != nil {
+		t.Fatalf("captured body is not JSON: %v", err)
+	}
+	if body["adapter"] != "ch-adapter" {
+		t.Errorf("body adapter: got %v", body["adapter"])
+	}
+	conds, ok := body["conditions"].([]any)
+	if !ok || len(conds) != 4 {
+		t.Errorf("expected 4 conditions, got %v", body["conditions"])
+	}
+}
+
+func TestResourceChannelsAdapterReport_InvalidStatus(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("HTTP request should not be made for invalid status")
+	}))
+	defer ts.Close()
+
+	dir := t.TempDir()
+	makeResourceEnv(t, dir, ts.URL)
+	statePath := filepath.Join(dir, "state.yaml")
+	if err := os.WriteFile(statePath, []byte("active-environment: test\nchannel-id: "+testChannelID+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := runResourceCmd(t, dir, "rs", "channels", "adapter-report", "ch-adapter", "INVALID", "2")
+	if err == nil {
+		t.Fatal("expected error for invalid status value")
+	}
+	if !strings.Contains(err.Error(), "Invalid status value") {
+		t.Errorf("expected 'Invalid status value' error, got: %v", err)
 	}
 }
 

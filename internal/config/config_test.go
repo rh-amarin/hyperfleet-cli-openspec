@@ -284,12 +284,21 @@ func TestConfigTemplateYAML_NonEmptyAndParses(t *testing.T) {
 	if len(config.ConfigTemplateYAML) == 0 {
 		t.Fatal("ConfigTemplateYAML must not be empty")
 	}
-	var m map[string]map[string]string
-	if err := yaml.Unmarshal(config.ConfigTemplateYAML, &m); err != nil {
+	var doc map[string]any
+	if err := yaml.Unmarshal(config.ConfigTemplateYAML, &doc); err != nil {
 		t.Fatalf("ConfigTemplateYAML does not parse as YAML: %v", err)
 	}
-	if len(m) == 0 {
+	if len(doc) == 0 {
 		t.Fatal("ConfigTemplateYAML parsed to an empty map")
+	}
+	rt, ok := doc["resource-types"].(map[string]any)
+	if !ok {
+		t.Fatal("resource-types section missing from template")
+	}
+	for _, name := range []string{"clusters", "nodepools"} {
+		if _, ok := rt[name]; !ok {
+			t.Fatalf("resource-types.%s missing from template", name)
+		}
 	}
 }
 

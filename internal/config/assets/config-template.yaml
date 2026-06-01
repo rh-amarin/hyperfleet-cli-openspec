@@ -41,4 +41,13 @@ rabbitmq:
 registry:
   name: ""
 
-resource-types: {}
+resource-types:
+  clusters:
+    path: clusters
+    state-key: cluster-id
+    create-template: clusters.json
+  nodepools:
+    parent: clusters
+    path: "clusters/{cluster_id}/nodepools"
+    state-key: nodepool-id
+    path-param: cluster_id

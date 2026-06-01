@@ -80,7 +80,7 @@ func setClusterIDInState(t *testing.T, dir, envName, id string) {
 func setupClusterEnv(t *testing.T, ts *httptest.Server) string {
 	t.Helper()
 	dir := t.TempDir()
-	makeEnv(t, dir, "test", ts.URL)
+	makeReconciledClusterEnv(t, dir, "test", ts.URL)
 	setActiveEnv(t, dir, "test")
 	return dir
 }
@@ -120,7 +120,10 @@ func (m mockSel) Select(_ []selector.Item) (int, error) { return m.idx, m.err }
 func runClusterCmd(t *testing.T, dir string, args ...string) (string, error) {
 	t.Helper()
 	resetClusterFlags()
-	return runCmd(t, dir, args...)
+	resetGenericFlags()
+	resetResourceRegistrationForTest()
+	full := append([]string{"rs", "clusters"}, args...)
+	return runCmd(t, dir, full...)
 }
 
 // apiPrefix is the URL path prefix for all API calls in tests.
@@ -140,7 +143,7 @@ func TestClusterList(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	out, err := runClusterCmd(t, dir, "cluster", "list")
+	out, err := runClusterCmd(t, dir, "list")
 	if err != nil {
 		t.Fatalf("cluster list: %v", err)
 	}
@@ -161,7 +164,7 @@ func TestClusterList_Table(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	out, err := runClusterCmd(t, dir, "cluster", "list", "--output", "table")
+	out, err := runClusterCmd(t, dir, "list", "--output", "table")
 	if err != nil {
 		t.Fatalf("cluster list --output table: %v", err)
 	}
@@ -187,11 +190,11 @@ func TestClusterTable(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	out, err := runClusterCmd(t, dir, "cluster", "table")
+	out, err := runClusterCmd(t, dir, "table")
 	if err != nil {
 		t.Fatalf("cluster table: %v", err)
 	}
-	for _, header := range []string{"ID", "NAME", "GEN", "STATUS"} {
+	for _, header := range []string{"ID", "NAME", "GEN", "RECONCILED"} {
 		if !strings.Contains(out, header) {
 			t.Errorf("expected table header %q in output, got: %q", header, out)
 		}
@@ -213,7 +216,7 @@ func TestClusterList_Search_NoFlag(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	_, err := runClusterCmd(t, dir, "cluster", "list")
+	_, err := runClusterCmd(t, dir, "list")
 	if err != nil {
 		t.Fatalf("cluster list (no flag): %v", err)
 	}
@@ -232,7 +235,7 @@ func TestClusterList_Search_LabelFilter(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	_, err := runClusterCmd(t, dir, "cluster", "list", "--search", "labels.environment='prod'")
+	_, err := runClusterCmd(t, dir, "list", "--search", "labels.environment='prod'")
 	if err != nil {
 		t.Fatalf("cluster list --search: %v", err)
 	}
@@ -253,7 +256,7 @@ func TestClusterList_Search_CompoundExpr(t *testing.T) {
 
 	dir := setupClusterEnv(t, ts)
 	expr := "labels.team='core' and generation>1"
-	_, err := runClusterCmd(t, dir, "cluster", "list", "--search", expr)
+	_, err := runClusterCmd(t, dir, "list", "--search", expr)
 	if err != nil {
 		t.Fatalf("cluster list --search compound: %v", err)
 	}
@@ -275,7 +278,7 @@ func TestClusterList_Search_APIError400(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	out, err := runClusterCmd(t, dir, "cluster", "list", "--search", "not status.conditions.Ready='True'")
+	out, err := runClusterCmd(t, dir, "list", "--search", "not status.conditions.Ready='True'")
 	if err != nil {
 		t.Fatalf("cluster list --search API 400 should exit 0, got error: %v", err)
 	}
@@ -298,7 +301,7 @@ func TestClusterGet(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	out, err := runClusterCmd(t, dir, "cluster", "get", clusterID)
+	out, err := runClusterCmd(t, dir, "get", clusterID)
 	if err != nil {
 		t.Fatalf("cluster get: %v", err)
 	}
@@ -324,7 +327,7 @@ func TestClusterGet_FromState(t *testing.T) {
 	dir := setupClusterEnv(t, ts)
 	setClusterIDInState(t, dir, "test", clusterID)
 
-	out, err := runClusterCmd(t, dir, "cluster", "get")
+	out, err := runClusterCmd(t, dir, "get")
 	if err != nil {
 		t.Fatalf("cluster get (from state): %v", err)
 	}
@@ -343,7 +346,7 @@ func TestClusterGet_NotFound(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	out, err := runClusterCmd(t, dir, "cluster", "get", "00000000-0000-0000-0000-000000000000")
+	out, err := runClusterCmd(t, dir, "get", "00000000-0000-0000-0000-000000000000")
 	// API errors exit 0 (err == nil)
 	if err != nil {
 		t.Fatalf("cluster get 404 should exit 0, got error: %v", err)
@@ -376,7 +379,7 @@ func TestClusterCreate(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	out, err := runClusterCmd(t, dir, "cluster", "create", "--name", "test-cluster")
+	out, err := runClusterCmd(t, dir, "create", "--name", "test-cluster")
 	if err != nil {
 		t.Fatalf("cluster create: %v", err)
 	}
@@ -411,7 +414,7 @@ func TestClusterCreate_DuplicateGuard(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	_, err := runClusterCmd(t, dir, "cluster", "create", "--name", "test-cluster")
+	_, err := runClusterCmd(t, dir, "create", "--name", "test-cluster")
 	if err != nil {
 		t.Fatalf("cluster create duplicate: %v", err)
 	}
@@ -434,7 +437,7 @@ func TestClusterList_CurlDryRun(t *testing.T) {
 	var stdout string
 	stderr := captureStderr(t, func() {
 		var err error
-		stdout, err = runClusterCmd(t, dir, "cluster", "list", "--curl")
+		stdout, err = runClusterCmd(t, dir, "list", "--curl")
 		if err != nil {
 			t.Fatalf("cluster list --curl: %v", err)
 		}
@@ -470,7 +473,7 @@ func TestClusterCreate_CurlModeDryRunPostOnly(t *testing.T) {
 	var stdout string
 	stderr := captureStderr(t, func() {
 		var err error
-		stdout, err = runClusterCmd(t, dir, "cluster", "create", "--name", "test-cluster", "--curl")
+		stdout, err = runClusterCmd(t, dir, "create", "--name", "test-cluster", "--curl")
 		if err != nil {
 			t.Fatalf("cluster create --curl: %v", err)
 		}
@@ -498,7 +501,7 @@ func TestClusterGet_CurlRejectsInteractive(t *testing.T) {
 	ts := httptest.NewServer(http.NotFoundHandler())
 	defer ts.Close()
 	dir := setupClusterEnv(t, ts)
-	_, err := runClusterCmd(t, dir, "cluster", "get", "-i", "--curl")
+	_, err := runClusterCmd(t, dir, "get", "-i", "--curl")
 	if err == nil {
 		t.Fatal("expected error for --curl with -i")
 	}
@@ -548,7 +551,7 @@ func TestClusterCreate_Defaults(t *testing.T) {
 
 	dir := setupClusterEnv(t, ts)
 	// No --name flag → should use default "my-cluster"
-	_, err := runClusterCmd(t, dir, "cluster", "create")
+	_, err := runClusterCmd(t, dir, "create")
 	if err != nil {
 		t.Fatalf("cluster create defaults: %v", err)
 	}
@@ -573,7 +576,7 @@ func TestClusterDelete(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	out, err := runClusterCmd(t, dir, "cluster", "delete", clusterID)
+	out, err := runClusterCmd(t, dir, "delete", clusterID)
 	if err != nil {
 		t.Fatalf("cluster delete: %v", err)
 	}
@@ -597,7 +600,7 @@ func TestClusterDelete_FromState(t *testing.T) {
 	dir := setupClusterEnv(t, ts)
 	setClusterIDInState(t, dir, "test", clusterID)
 
-	out, err := runClusterCmd(t, dir, "cluster", "delete")
+	out, err := runClusterCmd(t, dir, "delete")
 	if err != nil {
 		t.Fatalf("cluster delete (from state): %v", err)
 	}
@@ -616,7 +619,7 @@ func TestClusterDelete_NotFound(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	_, err := runClusterCmd(t, dir, "cluster", "delete", "00000000-0000-0000-0000-000000000000")
+	_, err := runClusterCmd(t, dir, "delete", "00000000-0000-0000-0000-000000000000")
 	// 404 on delete returns an error (exit 1)
 	if err == nil {
 		t.Fatal("expected error for cluster delete 404")
@@ -642,7 +645,7 @@ func TestClusterDelete_Force(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	_, err := runClusterCmd(t, dir, "cluster", "delete", clusterID, "--force", "--reason", "stuck in finalizing")
+	_, err := runClusterCmd(t, dir, "delete", clusterID, "--force", "--reason", "stuck in finalizing")
 	if err != nil {
 		t.Fatalf("cluster delete --force: %v", err)
 	}
@@ -661,7 +664,7 @@ func TestClusterDelete_ForceRequiresReason(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	_, err := runClusterCmd(t, dir, "cluster", "delete", clusterID, "--force")
+	_, err := runClusterCmd(t, dir, "delete", clusterID, "--force")
 	if err == nil {
 		t.Fatal("expected error when --reason is missing with --force")
 	}
@@ -684,7 +687,7 @@ func TestClusterConditions(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	out, err := runClusterCmd(t, dir, "cluster", "conditions", clusterID)
+	out, err := runClusterCmd(t, dir, "conditions", clusterID)
 	if err != nil {
 		t.Fatalf("cluster conditions: %v", err)
 	}
@@ -713,7 +716,7 @@ func TestClusterConditions_FromState(t *testing.T) {
 	dir := setupClusterEnv(t, ts)
 	setClusterIDInState(t, dir, "test", clusterID)
 
-	_, err := runClusterCmd(t, dir, "cluster", "conditions")
+	_, err := runClusterCmd(t, dir, "conditions")
 	if err != nil {
 		t.Fatalf("cluster conditions (from state): %v", err)
 	}
@@ -735,7 +738,7 @@ func TestClusterStatuses(t *testing.T) {
 	dir := setupClusterEnv(t, ts)
 	setClusterIDInState(t, dir, "test", clusterID)
 
-	out, err := runClusterCmd(t, dir, "cluster", "statuses")
+	out, err := runClusterCmd(t, dir, "statuses")
 	if err != nil {
 		t.Fatalf("cluster statuses: %v", err)
 	}
@@ -761,7 +764,7 @@ func TestClusterStatuses_Table(t *testing.T) {
 	dir := setupClusterEnv(t, ts)
 	setClusterIDInState(t, dir, "test", clusterID)
 
-	out, err := runClusterCmd(t, dir, "cluster", "statuses", "--output", "table")
+	out, err := runClusterCmd(t, dir, "statuses", "--output", "table")
 	if err != nil {
 		t.Fatalf("cluster statuses --output table: %v", err)
 	}
@@ -789,7 +792,7 @@ func TestClusterSearch_ByName_Found(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	out, err := runClusterCmd(t, dir, "cluster", "search", "test-cluster")
+	out, err := runClusterCmd(t, dir, "search", "test-cluster")
 	if err != nil {
 		t.Fatalf("cluster search: %v", err)
 	}
@@ -811,7 +814,7 @@ func TestClusterSearch_ByName_NotFound(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	out, err := runClusterCmd(t, dir, "cluster", "search", "nonexistent")
+	out, err := runClusterCmd(t, dir, "search", "nonexistent")
 	if err != nil {
 		t.Fatalf("cluster search not-found should exit 0, got: %v", err)
 	}
@@ -829,7 +832,7 @@ func TestClusterSearch_ByName_Multiple(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	out, err := runClusterCmd(t, dir, "cluster", "search", "test-cluster")
+	out, err := runClusterCmd(t, dir, "search", "test-cluster")
 	if err != nil {
 		t.Fatalf("cluster search multiple: %v", err)
 	}
@@ -852,7 +855,7 @@ func TestClusterSearch_NoArgs_WithState(t *testing.T) {
 	dir := setupClusterEnv(t, ts)
 	setClusterIDInState(t, dir, "test", clusterID)
 
-	out, err := runClusterCmd(t, dir, "cluster", "search")
+	out, err := runClusterCmd(t, dir, "search")
 	if err != nil {
 		t.Fatalf("cluster search (no args, with state): %v", err)
 	}
@@ -869,7 +872,7 @@ func TestClusterSearch_NoArgs_WithoutState(t *testing.T) {
 
 	dir := setupClusterEnv(t, ts)
 	// No cluster-id in state.
-	_, err := runClusterCmd(t, dir, "cluster", "search")
+	_, err := runClusterCmd(t, dir, "search")
 	if err == nil {
 		t.Fatal("expected error when no cluster-id in state")
 	}
@@ -900,7 +903,7 @@ func TestClusterPatch_Spec(t *testing.T) {
 	dir := setupClusterEnv(t, ts)
 	setClusterIDInState(t, dir, "test", clusterID)
 
-	_, err := runClusterCmd(t, dir, "cluster", "patch", "spec")
+	_, err := runClusterCmd(t, dir, "patch", "spec")
 	if err != nil {
 		t.Fatalf("cluster patch spec: %v", err)
 	}
@@ -943,7 +946,7 @@ func TestClusterPatch_Labels(t *testing.T) {
 	dir := setupClusterEnv(t, ts)
 	setClusterIDInState(t, dir, "test", clusterID)
 
-	_, err := runClusterCmd(t, dir, "cluster", "patch", "labels")
+	_, err := runClusterCmd(t, dir, "patch", "labels")
 	if err != nil {
 		t.Fatalf("cluster patch labels: %v", err)
 	}
@@ -983,12 +986,12 @@ func TestClusterPatch_NoArgs(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	out, err := runClusterCmd(t, dir, "cluster", "patch")
+	out, err := runClusterCmd(t, dir, "patch")
 	if err == nil {
 		t.Fatal("expected error for cluster patch with no args")
 	}
-	if !strings.Contains(out, "Usage: hf cluster patch") {
-		t.Errorf("expected usage message in stdout, got: %q", out)
+	if err != nil && !strings.Contains(err.Error(), "usage: hf rs clusters patch") {
+		t.Errorf("expected usage in error, got err=%v out=%q", err, out)
 	}
 }
 
@@ -1012,7 +1015,7 @@ func TestClusterCreate_PositionalArgs(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	_, err := runClusterCmd(t, dir, "cluster", "create", "my-named-cluster", "eu-west1", "1.30")
+	_, err := runClusterCmd(t, dir, "create", "my-named-cluster", "eu-west1", "1.30")
 	if err != nil {
 		t.Fatalf("cluster create with positional args: %v", err)
 	}
@@ -1059,7 +1062,7 @@ func TestClusterAdapterPostStatus(t *testing.T) {
 	dir := setupClusterEnv(t, ts)
 	setClusterIDInState(t, dir, "test", clusterID)
 
-	out, err := runClusterCmd(t, dir, "cluster", "adapter", "post-status", "cl-deployment", "True", "3")
+	out, err := runClusterCmd(t, dir, "adapter-report", "cl-deployment", "True", "3")
 	if err != nil {
 		t.Fatalf("cluster adapter post-status: %v", err)
 	}
@@ -1091,7 +1094,7 @@ func TestClusterAdapterPostStatus_InvalidStatus(t *testing.T) {
 	dir := setupClusterEnv(t, ts)
 	setClusterIDInState(t, dir, "test", clusterID)
 
-	_, err := runClusterCmd(t, dir, "cluster", "adapter", "post-status", "cl-deployment", "INVALID", "3")
+	_, err := runClusterCmd(t, dir, "adapter-report", "cl-deployment", "INVALID", "3")
 	if err == nil {
 		t.Fatal("expected error for invalid status value")
 	}
@@ -1122,7 +1125,7 @@ func TestClusterCreate_Template_NameFromPositionalArg(t *testing.T) {
 	defer ts.Close()
 
 	dir := setupClusterEnv(t, ts)
-	_, err := runClusterCmd(t, dir, "cluster", "create", "prod-cluster")
+	_, err := runClusterCmd(t, dir, "create", "prod-cluster")
 	if err != nil {
 		t.Fatalf("cluster create with name arg: %v", err)
 	}
@@ -1160,7 +1163,7 @@ func TestClusterCreate_FileFlag(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := runClusterCmd(t, dir, "cluster", "create", "-f", tplPath)
+	_, err := runClusterCmd(t, dir, "create", "-f", tplPath)
 	if err != nil {
 		t.Fatalf("cluster create -f: %v", err)
 	}
@@ -1191,7 +1194,7 @@ func TestClusterCreate_MalformedTemplate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := runClusterCmd(t, dir, "cluster", "create", "-f", tplPath)
+	_, err := runClusterCmd(t, dir, "create", "-f", tplPath)
 	if err == nil {
 		t.Fatal("expected error for malformed template")
 	}
@@ -1235,7 +1238,7 @@ func TestClusterID(t *testing.T) {
 
 	t.Run("prints ID when set", func(t *testing.T) {
 		setClusterIDInState(t, dir, "test", clusterID)
-		out, err := runClusterCmd(t, dir, "cluster", "id")
+		out, err := runClusterCmd(t, dir, "id")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -1246,7 +1249,7 @@ func TestClusterID(t *testing.T) {
 
 	t.Run("errors when not set", func(t *testing.T) {
 		setClusterIDInState(t, dir, "test", "")
-		_, err := runClusterCmd(t, dir, "cluster", "id")
+		_, err := runClusterCmd(t, dir, "id")
 		if err == nil {
 			t.Fatal("expected error when cluster-id is not set")
 		}
@@ -1295,7 +1298,7 @@ func TestClusterIDInteractive_Select(t *testing.T) {
 	clusterIDSel = mockSel{idx: 1} // pick second cluster
 	t.Cleanup(func() { clusterIDSel = orig })
 
-	out, err := runClusterCmd(t, dir, "cluster", "id", "--interactive")
+	out, err := runClusterCmd(t, dir, "id", "--interactive")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1334,7 +1337,7 @@ func TestClusterIDInteractive_Abort(t *testing.T) {
 	clusterIDSel = mockSel{idx: -1} // abort
 	t.Cleanup(func() { clusterIDSel = orig })
 
-	out, err := runClusterCmd(t, dir, "cluster", "id", "--interactive")
+	out, err := runClusterCmd(t, dir, "id", "--interactive")
 	if err != nil {
 		t.Fatalf("unexpected error on abort: %v", err)
 	}
@@ -1374,7 +1377,7 @@ func TestPickClusterInteractive_Select(t *testing.T) {
 	clusterIDSel = mockSel{idx: 1} // pick second cluster
 	t.Cleanup(func() { clusterIDSel = orig })
 
-	_, err := runClusterCmd(t, dir, "cluster", "get", "-i")
+	_, err := runClusterCmd(t, dir, "get", "-i")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1404,7 +1407,7 @@ func TestPickClusterInteractive_Abort(t *testing.T) {
 	clusterIDSel = mockSel{idx: -1} // abort
 	t.Cleanup(func() { clusterIDSel = orig })
 
-	_, err := runClusterCmd(t, dir, "cluster", "get", "-i")
+	_, err := runClusterCmd(t, dir, "get", "-i")
 	if err != nil {
 		t.Fatalf("unexpected error on abort: %v", err)
 	}
@@ -1436,7 +1439,7 @@ func TestClusterGetInteractive(t *testing.T) {
 	clusterIDSel = mockSel{idx: 0}
 	t.Cleanup(func() { clusterIDSel = orig })
 
-	out, err := runClusterCmd(t, dir, "cluster", "get", "-i")
+	out, err := runClusterCmd(t, dir, "get", "-i")
 	if err != nil {
 		t.Fatalf("cluster get -i: %v", err)
 	}
@@ -1467,7 +1470,7 @@ func TestClusterDeleteInteractive(t *testing.T) {
 	clusterIDSel = mockSel{idx: 0}
 	t.Cleanup(func() { clusterIDSel = orig })
 
-	_, err := runClusterCmd(t, dir, "cluster", "delete", "-i")
+	_, err := runClusterCmd(t, dir, "delete", "-i")
 	if err != nil {
 		t.Fatalf("cluster delete -i: %v", err)
 	}
@@ -1492,7 +1495,7 @@ func TestClusterIDInteractive_Empty(t *testing.T) {
 	clusterIDSel = mockSel{idx: 0}
 	t.Cleanup(func() { clusterIDSel = orig })
 
-	_, err := runClusterCmd(t, dir, "cluster", "id", "--interactive")
+	_, err := runClusterCmd(t, dir, "id", "--interactive")
 	if err == nil {
 		t.Fatal("expected error when no clusters available")
 	}
@@ -1521,7 +1524,7 @@ func TestClusterDelete_Force_WithReason(t *testing.T) {
 	dir := setupClusterEnv(t, ts)
 	setClusterIDInState(t, dir, "test", clusterID)
 
-	_, err := runClusterCmd(t, dir, "cluster", "delete", "--force", "--reason", "stuck in finalizing")
+	_, err := runClusterCmd(t, dir, "delete", "--force", "--reason", "stuck in finalizing")
 	if err != nil {
 		t.Fatalf("cluster delete --force --reason: %v", err)
 	}
@@ -1546,7 +1549,7 @@ func TestClusterDelete_NoForce_StillCallsDelete(t *testing.T) {
 	dir := setupClusterEnv(t, ts)
 	setClusterIDInState(t, dir, "test", clusterID)
 
-	_, err := runClusterCmd(t, dir, "cluster", "delete")
+	_, err := runClusterCmd(t, dir, "delete")
 	if err != nil {
 		t.Fatalf("cluster delete (no force): %v", err)
 	}

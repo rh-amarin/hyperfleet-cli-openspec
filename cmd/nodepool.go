@@ -861,7 +861,7 @@ func runNodepoolIDInteractive(cmd *cobra.Command, s *config.Store, sel selector.
 }
 
 func init() {
-	rootCmd.AddCommand(nodepoolCmd)
+	// nodepoolCmd is not registered on root; use hf rs nodepools instead.
 
 	nodepoolCmd.AddCommand(nodepoolListCmd)
 	nodepoolCmd.AddCommand(nodepoolTableCmd)

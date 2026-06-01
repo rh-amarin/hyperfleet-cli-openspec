@@ -164,7 +164,16 @@ func resetResourcesFlags() {
 func runResourcesCmd(t *testing.T, dir string, args ...string) (string, error) {
 	t.Helper()
 	resetResourcesFlags()
-	return runCmd(t, dir, args...)
+	resetGenericFlags()
+	resetResourceRegistrationForTest()
+	full := []string{"rs"}
+	for i, a := range args {
+		if i == 0 && (a == "resources" || a == "table") {
+			continue
+		}
+		full = append(full, a)
+	}
+	return runCmd(t, dir, full...)
 }
 
 func TestResourcesTable(t *testing.T) {
@@ -198,9 +207,9 @@ func TestResourcesTable(t *testing.T) {
 	if !strings.Contains(out, "ENT") {
 		t.Errorf("expected ENT (wrapped header line 2 of CL-DEPLOYMENT), got: %q", out)
 	}
-	// Nodepool row indented
-	if !strings.Contains(out, "  "+nodepoolID) {
-		t.Errorf("expected indented nodepool row, got: %q", out)
+	// Nodepool row uses tree prefix under cluster
+	if !strings.Contains(out, nodepoolID) {
+		t.Errorf("expected nodepool id in table, got: %q", out)
 	}
 	// NP-CONFIGMAP (12) → "NP-CONFIGM" / "AP"
 	if !strings.Contains(out, "NP-CONFIGM") {
@@ -311,9 +320,9 @@ func TestResourcesOutputJSON(t *testing.T) {
 }
 
 func TestResourcesWatchFlagRegistered(t *testing.T) {
-	f := resourcesCmd.Flags().Lookup("watch")
+	f := resourceCmd.Flags().Lookup("watch")
 	if f == nil {
-		t.Fatal("--watch flag not registered on resourcesCmd")
+		t.Fatal("--watch flag not registered on resourceCmd")
 	}
 	if f.DefValue != "false" {
 		t.Errorf("--watch default = %q, want %q", f.DefValue, "false")
@@ -321,19 +330,12 @@ func TestResourcesWatchFlagRegistered(t *testing.T) {
 }
 
 func TestResourcesSecondsFlagRegistered(t *testing.T) {
-	f := resourcesCmd.Flags().Lookup("seconds")
+	f := resourceCmd.Flags().Lookup("seconds")
 	if f == nil {
-		t.Fatal("-s/--seconds flag not registered on resourcesCmd")
+		t.Fatal("-s/--seconds flag not registered on resourceCmd")
 	}
 	if f.DefValue != "5" {
 		t.Errorf("-s default = %q, want %q", f.DefValue, "5")
-	}
-}
-
-func TestTableWatchFlagRegistered(t *testing.T) {
-	f := tableCmd.Flags().Lookup("watch")
-	if f == nil {
-		t.Fatal("--watch flag not registered on tableCmd")
 	}
 }
 

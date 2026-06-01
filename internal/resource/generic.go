@@ -26,6 +26,9 @@ func (g GenericResource) Name() string { return g.StringField("name") }
 // Kind returns the resource kind field.
 func (g GenericResource) Kind() string { return g.StringField("kind") }
 
+// DeletedTime returns the resource deleted_time field when set.
+func (g GenericResource) DeletedTime() string { return g.StringField("deleted_time") }
+
 // Generation returns generation as a decimal string, or empty when absent.
 func (g GenericResource) Generation() string {
 	if g == nil {

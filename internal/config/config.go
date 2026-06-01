@@ -23,8 +23,9 @@ var ConfigTemplateYAML []byte
 var defaults map[string]map[string]string
 
 func init() {
-	if err := yaml.Unmarshal(ConfigTemplateYAML, &defaults); err != nil {
-		panic(fmt.Sprintf("config: parse embedded template: %v", err))
+	defaults = parseEnvProfile(ConfigTemplateYAML)
+	if defaults == nil {
+		defaults = map[string]map[string]string{}
 	}
 }
 

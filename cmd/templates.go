@@ -23,6 +23,17 @@ func embeddedDefault(resource string) []byte {
 	return nodepoolTemplateDefault
 }
 
+func embeddedTemplateByName(name string) []byte {
+	switch name {
+	case "clusters.json":
+		return clusterTemplateDefault
+	case "nodepools.json":
+		return nodepoolTemplateDefault
+	default:
+		return nil
+	}
+}
+
 // loadTemplate returns the parsed JSON template for a create command.
 // If flagFile is non-empty it reads from that path.
 // Otherwise it uses the embedded default bytes directly — no disk read or write.
@@ -61,9 +72,13 @@ func loadResourceTemplate(s *config.Store, templateName, flagFile string) (map[s
 		path := filepath.Join(s.ConfigDir(), "templates", templateName)
 		b, err := os.ReadFile(path)
 		if err != nil {
-			return nil, fmt.Errorf("loading template: %w", err)
+			raw = embeddedTemplateByName(templateName)
+			if raw == nil {
+				return nil, fmt.Errorf("loading template: %w", err)
+			}
+		} else {
+			raw = b
 		}
-		raw = b
 	} else {
 		return nil, fmt.Errorf("no create template configured and no --file provided")
 	}

@@ -62,6 +62,49 @@ resource-types:
 	}
 }
 
+func TestResolveResourcePath_ThreeLevelChain(t *testing.T) {
+	dir := t.TempDir()
+	content := `resource-types:
+  channels:
+    path: channels
+    state-key: channel-id
+  versions:
+    parent: channels
+    path: "channels/{channel_id}/versions"
+    state-key: version-id
+    path-param: channel_id
+  releases:
+    parent: versions
+    path: "channels/{channel_id}/versions/{version_id}/releases"
+    state-key: release_id
+    path-param: version_id
+`
+	writeEnv(t, dir, "dev", content)
+
+	s := config.New(dir)
+	if err := s.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetState("active-environment", "dev"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetState("channel-id", "chan-1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetState("version-id", "ver-1"); err != nil {
+		t.Fatal(err)
+	}
+
+	path, err := s.ResolveResourcePath("releases")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "channels/chan-1/versions/ver-1/releases"
+	if path != want {
+		t.Fatalf("releases path: got %q want %q", path, want)
+	}
+}
+
 func TestParseResourceTypes_UnknownParent(t *testing.T) {
 	dir := t.TempDir()
 	content := `resource-types:

@@ -96,7 +96,7 @@ func (s *Store) ResolveResourcePath(typeName string) (string, error) {
 		if id == "" {
 			return "", fmt.Errorf("[ERROR] No %s set in state. Run 'hf resource %s search <name>' first.", a.StateKey, a.Name)
 		}
-		param := effectivePathParam(a)
+		param := placeholderInChildPaths(a)
 		path = strings.ReplaceAll(path, "{"+param+"}", id)
 	}
 	if placeholderRE.MatchString(path) {
@@ -236,14 +236,19 @@ func validateNoCycle(start string, defs map[string]ResourceTypeDef) ([]string, e
 	}
 }
 
-func effectivePathParam(def ResourceTypeDef) string {
-	if def.PathParam != "" {
-		return def.PathParam
-	}
+// placeholderInChildPaths returns the {placeholder} name an ancestor's state-key
+// fills in descendant API paths (e.g. version-id → version_id).
+func placeholderInChildPaths(def ResourceTypeDef) string {
 	return derivePathParam(def.StateKey)
 }
 
 func derivePathParam(stateKey string) string {
-	base := strings.TrimSuffix(stateKey, "-id")
-	return strings.ReplaceAll(base, "-", "_") + "_id"
+	if strings.HasSuffix(stateKey, "-id") {
+		base := strings.TrimSuffix(stateKey, "-id")
+		return strings.ReplaceAll(base, "-", "_") + "_id"
+	}
+	if strings.HasSuffix(stateKey, "_id") {
+		return stateKey
+	}
+	return strings.ReplaceAll(stateKey, "-", "_")
 }

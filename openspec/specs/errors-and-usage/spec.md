@@ -100,7 +100,7 @@ All user-facing commands with required positional arguments MUST display the ful
 - **AND** MUST NOT print the bare Cobra message "accepts N arg(s), received 0"
 
 This applies to all user-facing commands including but not limited to:
-`hf config set`, `hf env create`, `hf env activate`, `hf env delete`, `hf env show`,
+`hf env create`, `hf env activate`, `hf env delete`, `hf env show`,
 `hf cluster adapter post-status`, `hf nodepool delete`,
 `hf pubsub publish cluster`, `hf pubsub publish nodepool`,
 `hf kube debug`, `hf db delete`.

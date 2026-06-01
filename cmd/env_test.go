@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -182,8 +184,37 @@ func TestEnvShow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("hf env show: %v", err)
 	}
-	if !strings.Contains(out, "environments/staging.yaml") {
-		t.Errorf("output should contain env file path: %q", out)
+	if !strings.Contains(out, "hyperfleet:") {
+		t.Errorf("output missing config sections: %q", out)
+	}
+	want := filepath.Join(dir, "environments", "staging.yaml")
+	if !strings.Contains(out, want) {
+		t.Errorf("output should contain env file path %q: got %q", want, out)
+	}
+	if !strings.Contains(out, "Edit these files") {
+		t.Errorf("output should mention editing files: %q", out)
+	}
+	hyperIdx := strings.Index(out, "hyperfleet:")
+	pathIdx := strings.Index(out, "Environment file:")
+	if hyperIdx < 0 || pathIdx < 0 || hyperIdx > pathIdx {
+		t.Errorf("expected config before file paths: hyperIdx=%d pathIdx=%d", hyperIdx, pathIdx)
+	}
+}
+
+func TestEnvShow_ActiveEnvNoArg(t *testing.T) {
+	dir := t.TempDir()
+	makeEnv(t, dir, "dev", "http://dev:8000")
+	setActiveEnv(t, dir, "dev")
+
+	out, err := runCmd(t, dir, "env", "show", "--no-color")
+	if err != nil {
+		t.Fatalf("hf env show (active): %v", err)
+	}
+	if !strings.Contains(out, "http://dev:8000") {
+		t.Errorf("expected active env config: %q", out)
+	}
+	if !strings.Contains(out, "[active]") {
+		t.Errorf("expected [active] marker on env file path: %q", out)
 	}
 }
 
@@ -197,6 +228,78 @@ func TestEnvShow_ActivePrefix(t *testing.T) {
 		t.Fatalf("hf env show: %v", err)
 	}
 	if !strings.Contains(out, "[active]") {
-		t.Errorf("expected [active] prefix when showing active env: %q", out)
+		t.Errorf("expected [active] marker when showing active env: %q", out)
+	}
+}
+
+func TestEnvShow_StateVariables(t *testing.T) {
+	dir := t.TempDir()
+	makeEnv(t, dir, "dev", "http://dev:8000")
+	stateContent := "active-environment: dev\ncluster-id: cl-123\ncluster-name: my-cluster\n"
+	if err := os.WriteFile(filepath.Join(dir, "state.yaml"), []byte(stateContent), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runCmd(t, dir, "env", "show", "--no-color")
+	if err != nil {
+		t.Fatalf("hf env show with state: %v", err)
+	}
+	if !strings.Contains(out, "state:") {
+		t.Errorf("output missing state section: %q", out)
+	}
+	if !strings.Contains(out, "cluster-id: cl-123") {
+		t.Errorf("output missing cluster-id from state: %q", out)
+	}
+	if strings.Contains(out, "foobar-bizz-buzz") {
+		t.Errorf("password leaked in output: %q", out)
+	}
+}
+
+func TestEnvShow_NoActiveEnv_Error(t *testing.T) {
+	dir := t.TempDir()
+	_, err := runCmd(t, dir, "env", "show")
+	if err == nil {
+		t.Fatal("expected error when no active env")
+	}
+	if !strings.Contains(err.Error(), "no active environment") {
+		t.Errorf("error should mention 'no active environment': got %q", err.Error())
+	}
+}
+
+func TestEnvShow_NotFound(t *testing.T) {
+	dir := t.TempDir()
+	_, err := runCmd(t, dir, "env", "show", "ghost")
+	if err == nil {
+		t.Fatal("expected error for non-existent env")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error message: got %q", err.Error())
+	}
+}
+
+// ---- active-env guard ----
+
+func TestActiveEnvGuard_BypassEnvShow(t *testing.T) {
+	dir := t.TempDir()
+	makeEnv(t, dir, "dev", "http://dev:8000")
+	_, err := runCmd(t, dir, "env", "show", "dev")
+	if err != nil {
+		t.Errorf("env show should bypass guard, got: %v", err)
+	}
+}
+
+func TestActiveEnvGuard_BypassEnvList(t *testing.T) {
+	dir := t.TempDir()
+	_, err := runCmd(t, dir, "env", "list")
+	if err != nil {
+		t.Errorf("env list should bypass guard, got: %v", err)
+	}
+}
+
+func TestActiveEnvGuard_BypassVersion(t *testing.T) {
+	dir := t.TempDir()
+	_, err := runCmd(t, dir, "version")
+	if err != nil {
+		t.Errorf("version should bypass guard, got: %v", err)
 	}
 }

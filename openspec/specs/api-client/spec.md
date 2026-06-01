@@ -107,7 +107,7 @@ The API client SHALL parse non-2xx responses as RFC 7807 Problem Details.
 - THEN it MUST return an `APIError` with the `status` field set to the HTTP status code
 - AND `detail` set to the raw response body (truncated to 500 characters) followed by `... [truncated]` if truncated
 - AND `title` set to the HTTP status text
-- AND if the response body appears to be HTML (starts with `<!` or `<html`), the `detail` MUST be prefixed with: `Received HTML response (possibly not the HyperFleet API). Verify the API URL with 'hf config show'.`
+- AND if the response body appears to be HTML (starts with `<!` or `<html`), the `detail` MUST be prefixed with: `Received HTML response (possibly not the HyperFleet API). Verify the API URL with 'hf env show'.`
 
 #### Scenario: Network error
 

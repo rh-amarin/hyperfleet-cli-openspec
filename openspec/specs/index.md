@@ -10,7 +10,7 @@ Complete requirements specification for the HyperFleet CLI tool (`hf`), reverse-
 
 | # | Domain | Spec | Description | Scripts Covered |
 |---|--------|------|-------------|-----------------|
-| 01 | [Configuration](config/spec.md) | Config management, `hf env` profiles, diagnostics | hf.config.sh, hf.cluster.id.sh, hf.nodepool.id.sh |
+| 01 | [Configuration](config/spec.md) | Environment profiles via `hf env`, read-only `hf env show`, file-based editing | hf.config.sh, hf.cluster.id.sh, hf.nodepool.id.sh |
 | 02 | [Cluster Lifecycle](cluster-lifecycle/spec.md) | Cluster operations via `hf rs clusters` (legacy `hf cluster` removed) | hf.cluster.*.sh → `hf rs clusters` |
 | 03 | [NodePool Lifecycle](nodepool-lifecycle/spec.md) | NodePool operations via `hf rs nodepools` (legacy `hf nodepool` removed) | hf.nodepool.*.sh → `hf rs nodepools` |
 | 04 | [Adapter Status](adapter-status/spec.md) | Adapter reporting via `hf rs <entity> adapter-report` | hf.cluster.adapter.post.status.sh |
@@ -70,7 +70,7 @@ Complete requirements specification for the HyperFleet CLI tool (`hf`), reverse-
 ## Key Design Patterns
 
 1. **Environment files**: Self-contained `environments/<name>.yaml` (seeded from bundled template) for all settings; `state.yaml` for active cluster/nodepool/environment
-2. **`hf env` as top-level command group**: `hf env create|list|show|activate|delete` — not nested under `hf config`
+2. **`hf env` as top-level command group**: `hf env create|list|show|activate|delete`; configuration edited directly in YAML files (no `hf config` command)
 3. **Template-based creation**: `hf rs clusters create` and `hf rs nodepools create` use templates under `~/.config/hf/templates/`; `--name` overrides the name, `--file` uses a custom template
 4. **`--output` flag everywhere**: `--output json|table|yaml` on every data-producing command; no `--table` flag
 5. **`hf rs` overview**: Default table output for combined cluster+nodepool view when `clusters` and `nodepools` are configured; `--watch` for live refresh

@@ -8,10 +8,8 @@ import (
 	"text/tabwriter"
 
 	"github.com/rh-amarin/hyperfleet-cli/internal/config"
-	"github.com/rh-amarin/hyperfleet-cli/internal/output"
 	"github.com/rh-amarin/hyperfleet-cli/internal/selector"
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
 
 // envSel is the injectable PreviewSelector used by the bare hf env picker.
@@ -82,7 +80,7 @@ Selecting an environment activates it and shows the full config.`,
 			return fmt.Errorf("[ERROR] activating environment: %w", err)
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "[INFO] Activated environment '%s'.\n\n", chosen)
-		return configShowCmd.RunE(cmd, nil)
+		return showEnvProfile(cmd, s, chosen)
 	},
 }
 
@@ -196,14 +194,21 @@ var envDeleteCmd = &cobra.Command{
 }
 
 var envShowCmd = &cobra.Command{
-	Use:   "show <name>",
-	Short: "Show an environment profile",
-	Args:  helpOnNoArgs(1),
+	Use:   "show [name]",
+	Short: "Show an environment profile (active environment when omitted)",
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		name := args[0]
 		s := config.NewFromEnv()
 		if err := s.Load(); err != nil {
 			return fmt.Errorf("[ERROR] loading config: %w", err)
+		}
+
+		name := s.ActiveEnvironment()
+		if len(args) == 1 {
+			name = args[0]
+		}
+		if name == "" {
+			return fmt.Errorf("[ERROR] no active environment\n  → run 'hf env create <name>' to create one\n  → run 'hf env activate <name>' to activate an existing one")
 		}
 		return showEnvProfile(cmd, s, name)
 	},
@@ -212,52 +217,4 @@ var envShowCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(envCmd)
 	envCmd.AddCommand(envListCmd, envCreateCmd, envActivateCmd, envDeleteCmd, envShowCmd)
-}
-
-// showEnvProfile prints the content of a named environment profile file.
-func showEnvProfile(cmd *cobra.Command, s *config.Store, name string) error {
-	profPath := filepath.Join(s.ConfigDir(), "environments", name+".yaml")
-	raw, err := os.ReadFile(profPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("[ERROR] environment '%s' not found", name)
-		}
-		return err
-	}
-
-	w := cmd.OutOrStdout()
-	if s.ActiveEnvironment() == name {
-		fmt.Fprintf(w, "[active] %s\n", profPath)
-	} else {
-		fmt.Fprintln(w, profPath)
-	}
-
-	nc := noColor
-	if !nc {
-		if f, ok := w.(*os.File); ok && !term.IsTerminal(int(f.Fd())) {
-			nc = true
-		}
-	}
-	display, err := formatEnvFileForDisplay(raw, nc)
-	if err != nil {
-		return err
-	}
-	if _, err = fmt.Fprint(w, display); err != nil {
-		return err
-	}
-
-	if s.ActiveEnvironment() == name {
-		stateDisplay, err := formatStateForDisplay(s, nc)
-		if err != nil {
-			return err
-		}
-		if stateDisplay != "" {
-			fmt.Fprintln(w, output.SectionSeparator(nc))
-			_, err = fmt.Fprint(w, stateDisplay)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }

@@ -29,7 +29,7 @@ sudo mv bin/hf /usr/local/bin/hf
 
 ```bash
 # Create a new environment and activate it immediately
-hf config env create eu
+hf env create eu
 
 # The new profile is written to ~/.config/hf/environments/eu.yaml
 # Edit it to point at your cluster:
@@ -63,21 +63,13 @@ database:
 resource-types: {}
 ```
 
-Or set individual keys from the CLI:
+Inspect the active configuration (secrets are redacted):
 
 ```bash
-hf config set kubernetes.context gke_hcm-hyperfleet_europe-southwest1-a_hyperfleet-dev-eu1
-hf config set database.password my-secret
-```
-
-Verify the resolved configuration:
-
-```bash
-hf config show
+hf env show
 ```
 
 ```
-/home/user/.config/hf/environments/eu.yaml
 hyperfleet:
   api-url: http://localhost:8000
   api-version: v1
@@ -102,6 +94,11 @@ database:
 ────────────────────────────────────────
 state:
   active-environment: eu
+────────────────────────────────────────
+Environment file: /home/user/.config/hf/environments/eu.yaml [active]
+State file:       /home/user/.config/hf/state.yaml
+
+Edit these files to change configuration and runtime state.
 ```
 
 ### 3. Set up port-forwards
@@ -236,17 +233,18 @@ hf rs -o yaml
 ## Environment management
 
 ```bash
-hf config env list              # list all environments
-hf config env create staging    # create + activate
-hf config env activate prod     # switch active environment
-hf config env delete staging    # remove a profile
-hf config env show eu           # inspect a named profile
+hf env list              # list all environments
+hf env create staging    # create + activate
+hf env activate prod     # switch active environment
+hf env delete staging    # remove a profile
+hf env show              # inspect the active profile
+hf env show eu           # inspect a named profile
 ```
 
 Config precedence (highest to lowest):
 
 ```
-CLI flags  >  HF_* env vars  >  environment profile  >  config.yaml  >  defaults
+CLI flags  >  HF_* env vars  >  environment profile  >  defaults
 ```
 
 ---
@@ -255,7 +253,7 @@ CLI flags  >  HF_* env vars  >  environment profile  >  config.yaml  >  defaults
 
 Besides built-in `cluster` and `nodepool` commands, `hf` can manage arbitrary HyperFleet API resource types declared in the active environment file. Each type becomes a subcommand under `hf resource` (alias `hf rs`).
 
-Add a `resource-types` map to `~/.config/hf/environments/<name>.yaml`. New environments created with `hf config env create` include an empty `resource-types: {}` stub you can fill in.
+Add a `resource-types` map to `~/.config/hf/environments/<name>.yaml`. New environments created with `hf env create` include an empty `resource-types: {}` stub you can fill in.
 
 ### Fields
 
@@ -323,7 +321,7 @@ Inspect configured types and current state:
 
 ```bash
 hf rs types
-hf config show    # lists resource-types from the active environment
+hf env show    # lists resource-types from the active environment
 ```
 
 ### Commands
@@ -372,9 +370,8 @@ If some lists fail to load (missing parent state, API errors), `hf rs` still pri
 | `hf kube debug <deployment>` | Exec into a debug pod |
 | `hf db query <sql>` | Run a SQL query against the HyperFleet database |
 | `hf maestro list` | List Maestro resource bundles |
-| `hf config show` | Display the resolved active configuration |
-| `hf config set <section.key> <value>` | Set a config value |
-| `hf config get <section.key>` | Read a single config value |
+| `hf env show [name]` | Display an environment profile (active when omitted) |
+| `hf env create\|list\|activate\|delete` | Manage environment profiles |
 | `hf version` | Print the binary version |
 | `hf completion bash\|zsh\|fish` | Generate shell completion scripts |
 

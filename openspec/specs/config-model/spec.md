@@ -32,41 +32,24 @@ The CLI SHALL support named environment profiles, each fully defining the config
 #### Scenario: List environments
 
 - **GIVEN** environment profiles exist in `~/.config/hf/environments/`
-- **WHEN** the user runs `hf config env list`
+- **WHEN** the user runs `hf env list`
 - **THEN** the CLI MUST list each environment by filename (without `.yaml`)
 - **AND** mark the active environment with `✓`; inactive environments MUST be prefixed with two spaces
-- **AND** if no environments exist, the CLI MUST print `No environments configured. Run 'hf config env create <name>' to create one.` and exit 0
+- **AND** if no environments exist, the CLI MUST print `No environments configured. Run 'hf env create <name>' to create one.` and exit 0
 
 #### Scenario: Activate environment
 
 - **GIVEN** a named environment exists
-- **WHEN** the user runs `hf config env activate <name>`
+- **WHEN** the user runs `hf env activate <name>`
 - **THEN** the CLI MUST set `active-environment: <name>` in `state.yaml`
 - **AND** subsequent `Get()` calls MUST read values from that environment file
 
 #### Scenario: Activate non-existent environment
 
 - **GIVEN** no environment named `<name>` exists
-- **WHEN** the user runs `hf config env activate <name>`
+- **WHEN** the user runs `hf env activate <name>`
 - **THEN** the CLI MUST print `[ERROR] environment '<name>' not found`
 - **AND** exit with code 1
-
-### Requirement: Set Configuration Value
-
-The CLI SHALL allow setting individual configuration properties using dotted section.key notation, writing to the active environment file.
-
-#### Scenario: Set a config property
-
-- **GIVEN** an active environment is set
-- **WHEN** `Set(section, key, value)` is called
-- **THEN** the value MUST be written into the active environment file at `~/.config/hf/environments/<active-name>.yaml`
-- **AND** subsequent `Get()` calls MUST return the new value
-
-#### Scenario: Set with no active environment
-
-- **GIVEN** no active environment is configured
-- **WHEN** `Set(section, key, value)` is called
-- **THEN** it MUST return an error: `[ERROR] no active environment`
 
 ### Requirement: Config Directory Initialization
 
@@ -117,14 +100,14 @@ The CLI SHALL protect sensitive configuration values.
 #### Scenario: Display secrets
 
 - **GIVEN** a property is a secret (token, database.password, rabbitmq.password)
-- **WHEN** `hf config show` displays the property
+- **WHEN** `hf env show` displays the property
 - **THEN** the value MUST be shown as `<set>` if non-empty or `<not set>` if empty
 - **AND** the actual value MUST NOT be displayed in config show output
 
 #### Scenario: Display empty string vs unset values
 
 - **GIVEN** a non-secret config property may be set to an empty string or be absent entirely
-- **WHEN** `hf config show` displays the property
+- **WHEN** `hf env show` displays the property
 - **THEN** a property set to an empty string MUST display as `''` (quoted empty string)
 - **AND** a property whose key is absent from config MUST display as `<not set>`
 - **AND** in JSON output, an empty string MUST appear as `""` and an absent key MUST be omitted
@@ -187,4 +170,13 @@ The CLI SHALL support a structured `resource-types` section in environment YAML 
       state-key: nodepool-id
       path-param: cluster_id
   ```
+
+### Requirement: State File Path
+
+The config Store MUST expose the absolute path to `state.yaml`.
+
+#### Scenario: StateFilePath returns state.yaml location
+
+- **WHEN** `Store.StateFilePath()` is called
+- **THEN** it MUST return `<config-dir>/state.yaml`
 

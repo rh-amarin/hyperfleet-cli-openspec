@@ -304,17 +304,17 @@ func TestResourceRsAlias(t *testing.T) {
 	}
 }
 
-func TestConfigShow_ListsResourceTypes(t *testing.T) {
+func TestEnvShow_ListsResourceTypes(t *testing.T) {
 	dir := t.TempDir()
 	makeResourceEnv(t, dir, "http://localhost:8000")
 
-	out, err := runCmd(t, dir, "config", "show", "--no-color")
+	out, err := runCmd(t, dir, "env", "show", "--no-color")
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{"resource-types:", "channels:", "path: channels", "state-key: channel-id", "versions:", "parent: channels"} {
 		if !strings.Contains(out, want) {
-			t.Fatalf("expected %q in config show output:\n%s", want, out)
+			t.Fatalf("expected %q in env show output:\n%s", want, out)
 		}
 	}
 }

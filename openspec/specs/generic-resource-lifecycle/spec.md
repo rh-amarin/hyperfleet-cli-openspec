@@ -154,7 +154,7 @@ When `--file` is omitted, the CLI SHALL perform counter increment patch (legacy 
 
 ### Requirement: Active Environment Required
 
-All `hf resource` commands except those under `hf config env` SHALL require an active environment.
+All `hf resource` commands SHALL require an active environment except `hf env *` lifecycle commands.
 
 #### Scenario: No active environment
 

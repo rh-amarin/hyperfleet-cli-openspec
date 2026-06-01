@@ -20,7 +20,7 @@ The CLI SHALL be organized as a single Go module with internal packages followin
   │   ├── cluster.go          # hf cluster [create|get|list|search|patch|delete|conditions|statuses|id]
   │   ├── nodepool.go         # hf nodepool [create|get|list|search|patch|delete|conditions|statuses|id]
   │   ├── adapter.go          # hf cluster adapter post-status, hf nodepool adapter post-status
-  │   ├── config.go           # hf config [show|set]
+  │   ├── env.go              # hf env [create|list|show|activate|delete]
   │   ├── env.go              # hf env [create|list|show|activate|delete]
   │   ├── db.go               # hf db [query|delete|config]
   │   ├── maestro.go          # hf maestro [list|get|delete|bundles|consumers]
@@ -58,9 +58,10 @@ The CLI SHALL use [spf13/cobra](https://github.com/spf13/cobra) for command rout
 - THEN the command tree MUST include:
   ```
   hf
-  ├── resource | rs              # overview when invoked with no subcommand
+  ├── env                          # create | list | show | activate | delete
+  ├── resource | rs                # overview when invoked with no subcommand
   │   ├── types
-  │   └── <entity>               # from resource-types (includes clusters, nodepools)
+  │   └── <entity>                 # from resource-types (includes clusters, nodepools)
   │       ├── list
   │       ├── table
   │       ├── get
@@ -68,20 +69,21 @@ The CLI SHALL use [spf13/cobra](https://github.com/spf13/cobra) for command rout
   │       ├── search
   │       ├── patch
   │       ├── delete
-  │       ├── force-delete       # nodepools; clusters use delete --force
+  │       ├── force-delete         # nodepools; clusters use delete --force
   │       ├── conditions
   │       ├── statuses
   │       ├── adapter-report
   │       └── id
   ```
 - AND dynamic `<entity>` groups MUST be registered after the active environment is loaded
+- AND `hf config` MUST NOT be registered
 - AND `hf cluster`, `hf nodepool`, `hf resources`, and `hf table` MUST NOT be registered
 
 #### Scenario: Legacy commands removed from root help
 
 - GIVEN this change is complete
 - WHEN the user runs `hf --help`
-- THEN `hf cluster` and `hf nodepool` MUST NOT appear
+- THEN `hf config`, `hf cluster`, and `hf nodepool` MUST NOT appear
 - AND `hf table` and `hf resources` MUST NOT appear
 - AND cluster/nodepool operations MUST appear only under `hf rs`
 

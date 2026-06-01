@@ -1,9 +1,5 @@
-# Spec: config-template
+## MODIFIED Requirements
 
-## Purpose
-
-Define the bundled environment template embedded in the binary that seeds new environment files and provides built-in configuration defaults.
-## Requirements
 ### Requirement: Bundled environment template
 
 The CLI SHALL ship a default environment template embedded in the binary. The template serves two purposes: it seeds new environment files created by `hf env create`, and it provides the built-in default values for the `internal/config` package.
@@ -14,14 +10,3 @@ The CLI SHALL ship a default environment template embedded in the binary. The te
 - **THEN** the file at `internal/config/assets/config-template.yaml` MUST be embedded using `//go:embed` in the `internal/config` package
 - **AND** the embedded bytes MUST be exported as `config.ConfigTemplateYAML []byte`
 - **AND** `hf env create` MUST use `config.ConfigTemplateYAML` when seeding new environment files
-
-### Requirement: Config template namespace placement
-
-The bundled config template SHALL place the HyperFleet application namespace under the `hyperfleet` section, not the `kubernetes` section.
-
-#### Scenario: Template hyperfleet section includes namespace
-
-- **WHEN** a new environment is created from the template
-- **THEN** the `hyperfleet:` section MUST contain a `namespace` key with default value `"hyperfleet"`
-- **AND** the `kubernetes:` section MUST NOT contain a `namespace` key
-

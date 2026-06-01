@@ -58,7 +58,7 @@ func parseError(resp *http.Response) error {
 	// HTML detection
 	trimmed := strings.TrimSpace(detail)
 	if strings.HasPrefix(trimmed, "<!") || strings.HasPrefix(strings.ToLower(trimmed), "<html") {
-		detail = "Received HTML response (possibly not the HyperFleet API). Verify the API URL with 'hf config show'.\n" + detail
+		detail = "Received HTML response (possibly not the HyperFleet API). Verify the API URL with 'hf env show'.\n" + detail
 	}
 
 	return &APIError{

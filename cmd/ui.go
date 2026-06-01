@@ -31,7 +31,7 @@ at the printed URL.`,
 				return err
 			}
 			if _, err := s.RequireActiveEnvironment(); err != nil {
-				return fmt.Errorf("[ERROR] no active environment\n  → run 'hf config env create <name>' to create one\n  → run 'hf config env activate <name>' to activate an existing one")
+				return fmt.Errorf("[ERROR] no active environment\n  → run 'hf env create <name>' to create one\n  → run 'hf env activate <name>' to activate an existing one")
 			}
 
 			client := newAPIClient(s)

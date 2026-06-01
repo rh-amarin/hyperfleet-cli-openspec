@@ -56,6 +56,11 @@ func New(configDir string) *Store {
 // ConfigDir returns the config directory path.
 func (s *Store) ConfigDir() string { return s.dir }
 
+// StateFilePath returns the absolute path of state.yaml.
+func (s *Store) StateFilePath() string {
+	return filepath.Join(s.dir, "state.yaml")
+}
+
 // EnvFilePath returns the absolute path of the named environment file.
 func (s *Store) EnvFilePath(name string) string {
 	return filepath.Join(s.dir, "environments", name+".yaml")
@@ -163,7 +168,7 @@ func (s *Store) Get(section, key string) string {
 func (s *Store) Set(section, key, value string) error {
 	active := s.GetState("active-environment")
 	if active == "" {
-		return fmt.Errorf("[ERROR] no active environment — run 'hf config env create <name>'")
+		return fmt.Errorf("[ERROR] no active environment — run 'hf env create <name>'")
 	}
 
 	profPath := filepath.Join(s.dir, "environments", active+".yaml")
@@ -235,7 +240,7 @@ func (s *Store) ActiveEnvironment() string {
 func (s *Store) RequireActiveEnvironment() (string, error) {
 	env := s.ActiveEnvironment()
 	if env == "" {
-		return "", fmt.Errorf("[ERROR] no active environment — run 'hf config env create <name>'")
+		return "", fmt.Errorf("[ERROR] no active environment — run 'hf env create <name>'")
 	}
 	return env, nil
 }

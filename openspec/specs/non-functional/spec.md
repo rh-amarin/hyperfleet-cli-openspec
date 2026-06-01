@@ -100,7 +100,7 @@ The CLI SHALL support a global `--output` flag for controlling output format on 
 - THEN the default MUST be:
   - `json` for resource commands: `cluster list`, `cluster get`, `nodepool list`, `nodepool get`, `cluster conditions`, `nodepool conditions`, `cluster statuses`, `nodepool statuses`, `resources`, `table`
   - `table` for `repos` (always renders a table)
-  - `text` for config commands (`hf config show`, `hf env *`), port-forward status, and log output
+  - `text` for environment commands (`hf env *`), port-forward status, and log output
 
 ### Requirement: Cross-Platform Build and Distribution
 
@@ -291,14 +291,14 @@ The CLI SHALL degrade gracefully when optional dependencies are unavailable.
 - GIVEN the HyperFleet API is unreachable
 - WHEN any API command is invoked
 - THEN the CLI MUST display a clear error with the attempted URL
-- AND suggest checking `hf config show` and `hf kube port-forward status`
+- AND suggest checking `hf env show` and `hf kube port-forward status`
 
 #### Scenario: Database unreachable
 
 - GIVEN the PostgreSQL database is unreachable
 - WHEN a database command is invoked
 - THEN the CLI MUST display the connection error with host:port
-- AND suggest checking `hf config show` for database settings
+- AND suggest checking `hf env show` for database settings
 
 ### Requirement: Performance
 

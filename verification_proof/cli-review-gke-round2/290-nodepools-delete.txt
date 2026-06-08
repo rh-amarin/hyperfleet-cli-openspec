@@ -1,0 +1,4 @@
+COMMAND: hf (see 290-nodepools-delete.txt)
+EXIT: 0
+────────────────────────────────────────
+

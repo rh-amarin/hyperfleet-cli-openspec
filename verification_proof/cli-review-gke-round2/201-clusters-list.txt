@@ -1,0 +1,6 @@
+COMMAND: hf rs clusters list -o table
+EXIT: 0
+────────────────────────────────────────
+ID                                    NAME                   GEN  RECONCILED  LASTKNOWNR
+                                                                              ECONCILED
+019e9676-87d3-7442-bc77-68af9390abac  cli-review-1780640810  1    [31m●[0m 1         [31m●[0m 1

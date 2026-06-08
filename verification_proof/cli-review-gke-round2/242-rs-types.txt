@@ -1,0 +1,9 @@
+COMMAND: hf rs types
+EXIT: 0
+────────────────────────────────────────
+channels  path: channels  state: channels=019e8dfd-6370-7d8f-b8a0-c8dc66a85a0f
+clusters  path: clusters  state: clusters=019e9676-87d3-7442-bc77-68af9390abac
+  └─ nodepools  path: clusters/{cluster_id}/nodepools  state: nodepools=019e91e5-563b-7237-8ea1-dad12be1eea3
+     requires: clusters
+  └─ versions  path: channels/{channel_id}/versions  state: versions=019e91a2-9bec-70dc-a882-2e1ffbcf5bc9
+     requires: channels

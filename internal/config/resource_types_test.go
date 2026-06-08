@@ -216,6 +216,41 @@ func TestResolveResourceStatusPath(t *testing.T) {
 	}
 }
 
+func TestResolveListPath_ReleasesWithVersionPathParam(t *testing.T) {
+	dir := t.TempDir()
+	writeEnv(t, dir, "dev", `resource-types:
+  channels:
+    path: channels
+  versions:
+    parent: channels
+    path: "channels/{channel_id}/versions"
+    path-param: channel_id
+  releases:
+    parent: versions
+    path: "channels/{channel_id}/versions/{version_id}/releases"
+    path-param: version_id
+`)
+	s := config.New(dir)
+	if err := s.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetState("active-environment", "dev"); err != nil {
+		t.Fatal(err)
+	}
+
+	path, err := s.ResolveListPath("releases", map[string]string{
+		"channels": "chan-1",
+		"versions": "ver-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "channels/chan-1/versions/ver-1/releases"
+	if path != want {
+		t.Fatalf("releases list path: got %q want %q", path, want)
+	}
+}
+
 func TestResolveListPath_WithAncestorIDs(t *testing.T) {
 	dir := t.TempDir()
 	writeEnv(t, dir, "dev", `resource-types:

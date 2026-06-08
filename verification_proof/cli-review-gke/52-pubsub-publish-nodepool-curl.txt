@@ -1,0 +1,19 @@
+COMMAND: hf --curl pubsub publish nodepool
+EXIT: 1
+────────────────────────────────────────
+Publish a nodepool reconcile event to a Pub/Sub topic
+
+Usage:
+  hf pubsub publish nodepool <topic> [flags]
+
+Flags:
+  -h, --help   help for nodepool
+
+Global Flags:
+      --api-token string   override API bearer token for this invocation
+      --api-url string     override HyperFleet API URL for this invocation
+      --config string      config file (default: ~/.config/hf/config.yaml)
+      --curl               print equivalent curl command and skip API requests (dry-run)
+      --no-color           disable colored output
+  -o, --output string      output format: json, table, yaml (default "json")
+  -v, --verbose            enable verbose/debug logging

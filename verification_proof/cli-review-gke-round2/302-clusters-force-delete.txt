@@ -1,0 +1,13 @@
+COMMAND: hf (see 302-clusters-force-delete.txt)
+EXIT: 0
+────────────────────────────────────────
+{
+  "type": "https://api.hyperfleet.io/errors/conflict",
+  "title": "State Conflict",
+  "status": 409,
+  "detail": "Cluster '019e967d-b699-7880-a564-1a3446815981' is not in Finalizing state",
+  "instance": "/api/hyperfleet/v1/clusters/019e967d-b699-7880-a564-1a3446815981/force-delete",
+  "code": "HYPERFLEET-CNF-003",
+  "timestamp": "2026-06-05T06:34:43.938794016Z",
+  "trace_id": "019e967d-bf61-7349-8760-ebd8cdd14925"
+}

@@ -1,0 +1,10 @@
+COMMAND: hf rs nodepools list -o json
+EXIT: 0
+────────────────────────────────────────
+{
+  "items": [],
+  "kind": "NodePoolList",
+  "page": 1,
+  "size": 0,
+  "total": 0
+}

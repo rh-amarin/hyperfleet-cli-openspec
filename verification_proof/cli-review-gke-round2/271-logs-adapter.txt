@@ -1,0 +1,3 @@
+COMMAND: hf logs adapter (timeout 10s)
+EXIT: 0
+────

@@ -137,7 +137,7 @@ Start a single named forward with a custom port mapping:
 hf kube port-forward start hyperfleet-api 9000:8000
 ```
 
-> **Tip:** Predefined services (`hyperfleet-api`, `postgresql`, `maestro-http`, `maestro-grpc`) are resolved from your environment profile. For any other pod pass `<pod-pattern> <localPort>:<remotePort>`.
+> **Tip:** Predefined services (`hyperfleet-api`, `postgresql`, `maestro-http`, `maestro-grpc`, `rabbitmq`) are resolved from your environment profile. For any other pod pass `<pod-pattern> <localPort>:<remotePort>`.
 
 ### 4. Create a cluster and node pool
 
@@ -199,7 +199,7 @@ hf rs nodepools create workers-n2 --type n2-standard-4 --replicas 3
 
 ### 5. Watch cluster state with `hf rs --watch`
 
-`hf rs` renders a live combined view of all clusters and their node pools (when `clusters` and `nodepools` are in `resource-types`), with one adapter column per registered adapter. Node pool rows use tree prefixes under their parent cluster.
+`hf rs` renders a live combined view of all configured resource types in one table. Rows include `ID`, `NAME`, `KIND`, and `GEN`. Clusters and nodepools also show reconciled condition dots and per-adapter columns; other types (e.g. `Channel`, `Version`) use `-` in those columns. Child rows use tree prefixes (`├─` / `└─`).
 
 ```bash
 hf rs                           # one-shot snapshot (table default)
@@ -318,8 +318,7 @@ versions: ver-456
 Inspect configured types and current state:
 
 ```bash
-hf rs types
-hf env show    # lists resource-types from the active environment
+hf env show    # lists resource-types and state keys from the active environment
 ```
 
 ### Commands
@@ -327,7 +326,6 @@ hf env show    # lists resource-types from the active environment
 | Command | Description |
 |---|---|
 | `hf rs` | Hierarchical overview of all configured types (table by default; `--watch` / `-s N`) |
-| `hf rs types` | List types, paths, parents, and active state keys |
 | `hf rs <type> list` / `table` | List resources (`--search`, `--watch`, `-o json\|table\|yaml`) |
 | `hf rs <type> get [id]` | Get one resource (`-i` to pick interactively) |
 | `hf rs <type> search [name]` | Find by name and set active context |
@@ -340,17 +338,19 @@ hf env show    # lists resource-types from the active environment
 | `hf rs <type> id` | Print or set (`-i`) active ID |
 | `hf rs <type> adapter-report <adapter> <True\|False\|Unknown> <gen> [id]` | Simulate adapter status reporting |
 
-Overview table example (child rows use tree prefixes; `GEN` shows `❌` when `deleted_time` is set):
+Overview table example (one table; child rows use tree prefixes; `GEN` shows `❌` when `deleted_time` is set):
 
 ```
-TYPE      ID              NAME    KIND     GEN
-channels  abc-123         alpha   Channel  3
-└─ versions  ver-1        v1      Version  1
+ID              NAME    KIND      GEN   RECONCILED  …
+cl-1            prod    Cluster   2     ● 2         …
+├─ np-1         workers NodePool  1     ● 1         …
+abc-123         alpha   Channel   3     -           …
+└─ ver-1        v1      Version   1     -           …
 ```
 
 If some lists fail to load (missing parent state, API errors), `hf rs` still prints whatever it could fetch and shows `[WARN]` lines at the top describing each failure.
 
-> When `clusters` and `nodepools` are configured under `resource-types`, `hf rs` (no subcommand) renders the combined adapter-rich cluster + nodepool table (formerly `hf table` / `hf resources`).
+> When `clusters` and `nodepools` are configured under `resource-types`, `hf rs` (no subcommand) renders the adapter-rich overview (formerly `hf table` / `hf resources`) in a single table together with any other configured types (e.g. `channels`, `versions`).
 
 ---
 

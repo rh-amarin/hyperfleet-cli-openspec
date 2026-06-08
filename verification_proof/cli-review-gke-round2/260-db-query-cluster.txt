@@ -1,0 +1,5 @@
+COMMAND: hf db query SELECT id, name FROM clusters LIMIT 5 -o table
+EXIT: 0
+────────────────────────────────────────
+ID                                    NAME
+019e9676-87d3-7442-bc77-68af9390abac  cli-review-1780640810

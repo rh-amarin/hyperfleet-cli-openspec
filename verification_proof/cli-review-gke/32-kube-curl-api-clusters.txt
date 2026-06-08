@@ -1,0 +1,7 @@
+COMMAND: hf kube curl http://hyperfleet-api.hyperfleet-e2e-gke1.svc:8000/api/hyperfleet/v1/clusters
+EXIT: 0
+────────────────────────────────────────
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0100     61 100     61   0      0  16968      0                              0100     61 100     61   0      0  14752      0                              0100     61 100     61   0      0  14322      0                              0
+{"items":[],"kind":"ClusterList","page":1,"size":0,"total":0}

@@ -81,24 +81,19 @@ func condDot(conditions []resource.ResourceCondition, condType string, noColor b
 }
 
 func adapterDot(statuses []resource.AdapterStatus, adName, condKey string, tick, frequencySecs int, noColor bool) string {
+	const emptyCell = "  -"
 	for _, as := range statuses {
 		if as.Adapter == adName {
 			for _, c := range as.Conditions {
 				if c.Type == condKey {
 					cell := output.StatusDot(c.Status, noColor) + " " + strconv.Itoa(int(as.ObservedGeneration))
-					switch {
-					case output.IsActive(as.LastReportTime, frequencySecs):
-						cell = output.SpinnerFrame(tick) + " " + cell
-					case frequencySecs > 0:
-						cell = "  " + cell
-					}
-					return cell
+					return output.AdapterActivityPrefix(as.LastReportTime, tick, frequencySecs) + cell
 				}
 			}
-			return "-"
+			return emptyCell
 		}
 	}
-	return "-"
+	return emptyCell
 }
 
 func buildClusterRow(cl resource.Cluster, statuses []resource.AdapterStatus, adapterCols []string, tick, frequencySecs int, noColor bool) []string {

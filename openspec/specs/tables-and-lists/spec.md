@@ -229,28 +229,34 @@ A `-s <seconds>` flag (default `5`) controls the refresh interval. The minimum a
 
 ### Requirement: Adapter Activity Indicator
 
-Each adapter column in table output SHALL display a braille spinner character prepended to the cell value when the adapter's `last_report_time` is within `2 × frequency` seconds of the current time, indicating the adapter is actively reporting.
+Each adapter column in table output SHALL display a braille spinner character prepended to the cell value when the adapter's `last_report_time` is within the activity window of the current time, indicating the adapter is actively reporting.
 
-The spinner character advances through the sequence `⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏` (cycling by refresh tick count modulo 10). When the adapter is not active (or `--watch` is not in use), no spinner character is prepended and the cell renders as before.
+The activity window is `2 × frequencySecs` when a watch interval is in use; for one-shot table output (`frequencySecs` zero), the CLI MUST use `2 × DefaultWatchIntervalSecs` (5 seconds → 10 second window).
 
-The activity check computes `time.Since(lastReportTime) < 2 × frequencySecs`. If `last_report_time` is absent or unparseable, the adapter is treated as inactive.
+Every adapter cell MUST reserve a fixed 2-character activity prefix so column widths stay aligned between one-shot and watch renders. Active adapters show the current spinner frame plus a space (e.g. `⠋ ● 3`); inactive adapters show two spaces before the status value (e.g. `  ● 3`); missing adapters show `  -`.
+
+The spinner character advances through the sequence `⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏` (cycling by refresh tick count modulo 10 in watch mode; one-shot renders use tick 0). If `last_report_time` is absent or unparseable, the adapter is treated as inactive (two-space prefix, no spinner frame).
 
 #### Scenario: Active adapter shows spinner
 
-- **WHEN** an adapter's `last_report_time` is within `2 × frequency` seconds of now
-- **AND** `--watch` is active
+- **WHEN** an adapter's `last_report_time` is within the activity window of now
 - **THEN** the adapter cell MUST be prefixed with the current spinner frame (e.g., `⠋ ● 3`)
 
-#### Scenario: Inactive adapter shows no spinner
+#### Scenario: Inactive adapter shows reserved slot without spinner
 
-- **WHEN** an adapter's `last_report_time` is older than `2 × frequency` seconds
-- **OR** `--watch` is not active
-- **THEN** the adapter cell MUST render without a spinner prefix (e.g., `● 3`)
+- **WHEN** an adapter's `last_report_time` is outside the activity window
+- **THEN** the adapter cell MUST use a two-space activity prefix without a spinner frame (e.g., `  ● 3`)
 
 #### Scenario: Missing last_report_time
 
 - **WHEN** an adapter's `last_report_time` is empty or unparseable
-- **THEN** the adapter MUST be treated as inactive (no spinner)
+- **THEN** the adapter MUST be treated as inactive (two-space prefix, no spinner frame)
+
+#### Scenario: One-shot table shows recent activity
+
+- **WHEN** the user runs `hf rs` (no `--watch`) with default table output
+- **AND** an adapter reported within `2 × DefaultWatchIntervalSecs`
+- **THEN** the adapter cell MUST show the spinner frame prefix (tick 0) before the status dot
 
 ### Requirement: RS Entity Table Views
 

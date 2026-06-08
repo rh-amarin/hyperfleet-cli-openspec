@@ -77,9 +77,10 @@ When `--file` is omitted, the CLI SHALL perform counter increment patch (legacy 
 
 #### Scenario: Patch counter without file
 
-- GIVEN no `--file` flag and entity is `clusters` or `nodepools`
-- WHEN the user runs `hf rs <entity> patch spec [id]`
-- THEN the CLI MUST increment the counter and PATCH using legacy cluster/nodepool patch semantics
+- GIVEN no `--file` flag
+- WHEN the user runs `hf rs <entity> patch {spec|labels} [id]`
+- THEN the CLI MUST GET the resource, increment the counter in the requested section, and PATCH `{collection-path}/{id}/{section}` with the section body
+- AND for reconciled types `clusters` and `nodepools` MUST use the same counter-increment semantics as the legacy cluster/nodepool patch commands
 
 ### Requirement: Delete Generic Resource
 

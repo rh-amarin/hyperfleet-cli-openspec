@@ -1,0 +1,62 @@
+COMMAND: hf env show
+EXIT: 0
+────────────────────────────────────────
+database:
+  host: localhost
+  name: hyperfleet
+  password: <set>
+  port: "5432"
+  user: hyperfleet
+hyperfleet:
+  api-url: http://localhost:8000
+  api-version: v1
+  gcp-project: hcm-hyperfleet
+  namespace: hyperfleet-e2e-gke1
+  token: "<not set>"
+kubernetes:
+  context: gke_hcm-hyperfleet_europe-southwest1-a_hyperfleet-dev-amarin-eu1
+maestro:
+  consumer: cluster1
+  grpc-endpoint: localhost:8090
+  http-endpoint: http://localhost:8100
+  namespace: maestro
+port-forward:
+  api-port: "8000"
+  maestro-grpc-port: "8090"
+  maestro-grpc-remote-port: "8090"
+  maestro-http-port: "8100"
+  maestro-http-remote-port: "8000"
+  pg-port: "5432"
+rabbitmq:
+  host: localhost
+  mgmt-port: "15672"
+  password: <set>
+  user: guest
+  vhost: /
+registry:
+  name: ""
+resource-types:
+  channels:
+    path: channels
+    state-key: channel-id
+    create-template: channels.json
+  versions:
+    parent: channels
+    path: "channels/{channel_id}/versions"
+    state-key: version-id
+    path-param: channel_id
+    create-template: versions.json
+────────────────────────────────────────
+state:
+  active-environment: gke
+  channels: 019e8dfd-6370-7d8f-b8a0-c8dc66a85a0f
+  cluster-name: my-cluster
+  clusters: 019e91e4-85b2-7a70-bb14-32692975efb7
+  nodepools: 019e91e5-563b-7237-8ea1-dad12be1eea3
+  releases: 019e81e4-cb68-7a54-90be-6e18d900dda6
+  versions: 019e91a2-9bec-70dc-a882-2e1ffbcf5bc9
+────────────────────────────────────────
+Environment file: /Users/amarin/.config/hf/environments/gke.yaml [active]
+State file:       /Users/amarin/.config/hf/state.yaml
+
+Edit these files to change configuration and runtime state.

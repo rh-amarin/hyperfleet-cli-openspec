@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/url"
 	"os"
+	"strconv"
 
 	"github.com/rh-amarin/hyperfleet-cli/internal/api"
 	"github.com/rh-amarin/hyperfleet-cli/internal/config"
@@ -27,13 +29,6 @@ in the active environment file. Subcommands are registered dynamically per type.
 Run hf rs (or hf resource) with no subcommand for a hierarchical overview of all
 configured types, similar to hf table for clusters and nodepools.`,
 	RunE: runResourceOverview,
-}
-
-var resourceTypesCmd = &cobra.Command{
-	Use:   "types",
-	Short: "List configured resource types and active state keys",
-	Args:  cobra.NoArgs,
-	RunE:  runResourceTypes,
 }
 
 var (
@@ -73,7 +68,7 @@ func preloadResourceCommands(args []string) error {
 		return nil
 	}
 	switch args[0] {
-	case "resource", "rs":
+	case "resource", "rs", "table", "resources":
 	default:
 		return nil
 	}
@@ -214,7 +209,7 @@ func newResourceTypeCmd(def config.ResourceTypeDef) *cobra.Command {
 			return runGenericPatch(cmd, typeName, section, explicit)
 		},
 	}
-	patchCmd.Flags().StringVarP(&genericPatchFile, "file", "f", "", "JSON patch body file (omit to increment counter on reconciled types)")
+	patchCmd.Flags().StringVarP(&genericPatchFile, "file", "f", "", "JSON patch body file (omit to increment counter)")
 	patchCmd.Flags().BoolVarP(&genericInteractive, "interactive", "i", false, "interactively select a resource")
 
 	deleteCmd := &cobra.Command{
@@ -344,50 +339,6 @@ func newResourceTypeCmd(def config.ResourceTypeDef) *cobra.Command {
 
 	cmd.AddCommand(subcmds...)
 	return cmd
-}
-
-func runResourceTypes(cmd *cobra.Command, args []string) error {
-	s, err := loadConfig()
-	if err != nil {
-		return err
-	}
-	types, err := s.ResourceTypes()
-	if err != nil {
-		return err
-	}
-	if len(types) == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "No resource types configured in the active environment.")
-		return nil
-	}
-
-	sortResourceTypes(types)
-	for _, def := range types {
-		stateVal := s.GetState(def.StateKey)
-		stateDisplay := "<not set>"
-		if stateVal != "" {
-			stateDisplay = stateVal
-		}
-		indent := ""
-		if def.Parent != "" {
-			indent = "  └─ "
-		}
-		fmt.Fprintf(cmd.OutOrStdout(), "%s%s  path: %s  state: %s=%s\n", indent, def.Name, def.Path, def.StateKey, stateDisplay)
-		if def.Parent != "" {
-			parent, _ := s.ResourceType(def.Parent)
-			fmt.Fprintf(cmd.OutOrStdout(), "     requires: %s\n", parent.StateKey)
-		}
-	}
-	return nil
-}
-
-func sortResourceTypes(types []config.ResourceTypeDef) {
-	for i := 0; i < len(types); i++ {
-		for j := i + 1; j < len(types); j++ {
-			if types[j].Name < types[i].Name {
-				types[i], types[j] = types[j], types[i]
-			}
-		}
-	}
 }
 
 func runGenericList(cmd *cobra.Command, typeName string) error {
@@ -579,19 +530,8 @@ func runGenericCreate(cmd *cobra.Command, typeName, name string) error {
 }
 
 func runGenericPatch(cmd *cobra.Command, typeName, section, explicit string) error {
-	if genericPatchFile == "" {
-		return fmt.Errorf("[ERROR] --file is required for patch")
-	}
 	if err := errCurlInteractive(genericInteractive); err != nil {
 		return err
-	}
-	raw, err := os.ReadFile(genericPatchFile)
-	if err != nil {
-		return fmt.Errorf("[ERROR] loading patch file: %w", err)
-	}
-	var body map[string]any
-	if err := json.Unmarshal(raw, &body); err != nil {
-		return fmt.Errorf("[ERROR] loading patch file: %w", err)
 	}
 
 	s, err := loadConfig()
@@ -615,11 +555,84 @@ func runGenericPatch(cmd *cobra.Command, typeName, section, explicit string) err
 
 	client := newAPIClient(s)
 	p := output.NewPrinter(outputFmt, noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
-	_, err = api.Patch[resource.GenericResource](context.Background(), client, basePath+"/"+id+"/"+section, body)
+	ctx := context.Background()
+
+	if genericPatchFile != "" {
+		raw, err := os.ReadFile(genericPatchFile)
+		if err != nil {
+			return fmt.Errorf("[ERROR] loading patch file: %w", err)
+		}
+		var body map[string]any
+		if err := json.Unmarshal(raw, &body); err != nil {
+			return fmt.Errorf("[ERROR] loading patch file: %w", err)
+		}
+		_, err = api.Patch[resource.GenericResource](ctx, client, basePath+"/"+id+"/"+section, body)
+		if err != nil {
+			return handleAPIError(p, err)
+		}
+		return nil
+	}
+
+	current, err := api.Get[resource.GenericResource](ctx, client, basePath+"/"+id)
 	if err != nil {
 		return handleAPIError(p, err)
 	}
+	spec := genericSpecMap(current)
+	labels := genericLabelsMap(current)
+	oldVal, newVal := bumpCounter(section, spec, labels)
+	body := patchSectionBody(section, newVal, spec, labels)
+	_, err = api.Patch[resource.GenericResource](ctx, client, basePath+"/"+id+"/"+section, body)
+	if err != nil {
+		return handleAPIError(p, err)
+	}
+	p.Info(fmt.Sprintf("Incrementing %s.counter: %d -> %d", section, oldVal, newVal))
 	return nil
+}
+
+func genericSpecMap(g resource.GenericResource) map[string]any {
+	if g == nil {
+		return map[string]any{}
+	}
+	v, ok := g["spec"].(map[string]any)
+	if !ok || v == nil {
+		return map[string]any{}
+	}
+	return v
+}
+
+func genericLabelsMap(g resource.GenericResource) map[string]string {
+	if g == nil {
+		return map[string]string{}
+	}
+	raw, ok := g["labels"].(map[string]any)
+	if !ok || raw == nil {
+		return map[string]string{}
+	}
+	out := make(map[string]string, len(raw))
+	for k, v := range raw {
+		if s, ok := v.(string); ok {
+			out[k] = s
+		}
+	}
+	return out
+}
+
+func patchSectionBody(section string, newVal int, spec map[string]any, labels map[string]string) map[string]any {
+	counter := strconv.Itoa(newVal)
+	if section == "spec" {
+		merged := maps.Clone(spec)
+		if merged == nil {
+			merged = map[string]any{}
+		}
+		merged["counter"] = counter
+		return merged
+	}
+	merged := make(map[string]any, len(labels)+1)
+	for k, v := range labels {
+		merged[k] = v
+	}
+	merged["counter"] = counter
+	return merged
 }
 
 func runGenericDelete(cmd *cobra.Command, typeName, explicit string) error {
@@ -760,10 +773,18 @@ func resetGenericFlags() {
 	genericStatusesFilter = false
 }
 
+func registerOverviewFlags(cmd *cobra.Command) {
+	cmd.Flags().BoolVar(&resourceOverviewWatch, "watch", false, "continuously refresh the overview table")
+	cmd.Flags().IntVarP(&resourceOverviewWatchSecs, "seconds", "s", 5, "refresh interval in seconds (used with --watch)")
+}
+
 func init() {
 	rootCmd.AddCommand(resourceCmd)
-	resourceCmd.AddCommand(resourceTypesCmd)
+	registerOverviewFlags(resourceCmd)
 
-	resourceCmd.Flags().BoolVar(&resourceOverviewWatch, "watch", false, "continuously refresh the overview table")
-	resourceCmd.Flags().IntVarP(&resourceOverviewWatchSecs, "seconds", "s", 5, "refresh interval in seconds (used with --watch)")
+	// Legacy top-level aliases — same overview as hf rs (adapter-rich table + other types).
+	rootCmd.AddCommand(legacyTableCmd)
+	rootCmd.AddCommand(legacyResourcesCmd)
+	registerOverviewFlags(legacyTableCmd)
+	registerOverviewFlags(legacyResourcesCmd)
 }

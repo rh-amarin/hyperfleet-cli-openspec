@@ -1,0 +1,70 @@
+COMMAND: hf pubsub list
+EXIT: 0
+────────────────────────────────────────
+[INFO] Listing topics in project: hcm-hyperfleet
+phunguye-default-clusters
+phunguye-default-nodepools
+hyperfleet-e2e-clusters
+    hyperfleet-e2e-clusters-cl-job
+    hyperfleet-e2e-clusters-cl-namespace
+    hyperfleet-e2e-clusters-cl-maestro
+    hyperfleet-e2e-clusters-cl-deployment
+ldornele-default-clusters
+    ldornele-default-clusters-adapter2
+    ldornele-default-clusters-adapter1
+mliptak-clusters
+hyperfleet-e2e-nodepools
+    hyperfleet-e2e-nodepools-np-configmap
+amarin-e2e-clusters
+amarin-e2e-nodepools
+hyperfleet-e2e-amarin-clusters
+test1-nodepools
+skhoury-default-nodepools
+    skhoury-default-nodepools-adapter3
+hyperfleet-e2e-xx-nodepools
+test1-clusters
+hyperfleet-e2e-xx-clusters
+skhoury-default-clusters
+    skhoury-default-clusters-adapter1
+    skhoury-default-clusters-adapter2
+ldornele-default-nodepools
+    ldornele-default-nodepools-adapter3
+mahill-e2e-nodepools
+mahill-ns1-clusters
+ldornele-default-nodepools-adapter3-dlq
+hyperfleet-e2e-clusters-cl-deployment-dlq
+hyperfleet-e2e-nodepools-np-configmap-dlq
+mahill-hyperfleet-e2e-clusters
+hyperfleet-e2e-clusters-cl-namespace-dlq
+e2e-mahill-nodepools
+hyperfleet-e2e-gke1-clusters-cl-deployment-dlq
+hyperfleet-e2e-gke1-clusters-cl-precondition-error-dlq
+hyperfleet-e2e-gke1-clusters-cl-job-dlq
+hyperfleet-e2e-gke1-clusters-cl-invalid-resource-dlq
+hyperfleet-e2e-gke1-clusters-cl-maestro-dlq
+hyperfleet-e2e-gke1-clusters-cl-namespace-dlq
+ldornele-default-clusters-adapter2-dlq
+hyperfleet-e2e-amarin-nodepools
+amarin-eu2-ns1-nodepools
+hyperfleet-e2e-gke1-nodepools
+    hyperfleet-e2e-gke1-nodepools-np-configmap
+e2e-2059620515756118016-clusters
+hyperfleet-e2e-gke1-clusters
+    hyperfleet-e2e-gke1-clusters-cl-invalid-resource
+    hyperfleet-e2e-gke1-clusters-cl-job
+    hyperfleet-e2e-gke1-clusters-cl-deployment
+    hyperfleet-e2e-gke1-clusters-cl-namespace
+    hyperfleet-e2e-gke1-clusters-cl-maestro
+    hyperfleet-e2e-gke1-clusters-cl-precondition-error
+mahill-e2e-clusters
+mahill-hyperfleet-e2e-nodepools
+ldornele-default-clusters-adapter1-dlq
+hyperfleet-e2e-clusters-cl-job-dlq
+hyperfleet-e2e-mahill-clusters
+hyperfleet-e2e-clusters-cl-maestro-dlq
+e2e-mahill-clusters
+hyperfleet-e2e-mahill-nodepools
+skhoury-default-nodepools-adapter3-dlq
+skhoury-default-clusters-adapter2-dlq
+skhoury-default-clusters-adapter1-dlq
+hyperfleet-e2e-gke1-nodepools-np-configmap-dlq

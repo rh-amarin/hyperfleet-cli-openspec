@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rh-amarin/hyperfleet-cli/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -368,7 +369,7 @@ func TestResourcesSpinnerForActiveAdapter(t *testing.T) {
 	dir := setupClusterEnv(t, ts)
 	setClusterIDInState(t, dir, "test", clusterID)
 
-	// Non-watch render with frequencySecs=0 → IsActive returns false → no spinner
+	// Non-watch render with frequencySecs=0 uses DefaultWatchIntervalSecs for activity.
 	out, err := runResourcesCmd(t, dir, "resources")
 	if err != nil {
 		t.Fatalf("resources: %v", err)
@@ -376,11 +377,8 @@ func TestResourcesSpinnerForActiveAdapter(t *testing.T) {
 	if !strings.Contains(out, "CL-ACTIVE") {
 		t.Errorf("expected CL-ACTIVE adapter column header in output, got: %q", out)
 	}
-	// No spinner when not in watch mode (frequencySecs=0 → IsActive=false)
-	for _, frame := range []string{"⠋", "⠙", "⠹", "⠸"} {
-		if strings.Contains(out, frame) {
-			t.Errorf("unexpected spinner frame %q in non-watch output", frame)
-		}
+	if !strings.Contains(out, output.SpinnerFrame(0)) {
+		t.Errorf("expected spinner frame for recently active adapter in non-watch output, got: %q", out)
 	}
 }
 

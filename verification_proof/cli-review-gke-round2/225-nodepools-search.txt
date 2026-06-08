@@ -1,0 +1,5 @@
+COMMAND: hf rs nodepools search cli-np-1780640810
+EXIT: 0
+────────────────────────────────────────
+[WARN] No nodepools found matching 'cli-np-1780640810'
+[]

@@ -1,0 +1,4 @@
+COMMAND: hf --curl db exec UPDATE channels SET updated_time=now() WHERE false
+EXIT: 1
+────────────────────────────────────────
+[ERROR] ERROR: relation "channels" does not exist (SQLSTATE 42P01)

@@ -1,0 +1,4 @@
+COMMAND: hf logs adapter
+EXIT: 1
+────────────────────────────────────────
+no pods found matching "adapter" in namespace "hyperfleet-e2e-gke1"

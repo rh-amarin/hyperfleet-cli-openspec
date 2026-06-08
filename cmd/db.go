@@ -23,7 +23,7 @@ var dbCmd = &cobra.Command{
 	Short: "Direct database operations",
 	Long: `Direct PostgreSQL database operations.
 
-Subcommands: query, exec, delete, config.`,
+Subcommands: query, exec, delete.`,
 }
 
 // ---- flag vars ----
@@ -47,6 +47,10 @@ func openDBPool(ctx context.Context) (*db.Config, *pgxpool.Pool, error) {
 	return cfg, pool, nil
 }
 
+func validDeleteTargetsList() string {
+	return strings.Join(db.ValidDeleteTargetNames(), ", ")
+}
+
 func init() {
 	rootCmd.AddCommand(dbCmd)
 
@@ -59,11 +63,8 @@ func init() {
 
 	// hf db delete
 	dbDeleteCmd.Flags().BoolVar(&dbDeleteAll, "all", false, "delete records from all tables in dependency-safe order")
-	dbDeleteCmd.ValidArgs = []string{"clusters", "nodepools", "adapter_statuses"}
+	dbDeleteCmd.ValidArgs = db.ValidDeleteTargetNames()
 	dbCmd.AddCommand(dbDeleteCmd)
-
-	// hf db config
-	dbCmd.AddCommand(dbConfigCmd)
 }
 
 // ---- hf db query ----
@@ -145,19 +146,9 @@ var dbExecCmd = &cobra.Command{
 
 // ---- hf db delete ----
 
-// deleteOrder is the dependency-safe deletion sequence for ALL.
-var deleteOrder = []struct {
-	target string
-	table  string
-}{
-	{"adapter_statuses", "adapter_statuses"},
-	{"nodepools", "node_pools"},
-	{"clusters", "clusters"},
-}
-
 var dbDeleteCmd = &cobra.Command{
 	Use:   "delete [target]",
-	Short: "Delete records from a table (clusters, nodepools, adapter_statuses) or use --all",
+	Short: "Delete records from a table (clusters, nodepools, adapter_statuses, resources) or use --all",
 	Args: func(cmd *cobra.Command, args []string) error {
 		all, _ := cmd.Flags().GetBool("all")
 		if all {
@@ -173,18 +164,14 @@ var dbDeleteCmd = &cobra.Command{
 		return cobra.ExactArgs(1)(cmd, args)
 	},
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"clusters", "nodepools", "adapter_statuses"}, cobra.ShellCompDirectiveNoFileComp
+		return db.ValidDeleteTargetNames(), cobra.ShellCompDirectiveNoFileComp
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		validTargets := map[string]bool{
-			"clusters": true, "nodepools": true, "adapter_statuses": true,
-		}
-
 		var target string
 		if !dbDeleteAll {
 			target = args[0]
-			if !validTargets[target] {
-				return fmt.Errorf("[ERROR] Unknown target '%s'. Valid targets are: clusters, nodepools, adapter_statuses.", target)
+			if _, ok := db.DeleteTargetTable(target); !ok {
+				return fmt.Errorf("[ERROR] Unknown target '%s'. Valid targets are: %s.", target, validDeleteTargetsList())
 			}
 		}
 
@@ -195,25 +182,18 @@ var dbDeleteCmd = &cobra.Command{
 		}
 		defer pool.Close()
 
-		// Build list of (target, table) pairs to process.
-		var targets []struct{ target, table string }
-		if dbDeleteAll {
-			for _, d := range deleteOrder {
-				targets = append(targets, struct{ target, table string }{d.target, d.table})
-			}
-		} else {
+		targets := db.DeleteTargets
+		if !dbDeleteAll {
 			table, _ := db.DeleteTargetTable(target)
-			targets = []struct{ target, table string }{{target, table}}
+			targets = []db.DeleteTarget{{Name: target, Table: table}}
 		}
 
-		// Show row counts.
-		for _, t := range targets {
-			_, countRows, err := dbQuerier.Query(ctx, pool, fmt.Sprintf("SELECT COUNT(*) FROM %s", t.table))
-			if err != nil || len(countRows) == 0 {
-				fmt.Fprintf(cmd.OutOrStdout(), "%s: (could not count)\n", t.target)
-			} else {
-				fmt.Fprintf(cmd.OutOrStdout(), "%s: %s rows\n", t.target, countRows[0][0])
-			}
+		counts, err := fetchDeleteTargetCounts(ctx, pool, targets)
+		if err != nil {
+			return err
+		}
+		if err := printDeleteTargetCounts(cmd, counts, dbDeleteAll); err != nil {
+			return err
 		}
 
 		// Prompt for confirmation.
@@ -228,38 +208,53 @@ var dbDeleteCmd = &cobra.Command{
 
 		// Execute deletions.
 		for _, t := range targets {
-			n, err := dbQuerier.Exec(ctx, pool, fmt.Sprintf("DELETE FROM %s", t.table))
+			n, err := dbQuerier.Exec(ctx, pool, fmt.Sprintf("DELETE FROM %s", t.Table))
 			if err != nil {
-				fmt.Fprintf(cmd.OutOrStdout(), "[ERROR] Failed to delete from %s: %v\n", t.table, err)
+				fmt.Fprintf(cmd.OutOrStdout(), "[ERROR] Failed to delete from %s: %v\n", t.Table, err)
 				continue
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Deleted %d rows from %s\n", n, t.table)
+			fmt.Fprintf(cmd.OutOrStdout(), "Deleted %d rows from %s\n", n, t.Table)
 		}
 		return nil
 	},
 }
 
-// ---- hf db config ----
+type deleteTargetCount struct {
+	target string
+	table  string
+	rows   string
+}
 
-var dbConfigCmd = &cobra.Command{
-	Use:   "config",
-	Short: "Show resolved database connection parameters",
-	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		s, err := loadConfig()
-		if err != nil {
+func fetchDeleteTargetCounts(ctx context.Context, pool *pgxpool.Pool, targets []db.DeleteTarget) ([]deleteTargetCount, error) {
+	out := make([]deleteTargetCount, 0, len(targets))
+	for _, t := range targets {
+		_, countRows, err := dbQuerier.Query(ctx, pool, fmt.Sprintf("SELECT COUNT(*) FROM %s", t.Table))
+		if err != nil || len(countRows) == 0 {
+			out = append(out, deleteTargetCount{target: t.Name, table: t.Table, rows: "(could not count)"})
+			continue
+		}
+		out = append(out, deleteTargetCount{target: t.Name, table: t.Table, rows: countRows[0][0]})
+	}
+	return out, nil
+}
+
+func printDeleteTargetCounts(cmd *cobra.Command, counts []deleteTargetCount, all bool) error {
+	if all {
+		headers := []string{"TARGET", "TABLE", "ROWS"}
+		rows := make([][]string, len(counts))
+		for i, c := range counts {
+			rows[i] = []string{c.target, c.table, c.rows}
+		}
+		p := output.NewPrinter("table", noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
+		if err := p.PrintTable(headers, rows); err != nil {
 			return err
 		}
-		cfg := db.NewFromConfig(s)
-		pw := "<not set>"
-		if cfg.Password != "" {
-			pw = "<set>"
-		}
-		fmt.Fprintf(cmd.OutOrStdout(), "host:     %s\n", cfg.Host)
-		fmt.Fprintf(cmd.OutOrStdout(), "port:     %s\n", cfg.Port)
-		fmt.Fprintf(cmd.OutOrStdout(), "name:     %s\n", cfg.Name)
-		fmt.Fprintf(cmd.OutOrStdout(), "user:     %s\n", cfg.User)
-		fmt.Fprintf(cmd.OutOrStdout(), "password: %s\n", pw)
+		fmt.Fprintln(cmd.OutOrStdout())
 		return nil
-	},
+	}
+	for _, c := range counts {
+		fmt.Fprintf(cmd.OutOrStdout(), "%s: %s rows\n", c.target, c.rows)
+	}
+	return nil
 }
+

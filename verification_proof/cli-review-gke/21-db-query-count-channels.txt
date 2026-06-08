@@ -1,0 +1,4 @@
+COMMAND: hf db query SELECT count(*) AS channel_count FROM channels
+EXIT: 1
+────────────────────────────────────────
+[ERROR] ERROR: relation "channels" does not exist (SQLSTATE 42P01)

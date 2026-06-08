@@ -1,0 +1,29 @@
+COMMAND: hf rs channels search ch-3fa50ce7
+EXIT: 0
+────────────────────────────────────────
+[INFO] channels context set to '019e8dfd-6370-7d8f-b8a0-c8dc66a85a0f'
+[
+  {
+    "created_by": "system@hyperfleet.local",
+    "created_time": "2026-06-03T14:57:34.064889Z",
+    "deleted_by": "system@hyperfleet.local",
+    "deleted_time": "2026-06-03T14:57:34.095986Z",
+    "generation": 2,
+    "href": "/api/hyperfleet/v1/channels/019e8dfd-6370-7d8f-b8a0-c8dc66a85a0f",
+    "id": "019e8dfd-6370-7d8f-b8a0-c8dc66a85a0f",
+    "kind": "Channel",
+    "labels": {
+      "environment": "test"
+    },
+    "name": "ch-3fa50ce7",
+    "spec": {
+      "enabled_regex": ".*",
+      "is_default": false
+    },
+    "status": {
+      "conditions": null
+    },
+    "updated_by": "system@hyperfleet.local",
+    "updated_time": "2026-06-03T14:57:34.096568Z"
+  }
+]

@@ -1,0 +1,6 @@
+COMMAND: hf (see 221b-nodepools-list.txt)
+EXIT: 0
+────────────────────────────────────────
+ID                                    NAME         TYPE  GEN  REPLICAS  RECONCILED  LASTKNOWNR
+                                                                                    ECONCILED
+019e967d-a081-783b-8b85-5896c8304502  np-cli-test  m4    1    1         [31m●[0m 1         [31m●[0m 1

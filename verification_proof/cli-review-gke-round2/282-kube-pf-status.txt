@@ -1,0 +1,5 @@
+[INFO] Kubernetes context: gke_hcm-hyperfleet_europe-southwest1-a_hyperfleet-dev-amarin-eu1
+  [32m✓[0m hyperfleet-api - localhost:8000 (PID: 26885)
+  [32m✓[0m maestro-grpc - localhost:8090 (PID: 26896)
+  [32m✓[0m maestro-http - localhost:8100 (PID: 26894)
+  [32m✓[0m postgresql - localhost:5432 (PID: 26891)

@@ -1,0 +1,5 @@
+COMMAND: hf rs nodepools list -o table
+EXIT: 0
+────────────────────────────────────────
+ID  NAME  TYPE  GEN  REPLICAS  RECONCILED  LASTKNOWNR
+                                           ECONCILED

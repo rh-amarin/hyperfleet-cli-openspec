@@ -15,7 +15,7 @@ openspec --version 2>/dev/null || npm install -g @fission-ai/openspec@latest
 - **Module:** `github.com/rh-amarin/hyperfleet-cli`
 - **Language:** Go 1.22+
 - **Binary name:** `hf`
-- **Real API:** configured via `hf config` (run `hf config doctor` to check connectivity)
+- **Real API:** configured in environment YAML files (`hf env show` to inspect; edit `~/.config/hf/environments/<name>.yaml`)
 
 ## Common Commands
 

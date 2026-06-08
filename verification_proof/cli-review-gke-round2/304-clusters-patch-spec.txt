@@ -1,0 +1,5 @@
+COMMAND: hf rs clusters patch spec
+EXIT: 0
+────────────────────────────────────────
+[INFO] Incrementing spec.counter: 1 -> 2
+(Patched active cluster — spec.counter incremented from 1 to 2)

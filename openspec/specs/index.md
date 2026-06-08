@@ -16,13 +16,13 @@ Complete requirements specification for the HyperFleet CLI tool (`hf`), reverse-
 | 04 | [Adapter Status](adapter-status/spec.md) | Adapter reporting via `hf rs <entity> adapter-report` | hf.cluster.adapter.post.status.sh |
 | 05 | [Tables and Lists](tables-and-lists/spec.md) | Combined and per-entity tables via `hf rs`, watch mode, spinner | hf.resources.sh → `hf rs` |
 | 13 | [RS Entity Commands](rs-entity-commands/spec.md) | Canonical `hf rs <entity>` command tree for clusters, nodepools, and config-defined types | — |
-| 06 | [Database](database/spec.md) | Direct PostgreSQL operations (query, delete, config) | hf.db.{query,delete,config}.sh |
+| 06 | [Database](database/spec.md) | Direct PostgreSQL operations (query, exec, delete) | hf.db.{query,delete}.sh |
 | 07 | [Maestro](maestro/spec.md) | Maestro resource management via HTTP API | hf.maestro.{list,bundles,consumers,get,delete}.sh |
 | 08 | [Pub/Sub & Messaging](pubsub/spec.md) | Event publishing to GCP Pub/Sub and RabbitMQ | hf.pubsub.{list,publish.*}.sh, hf.rabbitmq.publish.*.sh |
 | 09 | [Kubernetes](kubernetes/spec.md) | Port-forwarding, debug pods, log tailing, log insights | hf.kube.{port.forward,curl,debug.pod}.sh, hf.logs.{sh,adapter}.sh |
-| 10 | [Repos](repos/spec.md) | GitHub repository status overview | hf.repos.sh |
-| 11 | [Errors & Usage](errors-and-usage/spec.md) | Error handling, usage messages, edge cases | Cross-cutting across all commands |
-| 12 | ~~Config Registry~~ | **ARCHIVED** — superseded by [Config Model](config-model/spec.md) | — |
+| 10 | [Errors & Usage](errors-and-usage/spec.md) | Error handling, usage messages, edge cases | Cross-cutting across all commands |
+| 11 | ~~Config Registry~~ | **ARCHIVED** — superseded by [Config Model](config-model/spec.md) | — |
+| 12 | ~~Repos~~ | **REMOVED** — `hf repos` command not implemented in Go CLI | hf.repos.sh |
 
 ### Technical & Non-Functional Requirements
 

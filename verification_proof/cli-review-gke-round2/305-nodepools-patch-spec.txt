@@ -1,0 +1,4 @@
+COMMAND: hf rs nodepools patch spec
+EXIT: 0
+────────────────────────────────────────
+[INFO] Incrementing spec.counter: 1 -> 2

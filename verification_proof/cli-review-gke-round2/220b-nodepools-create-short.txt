@@ -1,0 +1,60 @@
+COMMAND: hf (see 220b-nodepools-create-short.txt)
+EXIT: 0
+────────────────────────────────────────
+[INFO] NodePool context set to '019e967d-a081-783b-8b85-5896c8304502'
+{
+  "id": "019e967d-a081-783b-8b85-5896c8304502",
+  "kind": "NodePool",
+  "name": "np-cli-test",
+  "generation": 1,
+  "labels": {
+    "counter": "1",
+    "environment": "development",
+    "shard": "1",
+    "team": "core"
+  },
+  "spec": {
+    "counter": "1",
+    "platform": {
+      "gcp": {},
+      "type": "m4"
+    },
+    "region": "us-east-1",
+    "replicas": 1,
+    "version": "4.15.0"
+  },
+  "status": {
+    "conditions": [
+      {
+        "type": "Reconciled",
+        "status": "False",
+        "last_transition_time": "2026-06-05T06:34:36.033541Z",
+        "observed_generation": 1,
+        "created_time": "2026-06-05T06:34:36.033541Z",
+        "last_updated_time": "2026-06-05T06:34:36.033541Z",
+        "reason": "ReconciledMissingAdapters",
+        "message": "Required adapters not reporting Available=True: [np-configmap]. Currently reporting: []"
+      },
+      {
+        "type": "LastKnownReconciled",
+        "status": "False",
+        "last_transition_time": "2026-06-05T06:34:36.033541Z",
+        "observed_generation": 1,
+        "created_time": "2026-06-05T06:34:36.033541Z",
+        "last_updated_time": "2026-06-05T06:34:36.033541Z",
+        "reason": "AdaptersMissingReports",
+        "message": "Required adapters have not yet reported status"
+      }
+    ]
+  },
+  "owner_references": {
+    "id": "019e9676-87d3-7442-bc77-68af9390abac",
+    "kind": "Cluster",
+    "href": "/api/hyperfleet/v1/clusters/019e9676-87d3-7442-bc77-68af9390abac"
+  },
+  "created_by": "system@hyperfleet.local",
+  "created_time": "2026-06-05T06:34:36.033541Z",
+  "updated_by": "system@hyperfleet.local",
+  "updated_time": "2026-06-05T06:34:36.037868243Z",
+  "href": "/api/hyperfleet/v1/clusters/019e9676-87d3-7442-bc77-68af9390abac/nodepools/019e967d-a081-783b-8b85-5896c8304502"
+}

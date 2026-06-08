@@ -1,0 +1,6 @@
+COMMAND: hf rs types
+EXIT: 0
+────────────────────────────────────────
+channels  path: channels  state: channels=019e8dfd-6370-7d8f-b8a0-c8dc66a85a0f
+  └─ versions  path: channels/{channel_id}/versions  state: versions=019e91a2-9bec-70dc-a882-2e1ffbcf5bc9
+     requires: channels

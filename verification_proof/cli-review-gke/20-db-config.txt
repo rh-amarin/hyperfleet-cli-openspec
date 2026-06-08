@@ -1,0 +1,8 @@
+COMMAND: hf db config
+EXIT: 0
+────────────────────────────────────────
+host:     localhost
+port:     5432
+name:     hyperfleet
+user:     hyperfleet
+password: <set>

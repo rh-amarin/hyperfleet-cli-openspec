@@ -1,0 +1,3 @@
+COMMAND: hf logs hyperfleet-api (timeout 8s, first 40 lines)
+EXIT: 124
+────────────────────────────────────────

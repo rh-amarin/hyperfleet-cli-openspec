@@ -1,0 +1,12 @@
+COMMAND: hf -o table repos
+EXIT: 0
+────────────────────────────────────────
+REPOSITORY                                COMMIT   PR URL                                                                PR BRANCH                                                                QUAY TAG  QUAY ALIAS
+                                                                                                                                                                                                            ES
+openshift-hyperfleet/hyperfleet-api-spec  64f5006  -                                                                     -                                                                        -         -
+openshift-hyperfleet/hyperfleet-api       f56789c  https://github.com/openshift-hyperfleet/hyperfleet-api/pull/203       remove-bingo                                                             v0.2.1    -
+openshift-hyperfleet/hyperfleet-sentinel  e8bc3ec  https://github.com/openshift-hyperfleet/hyperfleet-sentinel/pull/141  konflux/mintmaker/main/go-module-minorpatch-updates                      v0.2.1    -
+openshift-hyperfleet/hyperfleet-adapter   1c7fe52  https://github.com/openshift-hyperfleet/hyperfleet-adapter/pull/177   konflux/mintmaker/main/google.golang.org-genproto-googleapis-rpc-digest  v0.2.1    -
+openshift-hyperfleet/hyperfleet-infra     91bfc8a  https://github.com/openshift-hyperfleet/hyperfleet-infra/pull/44      HYPERFLEET-1056                                                          -         -
+openshift-hyperfleet/hyperfleet-e2e       e98e6a1  -                                                                     -                                                                        -         -
+openshift-hyperfleet/architecture         03d7d55  https://github.com/openshift-hyperfleet/architecture/pull/150         HYPERFLEET-837                                                           -         -

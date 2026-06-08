@@ -23,6 +23,7 @@ port-forward:
   maestro-http-remote-port: "8000"
   maestro-grpc-port: "8090"
   maestro-grpc-remote-port: "8090"
+  rabbitmq-mgmt-port: "15672"
 
 database:
   host: "localhost"

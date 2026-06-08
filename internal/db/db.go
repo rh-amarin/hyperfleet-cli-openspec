@@ -125,13 +125,36 @@ func cellString(v any) string {
 	return s
 }
 
-// deleteTarget maps the user-facing target name to the actual table name.
+// DeleteTarget maps a CLI target name to a PostgreSQL table.
+type DeleteTarget struct {
+	Name  string
+	Table string
+}
+
+// DeleteTargets is the dependency-safe deletion order for hf db delete --all
+// (dependents before owners).
+var DeleteTargets = []DeleteTarget{
+	{Name: "adapter_statuses", Table: "adapter_statuses"},
+	{Name: "nodepools", Table: "node_pools"},
+	{Name: "resources", Table: "resources"},
+	{Name: "clusters", Table: "clusters"},
+}
+
+// DeleteTargetTable resolves a user-facing target to a table name.
 func DeleteTargetTable(target string) (string, bool) {
-	m := map[string]string{
-		"clusters":         "clusters",
-		"nodepools":        "node_pools",
-		"adapter_statuses": "adapter_statuses",
+	for _, d := range DeleteTargets {
+		if strings.EqualFold(target, d.Name) {
+			return d.Table, true
+		}
 	}
-	t, ok := m[strings.ToLower(target)]
-	return t, ok
+	return "", false
+}
+
+// ValidDeleteTargetNames returns CLI target names for completions and errors.
+func ValidDeleteTargetNames() []string {
+	names := make([]string, len(DeleteTargets))
+	for i, d := range DeleteTargets {
+		names[i] = d.Name
+	}
+	return names
 }

@@ -56,4 +56,27 @@ func TestIsActive(t *testing.T) {
 			t.Error("expected inactive for malformed lastReportTime")
 		}
 	})
+
+	t.Run("zero frequency uses default watch interval", func(t *testing.T) {
+		recent := time.Now().Add(-3 * time.Second).Format(time.RFC3339)
+		if !IsActive(recent, 0) {
+			t.Error("expected active for timestamp 3s ago with default interval")
+		}
+		stale := time.Now().Add(-30 * time.Second).Format(time.RFC3339)
+		if IsActive(stale, 0) {
+			t.Error("expected inactive for timestamp 30s ago with default interval")
+		}
+	})
+}
+
+func TestAdapterActivityPrefix(t *testing.T) {
+	recent := time.Now().Add(-1 * time.Second).Format(time.RFC3339)
+	got := AdapterActivityPrefix(recent, 2, 0)
+	want := SpinnerFrame(2) + " "
+	if got != want {
+		t.Errorf("active prefix = %q, want %q", got, want)
+	}
+	if AdapterActivityPrefix("", 0, 5) != "  " {
+		t.Error("inactive prefix should be two spaces")
+	}
 }

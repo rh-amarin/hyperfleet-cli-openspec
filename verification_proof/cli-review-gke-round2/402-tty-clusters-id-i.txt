@@ -1,0 +1,10 @@
+COMMAND: hf rs clusters id -i (via ttyd http://127.0.0.1:7685, browser-driven)
+EXIT: 0
+────────────────────────────────────────
+Method: ttyd one-shot + browser automation
+
+Fuzzy picker showed 1/1 clusters:
+  > tui-demo  019e967f-d6a3-7743-8b8d-b5f158da4d48
+
+Pressed Enter → printed cluster ID and exited:
+  019e967f-d6a3-7743-8b8d-b5f158da4d48

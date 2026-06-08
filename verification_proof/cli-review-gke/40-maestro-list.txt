@@ -1,0 +1,8 @@
+COMMAND: hf maestro list
+EXIT: 0
+────────────────────────────────────────
+{
+  "items": [],
+  "kind": "ResourceBundleList",
+  "total": 0
+}

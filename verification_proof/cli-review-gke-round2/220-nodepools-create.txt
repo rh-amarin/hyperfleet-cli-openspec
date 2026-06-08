@@ -1,0 +1,13 @@
+COMMAND: hf rs nodepools create cli-np-1780640810 --type m4 --replicas 1
+EXIT: 0
+────────────────────────────────────────
+{
+  "type": "https://api.hyperfleet.io/errors/validation-error",
+  "title": "Validation Failed",
+  "status": 400,
+  "detail": "name must be at most 15 characters",
+  "instance": "/api/hyperfleet/v1/clusters/019e9676-87d3-7442-bc77-68af9390abac/nodepools",
+  "code": "HYPERFLEET-VAL-000",
+  "timestamp": "2026-06-05T06:26:52.457889394Z",
+  "trace_id": "019e9676-8da9-752a-9d5b-d50e4f667c14"
+}

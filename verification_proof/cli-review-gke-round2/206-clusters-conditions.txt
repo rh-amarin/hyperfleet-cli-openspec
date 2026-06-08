@@ -1,0 +1,30 @@
+COMMAND: hf rs clusters conditions
+EXIT: 0
+────────────────────────────────────────
+{
+  "generation": 1,
+  "status": {
+    "conditions": [
+      {
+        "type": "Reconciled",
+        "status": "False",
+        "last_transition_time": "2026-06-05T06:26:50.963298Z",
+        "observed_generation": 1,
+        "created_time": "2026-06-05T06:26:50.963298Z",
+        "last_updated_time": "2026-06-05T06:26:50.963298Z",
+        "reason": "ReconciledMissingAdapters",
+        "message": "Required adapters not reporting Available=True: [cl-deployment, cl-job, cl-maestro, cl-namespace]. Currently reporting: []"
+      },
+      {
+        "type": "LastKnownReconciled",
+        "status": "False",
+        "last_transition_time": "2026-06-05T06:26:50.963298Z",
+        "observed_generation": 1,
+        "created_time": "2026-06-05T06:26:50.963298Z",
+        "last_updated_time": "2026-06-05T06:26:50.963298Z",
+        "reason": "AdaptersMissingReports",
+        "message": "Required adapters have not yet reported status"
+      }
+    ]
+  }
+}

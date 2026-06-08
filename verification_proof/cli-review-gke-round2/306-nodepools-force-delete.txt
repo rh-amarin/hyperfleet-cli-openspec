@@ -1,0 +1,13 @@
+COMMAND: hf (see 306-nodepools-force-delete.txt)
+EXIT: 0
+────────────────────────────────────────
+{
+  "type": "https://api.hyperfleet.io/errors/conflict",
+  "title": "State Conflict",
+  "status": 409,
+  "detail": "NodePool '019e967d-e7c8-7829-8150-f42a6e6166b9' is not in Finalizing state",
+  "instance": "/api/hyperfleet/v1/clusters/019e967d-e24f-78cf-ad1d-6bad766b456b/nodepools/019e967d-e7c8-7829-8150-f42a6e6166b9/force-delete",
+  "code": "HYPERFLEET-CNF-003",
+  "timestamp": "2026-06-05T06:34:57.21571467Z",
+  "trace_id": "019e967d-f33d-76db-a66a-c5110d03abff"
+}

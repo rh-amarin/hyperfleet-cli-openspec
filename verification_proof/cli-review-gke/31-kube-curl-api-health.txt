@@ -1,0 +1,7 @@
+COMMAND: hf kube curl http://hyperfleet-api.hyperfleet-e2e-gke1.svc:8000/health
+EXIT: 0
+────────────────────────────────────────
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0100    261 100    261   0      0  59036      0                              0100    261 100    261   0      0  57211      0                              0100    261 100    261   0      0  55638      0                              0
+{"code":"HYPERFLEET-NTF-001","detail":"The requested resource '/health' doesn't exist","instance":"/health","status":404,"timestamp":"2026-06-05T06:12:24.353380177Z","title":"Resource Not Found","trace_id":"","type":"https://api.hyperfleet.io/errors/not-found"}

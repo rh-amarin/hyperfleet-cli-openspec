@@ -1,0 +1,11 @@
+COMMAND: hf logs insights (timeout 15s)
+EXIT: timed
+────────────────────────────────────────
+API  (last 1m)
+  (no activity)
+
+SENTINEL  (last 1m)
+  (no activity)
+
+ADAPTERS  (last 1m)
+  (no activity)

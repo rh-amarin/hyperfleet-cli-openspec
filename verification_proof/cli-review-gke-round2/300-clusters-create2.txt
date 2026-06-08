@@ -1,0 +1,47 @@
+[INFO] Cluster context set to '019e967d-b699-7880-a564-1a3446815981'
+{
+  "id": "019e967d-b699-7880-a564-1a3446815981",
+  "kind": "Cluster",
+  "name": "cr-test2",
+  "generation": 1,
+  "labels": {
+    "counter": "1",
+    "environment": "development",
+    "shard": "1",
+    "team": "core"
+  },
+  "spec": {
+    "counter": "1",
+    "region": "us-east-1",
+    "version": "4.15.0"
+  },
+  "status": {
+    "conditions": [
+      {
+        "type": "Reconciled",
+        "status": "False",
+        "last_transition_time": "2026-06-05T06:34:41.689558Z",
+        "observed_generation": 1,
+        "created_time": "2026-06-05T06:34:41.689558Z",
+        "last_updated_time": "2026-06-05T06:34:41.689558Z",
+        "reason": "ReconciledMissingAdapters",
+        "message": "Required adapters not reporting Available=True: [cl-deployment, cl-job, cl-maestro, cl-namespace]. Currently reporting: []"
+      },
+      {
+        "type": "LastKnownReconciled",
+        "status": "False",
+        "last_transition_time": "2026-06-05T06:34:41.689558Z",
+        "observed_generation": 1,
+        "created_time": "2026-06-05T06:34:41.689558Z",
+        "last_updated_time": "2026-06-05T06:34:41.689558Z",
+        "reason": "AdaptersMissingReports",
+        "message": "Required adapters have not yet reported status"
+      }
+    ]
+  },
+  "created_by": "system@hyperfleet.local",
+  "created_time": "2026-06-05T06:34:41.689558Z",
+  "updated_by": "system@hyperfleet.local",
+  "updated_time": "2026-06-05T06:34:41.689558Z",
+  "href": "/api/hyperfleet/v1/clusters/019e967d-b699-7880-a564-1a3446815981"
+}

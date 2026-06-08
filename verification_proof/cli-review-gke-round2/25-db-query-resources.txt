@@ -1,0 +1,6 @@
+COMMAND: hf db query "SELECT count(*) AS resource_count FROM resources WHERE kind='Channel'" -o table
+EXIT: 0
+────────────────────────────────────────
+RESOURCE
+COUNT
+5

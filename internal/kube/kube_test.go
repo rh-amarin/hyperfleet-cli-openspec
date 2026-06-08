@@ -530,6 +530,25 @@ func TestCheckMaestroGRPCConnectivity_Down(t *testing.T) {
 	}
 }
 
+func TestCheckRabbitMQConnectivity_OK(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	port := extractPort(t, srv.URL)
+	if err := CheckRabbitMQConnectivity(port); err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+}
+
+func TestCheckRabbitMQConnectivity_Down(t *testing.T) {
+	port := freePort(t)
+	if err := CheckRabbitMQConnectivity(port); err == nil {
+		t.Fatal("expected non-nil error for closed port")
+	}
+}
+
 // extractPort parses the port from a URL like http://127.0.0.1:PORT.
 func extractPort(t *testing.T, rawURL string) int {
 	t.Helper()

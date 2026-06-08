@@ -1,0 +1,13 @@
+COMMAND: hf env (via ttyd http://127.0.0.1:7684, browser-driven)
+EXIT: 0
+────────────────────────────────────────
+Method: ttyd one-shot + browser automation
+
+Interactive fuzzy picker launched with:
+  - Left panel: 9 environments (angel, gke, gke-eu2, gke-gke1, gke-lb, gmail, kind, local, prow)
+  - gke marked with ✓ (active)
+  - Right panel: full YAML of highlighted environment
+
+Navigation: ↑↓ to highlight, Enter to activate, type to filter.
+Test: highlighted 'angel', pressed Escape — activated angel and displayed its config + state.
+Recovery: hf env activate gke restored active environment.

@@ -1,0 +1,4 @@
+COMMAND: hf ui -p 18088 (timeout 3s)
+EXIT: timed
+────────────────────────────────────────
+Serving HyperFleet UI at http://localhost:18088

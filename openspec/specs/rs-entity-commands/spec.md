@@ -87,8 +87,9 @@ For entities `clusters` and `nodepools`, list/table output with `--output table`
 #### Scenario: Counter patch default
 
 - GIVEN no `--file` flag
-- WHEN the user runs `hf rs clusters patch spec [id]`
-- THEN the CLI MUST increment the counter field and PATCH using the same body shape as legacy `hf cluster patch`
+- WHEN the user runs `hf rs <entity> patch {spec|labels} [id]`
+- THEN the CLI MUST increment the counter field in the requested section and PATCH `{collection-path}/{id}/{section}`
+- AND for `clusters` and `nodepools` MUST use the same body shape as legacy `hf cluster patch` / `hf nodepool patch`
 
 #### Scenario: File patch
 
@@ -128,13 +129,23 @@ For entities `clusters` and `nodepools`, list/table output with `--output table`
 
 `hf rs` with no subcommand SHALL be the canonical combined operational view. It MUST render a table overview of configured types with parent/child nesting, default output `table`, `--watch` support, partial-failure warnings at the top, and GEN deletion markers.
 
-For environments with `clusters` and `nodepools` in `resource-types`, overview MUST also support the adapter-rich combined table (equivalent to the former `hf table` / `hf resources --output table`): dynamic condition and adapter columns, dot rendering, and watch spinners.
+For environments with `clusters` and `nodepools` in `resource-types`, overview MUST render the adapter-rich combined table (equivalent to the former `hf table` / `hf resources --output table`): dynamic condition and adapter columns, dot rendering, and watch spinners.
+
+When additional root types are configured (e.g. `channels`), overview MUST render those types (and their configured children) in the same table as clusters and nodepools, without duplicating `clusters` or `nodepools` rows. Non-reconciled types MUST use `-` in condition and adapter columns.
 
 #### Scenario: Overview replaces hf table
 
 - GIVEN `clusters` and `nodepools` are configured
+- AND no other root resource types are configured
 - WHEN the user runs `hf rs --output table --watch`
 - THEN output MUST be equivalent to the former `hf table --output table --watch` for the same cluster data
+
+#### Scenario: Overview includes all configured root types
+
+- GIVEN `clusters`, `nodepools`, and `channels` are configured under `resource-types`
+- WHEN the user runs `hf rs`
+- THEN output MUST include the adapter-rich cluster + nodepool table
+- AND MUST include configured non-cluster resources (e.g. `channels` and nested `versions`) in the same unified overview table with ID, NAME, KIND, and GEN columns
 
 #### Scenario: Overview tolerates fetch errors
 

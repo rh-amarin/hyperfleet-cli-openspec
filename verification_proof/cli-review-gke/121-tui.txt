@@ -1,0 +1,4 @@
+COMMAND: hf tui
+EXIT: 1
+────────────────────────────────────────
+could not open a new TTY: open /dev/tty: device not configured

@@ -1,0 +1,19 @@
+COMMAND: hf rs versions search --help
+EXIT: 0
+────────────────────────────────────────
+Search for a versions by name and set active context
+
+Usage:
+  hf resource versions search [name] [flags]
+
+Flags:
+  -h, --help   help for search
+
+Global Flags:
+      --api-token string   override API bearer token for this invocation
+      --api-url string     override HyperFleet API URL for this invocation
+      --config string      config file (default: ~/.config/hf/config.yaml)
+      --curl               print equivalent curl command and skip API requests (dry-run)
+      --no-color           disable colored output
+  -o, --output string      output format: json, table, yaml (default "json")
+  -v, --verbose            enable verbose/debug logging

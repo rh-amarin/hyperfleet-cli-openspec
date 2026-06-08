@@ -1,0 +1,91 @@
+COMMAND: hf (see 291-clusters-delete.txt)
+EXIT: 0
+────────────────────────────────────────
+{
+  "id": "019e9676-87d3-7442-bc77-68af9390abac",
+  "kind": "Cluster",
+  "name": "cli-review-1780640810",
+  "generation": 2,
+  "labels": {
+    "counter": "1",
+    "environment": "development",
+    "shard": "1",
+    "team": "core"
+  },
+  "spec": {
+    "counter": "1",
+    "region": "us-east-1",
+    "version": "4.15.0"
+  },
+  "status": {
+    "conditions": [
+      {
+        "type": "Reconciled",
+        "status": "False",
+        "last_transition_time": "2026-06-05T06:34:36.619932Z",
+        "observed_generation": 2,
+        "created_time": "2026-06-05T06:26:50.963298Z",
+        "last_updated_time": "2026-06-05T06:34:36.619932Z",
+        "reason": "ReconciledMissingAdapters",
+        "message": "Required adapters not reporting Finalized=True: [cl-deployment, cl-job, cl-maestro, cl-namespace]. Currently reporting: [cl-deployment, cl-job, cl-maestro, cl-namespace]"
+      },
+      {
+        "type": "LastKnownReconciled",
+        "status": "True",
+        "last_transition_time": "2026-06-05T06:27:14Z",
+        "observed_generation": 1,
+        "created_time": "2026-06-05T06:26:50.963298Z",
+        "last_updated_time": "2026-06-05T06:27:14Z",
+        "reason": "AllAdaptersReconciled",
+        "message": "All required adapters report Available=True for the tracked generation"
+      },
+      {
+        "type": "ClNamespaceSuccessful",
+        "status": "True",
+        "last_transition_time": "2026-06-05T06:26:55Z",
+        "observed_generation": 1,
+        "created_time": "2026-06-05T06:26:50.963298Z",
+        "last_updated_time": "2026-06-05T06:27:14Z",
+        "reason": "NamespaceReady",
+        "message": "Namespace is active and ready"
+      },
+      {
+        "type": "ClJobSuccessful",
+        "status": "True",
+        "last_transition_time": "2026-06-05T06:27:04Z",
+        "observed_generation": 1,
+        "created_time": "2026-06-05T06:26:50.963298Z",
+        "last_updated_time": "2026-06-05T06:27:14Z",
+        "reason": "JobComplete",
+        "message": "Hello-world job completed successfully"
+      },
+      {
+        "type": "ClDeploymentSuccessful",
+        "status": "True",
+        "last_transition_time": "2026-06-05T06:27:14Z",
+        "observed_generation": 1,
+        "created_time": "2026-06-05T06:26:50.963298Z",
+        "last_updated_time": "2026-06-05T06:27:14Z",
+        "reason": "MinimumReplicasAvailable",
+        "message": "Deployment has minimum availability."
+      },
+      {
+        "type": "ClMaestroSuccessful",
+        "status": "True",
+        "last_transition_time": "2026-06-05T06:26:59Z",
+        "observed_generation": 1,
+        "created_time": "2026-06-05T06:26:50.963298Z",
+        "last_updated_time": "2026-06-05T06:27:14Z",
+        "reason": "AllResourcesAvailable",
+        "message": "All manifests (namespace, configmap) are available on spoke cluster"
+      }
+    ]
+  },
+  "created_by": "system@hyperfleet.local",
+  "created_time": "2026-06-05T06:26:50.963298Z",
+  "updated_by": "system@hyperfleet.local",
+  "updated_time": "2026-06-05T06:34:36.619932Z",
+  "deleted_by": "system@hyperfleet.local",
+  "deleted_time": "2026-06-05T06:34:36.619912Z",
+  "href": "/api/hyperfleet/v1/clusters/019e9676-87d3-7442-bc77-68af9390abac"
+}

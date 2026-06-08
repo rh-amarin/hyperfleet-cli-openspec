@@ -43,7 +43,7 @@ $ hf version
 ### 2.1 Create an environment
 
 ```bash
-$ hf config env create prod
+$ hf env create prod
 Environment 'prod' created and activated.
 Edit your configuration: ~/.config/hf/environments/prod.yaml
 ```
@@ -51,7 +51,7 @@ Edit your configuration: ~/.config/hf/environments/prod.yaml
 ### 2.2 List environments
 
 ```bash
-$ hf config env list
+$ hf env list
 NAME     ACTIVE
 prod     ✓
 staging
@@ -60,17 +60,18 @@ staging
 ### 2.3 Switch environment
 
 ```bash
-$ hf config env activate staging
+$ hf env activate staging
 Active environment set to 'staging'.
 ```
 
+You can also run `hf env` with no subcommand to pick an environment interactively.
+
 ### 2.4 Show active configuration
 
-`hf config show` prints the fully resolved configuration with secrets masked.
+`hf env show` prints the fully resolved configuration with secrets masked.
 
 ```bash
-$ hf config show
-~/.config/hf/environments/prod.yaml
+$ hf env show
 hyperfleet:
   api-url: http://34.175.77.98:8000
   api-version: v1
@@ -110,26 +111,11 @@ state:
   active-environment: prod
 ```
 
-### 2.5 Get a single value
+### 2.5 Edit configuration
 
-```bash
-$ hf config get hyperfleet.api-url
-http://34.175.77.98:8000
+Edit the environment YAML file directly (`~/.config/hf/environments/<name>.yaml`). Common sections: `hyperfleet`, `kubernetes`, `maestro`, `port-forward`, `database`, `rabbitmq`, `registry`, and `resource-types`.
 
-$ hf config get hyperfleet.namespace
-hyperfleet-e2e-amarin
-```
-
-### 2.6 Set a value
-
-```bash
-$ hf config set hyperfleet.api-url http://34.175.77.98:8000
-$ hf config set hyperfleet.namespace hyperfleet-e2e-amarin
-$ hf config set maestro.consumer cluster1
-$ hf config set kubernetes.context gke_hcm-hyperfleet_europe-southwest1-a_hyperfleet-dev-amarin-eu1
-```
-
-Key format is always `section.key`. Sections: `hyperfleet`, `kubernetes`, `maestro`, `port-forward`, `database`, `rabbitmq`, `registry`.
+Runtime state (active cluster, channel IDs, etc.) lives in `~/.config/hf/state.yaml` and is updated automatically by commands such as `hf rs <type> search`.
 
 ---
 
@@ -507,14 +493,7 @@ Type 'yes' to confirm deletion: yes
 
 `hf db` runs SQL queries and DML directly against the PostgreSQL database. Port-forward `postgresql` first (`hf kube port-forward start postgresql`).
 
-### 9.1 Show connection parameters
-
-```bash
-$ hf db config
-host=localhost port=5432 dbname=hyperfleet user=hyperfleet sslmode=disable
-```
-
-### 9.2 Run a query
+### 9.1 Run a query
 
 ```bash
 $ hf db query --file query.sql --output table
@@ -525,18 +504,19 @@ ID                                    NAME
 019dbf43-65c5-7562-9077-e0a2331a1070  my-cluster
 ```
 
-### 9.3 Execute DML
+### 9.2 Execute DML
 
 ```bash
 $ hf db exec "UPDATE clusters SET spec = spec WHERE id = '019dbf43-...'"
 Rows affected: 1
 ```
 
-### 9.4 Delete records
+### 9.3 Delete records
 
 ```bash
 $ hf db delete clusters            # deletes all rows from clusters table
-$ hf db delete clusters --all      # same, skips confirmation prompt
+$ hf db delete resources           # channels, versions, and other API resources
+$ hf db delete --all               # all tables (preview table + confirmation)
 $ hf db delete adapter_statuses
 ```
 
@@ -657,7 +637,7 @@ $ hf ui --port 9000
 $ hf ui --open
 ```
 
-Requires an activated environment (`hf config env activate …`), like other commands that call the API.
+Requires an activated environment (`hf env activate …`), like other commands that call the API.
 
 ### 14.2 What you can do
 

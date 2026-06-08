@@ -36,6 +36,27 @@ func makeEnv(t *testing.T, dir, name, apiURL string) {
 	makeEnvRaw(t, dir, name, "hyperfleet:\n  api-url: "+apiURL+"\n")
 }
 
+// makeCombinedOverviewEnv configures clusters, nodepools, and channels for hf rs overview tests.
+func makeCombinedOverviewEnv(t *testing.T, dir, apiURL string) {
+	t.Helper()
+	makeEnvRaw(t, dir, "test", fmt.Sprintf(`hyperfleet:
+  api-url: %s
+  api-version: v1
+resource-types:
+  clusters:
+    path: clusters
+  nodepools:
+    parent: clusters
+    path: "clusters/{cluster_id}/nodepools"
+  channels:
+    path: channels
+  versions:
+    parent: channels
+    path: "channels/{channel_id}/versions"
+`, apiURL))
+	setActiveEnv(t, dir, "test")
+}
+
 // makeReconciledClusterEnv adds clusters and nodepools resource-types for hf rs tests.
 func makeReconciledClusterEnv(t *testing.T, dir, name, apiURL string) {
 	t.Helper()

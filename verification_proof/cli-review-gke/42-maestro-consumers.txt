@@ -1,0 +1,14 @@
+COMMAND: hf maestro consumers
+EXIT: 0
+────────────────────────────────────────
+{
+  "items": [
+    {
+      "id": "29da1bf6-0a9b-4cfd-92f3-27854fecc90f",
+      "kind": "Consumer",
+      "name": "cluster1"
+    }
+  ],
+  "kind": "ConsumerList",
+  "total": 1
+}

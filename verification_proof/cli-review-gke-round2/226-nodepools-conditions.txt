@@ -1,0 +1,13 @@
+COMMAND: hf rs nodepools conditions
+EXIT: 0
+────────────────────────────────────────
+{
+  "type": "https://api.hyperfleet.io/errors/not-found",
+  "title": "Resource Not Found",
+  "status": 404,
+  "detail": "NodePool with id='019e91e5-563b-7237-8ea1-dad12be1eea3' not found",
+  "instance": "/api/hyperfleet/v1/clusters/019e9676-87d3-7442-bc77-68af9390abac/nodepools/019e91e5-563b-7237-8ea1-dad12be1eea3",
+  "code": "HYPERFLEET-NTF-001",
+  "timestamp": "2026-06-05T06:26:53.30067439Z",
+  "trace_id": "019e9676-90f3-789a-9ffb-eb1a01c43d24"
+}

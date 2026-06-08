@@ -1,0 +1,4 @@
+COMMAND: hf db exec "DELETE FROM resources WHERE false"
+EXIT: 0
+────────────────────────────────────────
+Rows affected: 0

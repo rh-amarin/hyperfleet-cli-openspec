@@ -1,0 +1,4 @@
+COMMAND: hf db exec UPDATE clusters SET updated_time=now() WHERE false
+EXIT: 0
+────────────────────────────────────────
+Rows affected: 0

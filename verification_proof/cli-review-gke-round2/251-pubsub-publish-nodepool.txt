@@ -1,0 +1,22 @@
+COMMAND: hf pubsub publish nodepool hyperfleet-e2e-amarin-nodepools
+EXIT: 0
+────────────────────────────────────────
+{
+  "specversion": "1.0",
+  "type": "com.redhat.hyperfleet.nodepool.reconcile.v1",
+  "source": "/hyperfleet/service/sentinel",
+  "id": "019e91e5-563b-7237-8ea1-dad12be1eea3",
+  "time": "2026-06-05T06:26:55Z",
+  "datacontenttype": "application/json",
+  "data": {
+    "id": "019e91e5-563b-7237-8ea1-dad12be1eea3",
+    "kind": "NodePool",
+    "href": "http://localhost:8000/api/hyperfleet/v1/clusters/019e9676-87d3-7442-bc77-68af9390abac/nodepools/019e91e5-563b-7237-8ea1-dad12be1eea3",
+    "owner_references": {
+      "id": "019e9676-87d3-7442-bc77-68af9390abac",
+      "kind": "Cluster",
+      "href": "http://localhost:8000/api/hyperfleet/v1/clusters/019e9676-87d3-7442-bc77-68af9390abac"
+    }
+  }
+}
+[INFO] Published nodepool 019e91e5-563b-7237-8ea1-dad12be1eea3 to topic hyperfleet-e2e-amarin-nodepools (msg-id: 19934230645306997)

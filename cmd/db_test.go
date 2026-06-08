@@ -156,8 +156,46 @@ func TestDBDelete_UnknownTarget(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unknown target")
 	}
-	if !strings.Contains(err.Error(), "[ERROR] Unknown target 'foobar'") || strings.Contains(err.Error(), "ALL") {
+	if !strings.Contains(err.Error(), "[ERROR] Unknown target 'foobar'") || !strings.Contains(err.Error(), "resources") {
 		t.Errorf("unexpected error: %q", err.Error())
+	}
+}
+
+func TestDBDelete_ResourcesTarget(t *testing.T) {
+	dir := setupDBEnv(t)
+	mock := &mockQuerier{
+		queryHeaders: []string{"count"},
+		queryRows:    [][]string{{"3"}},
+	}
+	out, err := runDBCmd(t, dir, mock, "no\n", "db", "delete", "resources")
+	if err != nil {
+		t.Fatalf("db delete resources: %v", err)
+	}
+	if !strings.Contains(out, "resources: 3 rows") {
+		t.Fatalf("expected resources row count, got: %q", out)
+	}
+}
+
+func TestDBDelete_AllShowsTable(t *testing.T) {
+	dir := setupDBEnv(t)
+	mock := &mockQuerier{
+		queryHeaders: []string{"count"},
+		queryRows:    [][]string{{"1"}},
+	}
+	out, err := runDBCmd(t, dir, mock, "no\n", "db", "delete", "--all")
+	if err != nil {
+		t.Fatalf("db delete --all: %v", err)
+	}
+	for _, want := range []string{"TARGET", "TABLE", "ROWS", "resources", "adapter_statuses", "nodepools", "clusters"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("output missing %q:\n%s", want, out)
+		}
+	}
+	// resources must appear before clusters in dependency order table
+	res := strings.Index(out, "resources")
+	cl := strings.Index(out, "clusters")
+	if res < 0 || cl < 0 || res > cl {
+		t.Fatalf("expected resources before clusters in --all preview:\n%s", out)
 	}
 }
 
@@ -177,39 +215,3 @@ func TestDBDelete_ConfirmationDenied(t *testing.T) {
 	}
 }
 
-// ---- hf db config ----
-
-func TestDBConfig_MasksPassword(t *testing.T) {
-	dir := setupDBEnv(t)
-	out, err := runDBCmd(t, dir, &mockQuerier{}, "", "db", "config")
-	if err != nil {
-		t.Fatalf("db config: %v", err)
-	}
-	if !strings.Contains(out, "host:") || !strings.Contains(out, "port:") {
-		t.Errorf("expected host and port in output, got: %q", out)
-	}
-	// Default password is set, so should show <set>
-	if !strings.Contains(out, "<set>") {
-		t.Errorf("expected password masked as <set>, got: %q", out)
-	}
-	// Must never show the actual password
-	if strings.Contains(out, "foobar") {
-		t.Errorf("password must not appear in output, got: %q", out)
-	}
-}
-
-func TestDBConfig_EmptyPassword(t *testing.T) {
-	dir := t.TempDir()
-	// Write an env file that has an empty database password.
-	envContent := "hyperfleet:\n  api-url: http://localhost:8000\ndatabase:\n  host: myhost\n  port: \"5432\"\n  name: mydb\n  user: myuser\n  password: \"\"\n"
-	makeEnvRaw(t, dir, "test", envContent)
-	setActiveEnv(t, dir, "test")
-
-	out, err := runDBCmd(t, dir, &mockQuerier{}, "", "db", "config")
-	if err != nil {
-		t.Fatalf("db config empty pw: %v", err)
-	}
-	if !strings.Contains(out, "<not set>") {
-		t.Errorf("expected '<not set>' for empty password, got: %q", out)
-	}
-}

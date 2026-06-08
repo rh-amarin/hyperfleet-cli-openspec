@@ -1,0 +1,135 @@
+COMMAND: hf rs -o json
+EXIT: 0
+────────────────────────────────────────
+[
+  {
+    "type": "channels",
+    "resource": {
+      "created_by": "system@hyperfleet.local",
+      "created_time": "2026-06-03T14:57:34.064889Z",
+      "deleted_by": "system@hyperfleet.local",
+      "deleted_time": "2026-06-03T14:57:34.095986Z",
+      "generation": 2,
+      "href": "/api/hyperfleet/v1/channels/019e8dfd-6370-7d8f-b8a0-c8dc66a85a0f",
+      "id": "019e8dfd-6370-7d8f-b8a0-c8dc66a85a0f",
+      "kind": "Channel",
+      "labels": {
+        "environment": "test"
+      },
+      "name": "ch-3fa50ce7",
+      "spec": {
+        "enabled_regex": ".*",
+        "is_default": false
+      },
+      "status": {
+        "conditions": null
+      },
+      "updated_by": "system@hyperfleet.local",
+      "updated_time": "2026-06-03T14:57:34.096568Z"
+    }
+  },
+  {
+    "type": "channels",
+    "resource": {
+      "created_by": "system@hyperfleet.local",
+      "created_time": "2026-06-03T14:57:33.944414Z",
+      "deleted_by": "system@hyperfleet.local",
+      "deleted_time": "2026-06-03T14:57:34.039985Z",
+      "generation": 3,
+      "href": "/api/hyperfleet/v1/channels/019e8dfd-62f8-7651-a496-770912757530",
+      "id": "019e8dfd-62f8-7651-a496-770912757530",
+      "kind": "Channel",
+      "labels": {
+        "environment": "test"
+      },
+      "name": "ch-a5784a16",
+      "spec": {
+        "enabled_regex": ".*",
+        "is_default": true
+      },
+      "status": {
+        "conditions": null
+      },
+      "updated_by": "system@hyperfleet.local",
+      "updated_time": "2026-06-03T14:57:34.04056Z"
+    }
+  },
+  {
+    "type": "channels",
+    "resource": {
+      "created_by": "system@hyperfleet.local",
+      "created_time": "2026-06-03T14:57:33.745187Z",
+      "deleted_by": "system@hyperfleet.local",
+      "deleted_time": "2026-06-03T14:57:33.819982Z",
+      "generation": 2,
+      "href": "/api/hyperfleet/v1/channels/019e8dfd-6231-72d7-96e7-8d437f0d2acd",
+      "id": "019e8dfd-6231-72d7-96e7-8d437f0d2acd",
+      "kind": "Channel",
+      "labels": {
+        "environment": "test"
+      },
+      "name": "ch-8e3d21d5",
+      "spec": {
+        "enabled_regex": ".*",
+        "is_default": false
+      },
+      "status": {
+        "conditions": null
+      },
+      "updated_by": "system@hyperfleet.local",
+      "updated_time": "2026-06-03T14:57:33.820589Z"
+    }
+  },
+  {
+    "type": "channels",
+    "resource": {
+      "created_by": "system@hyperfleet.local",
+      "created_time": "2026-06-03T14:57:33.628748Z",
+      "deleted_by": "system@hyperfleet.local",
+      "deleted_time": "2026-06-03T14:57:33.71781Z",
+      "generation": 2,
+      "href": "/api/hyperfleet/v1/channels/019e8dfd-61bc-7b65-bc7e-317b8fe695f8",
+      "id": "019e8dfd-61bc-7b65-bc7e-317b8fe695f8",
+      "kind": "Channel",
+      "labels": {
+        "environment": "test"
+      },
+      "name": "ch-e23045f7",
+      "spec": {
+        "enabled_regex": ".*",
+        "is_default": false
+      },
+      "status": {
+        "conditions": null
+      },
+      "updated_by": "system@hyperfleet.local",
+      "updated_time": "2026-06-03T14:57:33.718608Z"
+    }
+  },
+  {
+    "type": "channels",
+    "resource": {
+      "created_by": "system@hyperfleet.local",
+      "created_time": "2026-06-03T14:57:33.525845Z",
+      "deleted_by": "system@hyperfleet.local",
+      "deleted_time": "2026-06-03T14:57:33.598602Z",
+      "generation": 2,
+      "href": "/api/hyperfleet/v1/channels/019e8dfd-6155-7ce1-9829-f6ff6c770839",
+      "id": "019e8dfd-6155-7ce1-9829-f6ff6c770839",
+      "kind": "Channel",
+      "labels": {
+        "environment": "test"
+      },
+      "name": "ch-9dda3ee6",
+      "spec": {
+        "enabled_regex": ".*",
+        "is_default": false
+      },
+      "status": {
+        "conditions": null
+      },
+      "updated_by": "system@hyperfleet.local",
+      "updated_time": "2026-06-03T14:57:33.599347Z"
+    }
+  }
+]

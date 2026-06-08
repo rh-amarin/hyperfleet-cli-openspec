@@ -1,0 +1,8 @@
+COMMAND: hf kube port-forward status
+EXIT: 0
+────────────────────────────────────────
+[INFO] Kubernetes context: gke_hcm-hyperfleet_europe-southwest1-a_hyperfleet-dev-amarin-eu1
+  [32m✓[0m hyperfleet-api - localhost:8000 (PID: 70938)
+  [32m✓[0m maestro-grpc - localhost:8090 (PID: 98041)
+  [32m✓[0m maestro-http - localhost:8100 (PID: 98039)
+  [32m✓[0m postgresql - localhost:5432 (PID: 1356)

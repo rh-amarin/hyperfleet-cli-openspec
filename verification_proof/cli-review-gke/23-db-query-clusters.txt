@@ -1,0 +1,8 @@
+COMMAND: hf db query SELECT count(*) AS cluster_count FROM clusters
+EXIT: 0
+────────────────────────────────────────
+[
+  {
+    "cluster_count": "0"
+  }
+]

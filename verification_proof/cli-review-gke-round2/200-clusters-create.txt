@@ -1,0 +1,50 @@
+COMMAND: hf rs clusters create cli-review-1780640810 us-east-1 4.15.0
+EXIT: 0
+────────────────────────────────────────
+[INFO] Cluster context set to '019e9676-87d3-7442-bc77-68af9390abac'
+{
+  "id": "019e9676-87d3-7442-bc77-68af9390abac",
+  "kind": "Cluster",
+  "name": "cli-review-1780640810",
+  "generation": 1,
+  "labels": {
+    "counter": "1",
+    "environment": "development",
+    "shard": "1",
+    "team": "core"
+  },
+  "spec": {
+    "counter": "1",
+    "region": "us-east-1",
+    "version": "4.15.0"
+  },
+  "status": {
+    "conditions": [
+      {
+        "type": "Reconciled",
+        "status": "False",
+        "last_transition_time": "2026-06-05T06:26:50.963298Z",
+        "observed_generation": 1,
+        "created_time": "2026-06-05T06:26:50.963298Z",
+        "last_updated_time": "2026-06-05T06:26:50.963298Z",
+        "reason": "ReconciledMissingAdapters",
+        "message": "Required adapters not reporting Available=True: [cl-deployment, cl-job, cl-maestro, cl-namespace]. Currently reporting: []"
+      },
+      {
+        "type": "LastKnownReconciled",
+        "status": "False",
+        "last_transition_time": "2026-06-05T06:26:50.963298Z",
+        "observed_generation": 1,
+        "created_time": "2026-06-05T06:26:50.963298Z",
+        "last_updated_time": "2026-06-05T06:26:50.963298Z",
+        "reason": "AdaptersMissingReports",
+        "message": "Required adapters have not yet reported status"
+      }
+    ]
+  },
+  "created_by": "system@hyperfleet.local",
+  "created_time": "2026-06-05T06:26:50.963298Z",
+  "updated_by": "system@hyperfleet.local",
+  "updated_time": "2026-06-05T06:26:50.963298Z",
+  "href": "/api/hyperfleet/v1/clusters/019e9676-87d3-7442-bc77-68af9390abac"
+}

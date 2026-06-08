@@ -1,0 +1,4 @@
+COMMAND: hf db query SELECT id, name FROM node_pools LIMIT 5 -o table
+EXIT: 0
+────────────────────────────────────────
+[INFO] No rows returned.

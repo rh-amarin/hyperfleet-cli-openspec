@@ -1,0 +1,4 @@
+COMMAND: hf rs clusters patch spec.replicas=2
+EXIT: 1
+────────────────────────────────────────
+usage: hf rs clusters patch {spec|labels} [id]

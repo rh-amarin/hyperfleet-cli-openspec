@@ -1,0 +1,4 @@
+COMMAND: hf rs channels id
+EXIT: 0
+────────────────────────────────────────
+019e8dfd-6370-7d8f-b8a0-c8dc66a85a0f

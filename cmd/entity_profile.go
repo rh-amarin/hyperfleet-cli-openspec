@@ -33,3 +33,18 @@ func useReconciledOverview(s *config.Store) bool {
 	}
 	return hasClusters && hasNodepools
 }
+
+// hasNonReconciledOverviewRoots reports whether the active environment defines root
+// resource types beyond clusters (which are shown in the reconciled overview table).
+func hasNonReconciledOverviewRoots(s *config.Store) bool {
+	types, err := s.ResourceTypes()
+	if err != nil {
+		return false
+	}
+	for _, root := range config.RootResourceTypes(types) {
+		if root.Name != "clusters" {
+			return true
+		}
+	}
+	return false
+}

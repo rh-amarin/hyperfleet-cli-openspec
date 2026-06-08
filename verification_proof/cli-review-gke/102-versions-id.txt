@@ -1,0 +1,4 @@
+COMMAND: hf rs versions id
+EXIT: 0
+────────────────────────────────────────
+019e91a2-9bec-70dc-a882-2e1ffbcf5bc9

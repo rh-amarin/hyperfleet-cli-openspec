@@ -1,0 +1,10 @@
+COMMAND: hf rs clusters statuses
+EXIT: 0
+────────────────────────────────────────
+{
+  "items": [],
+  "kind": "AdapterStatusList",
+  "page": 1,
+  "size": 0,
+  "total": 0
+}

@@ -96,7 +96,7 @@ func (s *Store) ResolveListPath(typeName string, ancestorIDs map[string]string) 
 		if !ok || id == "" {
 			return "", fmt.Errorf("[ERROR] missing ancestor %s for type %q", a.StateKey, typeName)
 		}
-		param := placeholderInChildPaths(a)
+		param := ancestorPathPlaceholder(a, path)
 		path = strings.ReplaceAll(path, "{"+param+"}", id)
 	}
 	if placeholderRE.MatchString(path) {
@@ -167,7 +167,7 @@ func (s *Store) ResolveResourcePath(typeName string) (string, error) {
 		if id == "" {
 			return "", fmt.Errorf("[ERROR] No %s set in state. Run 'hf resource %s search <name>' first.", a.StateKey, a.Name)
 		}
-		param := placeholderInChildPaths(a)
+		param := ancestorPathPlaceholder(a, path)
 		path = strings.ReplaceAll(path, "{"+param+"}", id)
 	}
 	if placeholderRE.MatchString(path) {
@@ -300,12 +300,28 @@ func validateNoCycle(start string, defs map[string]ResourceTypeDef) ([]string, e
 }
 
 // placeholderInChildPaths returns the {placeholder} name an ancestor's ID fills
-// in descendant API paths (e.g. clusters → cluster_id).
+// in the type's own API path (e.g. nodepools under clusters/{cluster_id}/nodepools).
 func placeholderInChildPaths(def ResourceTypeDef) string {
 	if def.PathParam != "" {
 		return def.PathParam
 	}
 	return DerivePathParamFromTypeName(def.Name)
+}
+
+// ancestorPathPlaceholder returns the placeholder an ancestor's ID fills in path.
+// Prefers the entity-derived name (versions → version_id) when present so a type's
+// path-param for its own parent (versions.path-param: channel_id) does not block
+// substitution in deeper paths. Falls back to path-param when the path uses a
+// custom placeholder (widgets.path-param: widget_uuid).
+func ancestorPathPlaceholder(def ResourceTypeDef, path string) string {
+	derived := DerivePathParamFromTypeName(def.Name)
+	if strings.Contains(path, "{"+derived+"}") {
+		return derived
+	}
+	if def.PathParam != "" && strings.Contains(path, "{"+def.PathParam+"}") {
+		return def.PathParam
+	}
+	return derived
 }
 
 // DerivePathParamFromTypeName maps an entity name to a path placeholder (clusters → cluster_id).

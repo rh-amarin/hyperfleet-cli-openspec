@@ -1,0 +1,36 @@
+COMMAND: hf --help
+EXIT: 0
+────────────────────────────────────────
+hf is a self-contained CLI for managing HyperFleet clusters.
+It replaces a suite of bash scripts with a single binary — no external tools required.
+
+Usage:
+  hf [command]
+
+Available Commands:
+  completion  Generate shell completion scripts
+  db          Direct database operations
+  env         Manage and activate environment profiles
+  help        Help about any command
+  kube        Perform Kubernetes operations without requiring kubectl
+  logs        Stream pod logs matching a pattern
+  maestro     Interact with the Maestro API
+  pubsub      Interact with GCP Pub/Sub topics
+  rabbitmq    Publish events to RabbitMQ exchanges
+  repos       Show an overview of HyperFleet GitHub repositories
+  resource    Overview and manage config-defined HyperFleet API resources
+  tui         Interactive terminal dashboard for HyperFleet clusters
+  ui          Start the HyperFleet browser dashboard
+  version     Print the hf CLI version
+
+Flags:
+      --api-token string   override API bearer token for this invocation
+      --api-url string     override HyperFleet API URL for this invocation
+      --config string      config file (default: ~/.config/hf/config.yaml)
+      --curl               print equivalent curl command and skip API requests (dry-run)
+  -h, --help               help for hf
+      --no-color           disable colored output
+  -o, --output string      output format: json, table, yaml (default "json")
+  -v, --verbose            enable verbose/debug logging
+
+Use "hf [command] --help" for more information about a command.

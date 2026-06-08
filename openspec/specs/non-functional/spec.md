@@ -99,7 +99,6 @@ The CLI SHALL support a global `--output` flag for controlling output format on 
 - WHEN a command produces output
 - THEN the default MUST be:
   - `json` for resource commands: `cluster list`, `cluster get`, `nodepool list`, `nodepool get`, `cluster conditions`, `nodepool conditions`, `cluster statuses`, `nodepool statuses`, `resources`, `table`
-  - `table` for `repos` (always renders a table)
   - `text` for environment commands (`hf env *`), port-forward status, and log output
 
 ### Requirement: Cross-Platform Build and Distribution
@@ -303,13 +302,6 @@ The CLI SHALL degrade gracefully when optional dependencies are unavailable.
 ### Requirement: Performance
 
 The CLI SHALL respond promptly for common operations.
-
-#### Scenario: Parallel data fetching
-
-- GIVEN `hf repos` queries 7 repositories
-- WHEN the data is fetched
-- THEN requests MUST be made concurrently using goroutines
-- AND the total execution time MUST be bounded by the slowest single request, not the sum of all requests
 
 #### Scenario: Large list pagination
 

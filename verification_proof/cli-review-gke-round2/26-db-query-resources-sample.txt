@@ -1,0 +1,7 @@
+COMMAND: hf db query resources sample -o table
+EXIT: 0
+────────────────────────────────────────
+ID                                    NAME         KIND
+019e8dfd-6155-7ce1-9829-f6ff6c770839  ch-9dda3ee6  Channel
+019e8dfd-61bc-7b65-bc7e-317b8fe695f8  ch-e23045f7  Channel
+019e8dfd-6231-72d7-96e7-8d437f0d2acd  ch-8e3d21d5  Channel

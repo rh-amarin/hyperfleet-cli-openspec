@@ -1,0 +1,16 @@
+COMMAND: hf tui (via ttyd http://127.0.0.1:7683, browser-driven)
+EXIT: 0
+────────────────────────────────────────
+Method: ttyd one-shot + browser automation (ArrowDown, Enter, q)
+
+Observed TUI header:
+  View: Clusters/Nodepools (refresh 5s)
+  env: gke | API: http://localhost:8000
+  k8s: gke_hcm-hyperfleet_europe-southwest1-a_hyperfleet-dev-amarin-eu1
+  pf: ✓ hyperfleet-api:8000 ✓ postgresql:5432 ✓ maestro-http:8100 ✓ maestro-grpc:8090
+
+Keybindings displayed: ↑↓ navigate, Enter describe, d delete, s condition, a adapter,
+  c patch, p port-forwards, q quit
+
+Table showed clusters with adapter status dots (RECONCILED, LASTKNOWNRECONCILED, per-adapter columns).
+Pressing 'q' exited cleanly to shell prompt.

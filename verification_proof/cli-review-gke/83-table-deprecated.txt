@@ -1,0 +1,10 @@
+COMMAND: hf table -o table
+EXIT: 0
+────────────────────────────────────────
+Command "table" is deprecated, use hf rs instead
+ID                                    NAME         KIND     GEN
+019e8dfd-6370-7d8f-b8a0-c8dc66a85a0f  ch-3fa50ce7  Channel  2 ❌
+019e8dfd-62f8-7651-a496-770912757530  ch-a5784a16  Channel  3 ❌
+019e8dfd-6231-72d7-96e7-8d437f0d2acd  ch-8e3d21d5  Channel  2 ❌
+019e8dfd-61bc-7b65-bc7e-317b8fe695f8  ch-e23045f7  Channel  2 ❌
+019e8dfd-6155-7ce1-9829-f6ff6c770839  ch-9dda3ee6  Channel  2 ❌

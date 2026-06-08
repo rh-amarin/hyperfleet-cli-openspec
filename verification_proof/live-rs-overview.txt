@@ -1,0 +1,42 @@
+# live 2026-06-04T07:01:08Z
+ID                                       NAME                   GEN   RECONCILED  LASTKNOWNR  MYADAPTER
+                                                                                  ECONCILED   
+019e8345-5b64-7bf2-be91-caa905bc1a2f     my-cluster14           1     [31m●[0m 1         [31m●[0m 1         -
+019e8305-d92e-7ccd-8409-569910a930bb     tn1-noauth-1780314659  3 ❌  [31m●[0m 3         [31m●[0m 1         -
+019e8305-46f0-7d81-9602-3878f59ad591     t10-empty-1780314621   2 ❌  [31m●[0m 2         [31m●[0m 1         -
+019e8305-4640-76ce-aae9-fa52a0b39ff7     t5-both-1780314621     2 ❌  [31m●[0m 2         [31m●[0m 1         -
+019e8305-460a-75d0-b9e8-bce08b15a2a1     t4-hdr-1780314621      4 ❌  [31m●[0m 4         [31m●[0m 1         -
+019e8305-45b2-7bf6-b072-3245776997cd     t3-jwt-1780314621      2 ❌  [31m●[0m 2         [31m●[0m 1         -
+019e82c4-49d6-768f-b698-38dcc9570d7b     my-cluster12           3     [31m●[0m 3         [31m●[0m 1         -
+019e82c4-19f0-75d4-b9a7-5ecd9458f9a4     my-cluster11           1     [31m●[0m 1         [31m●[0m 1         -
+019e82c3-c65a-7c5c-84a8-056d4d81e652     my-cluster10           1     [31m●[0m 1         [31m●[0m 1         -
+019e82bd-18af-746c-88cd-dc94916aecc4     my-cluster9            1     [31m●[0m 1         [31m●[0m 1         -
+019e82bc-2069-7dea-9846-c6fcabb0d0a0     my-cluster8            1     [31m●[0m 1         [31m●[0m 1         -
+019e82ba-7cbb-75a1-8f2c-7eb3ae891125     my-cluster6            1     [31m●[0m 1         [31m●[0m 1         -
+019e82ae-7848-7687-9ef5-f9da141ef94e     my-cluster5            1     [31m●[0m 1         [31m●[0m 1         -
+019e82ad-a85e-7806-97d7-1a0e58b49784     my-cluster4            1     [31m●[0m 1         [31m●[0m 1         -
+019e82ad-5dc5-7382-8c3d-4f712fed60eb     my-cluster3            1     [31m●[0m 1         [31m●[0m 1         -
+019e82ac-19dd-71dc-bcca-f36e5a3de97d     my-cluster2            1     [31m●[0m 1         [31m●[0m 1         -
+019e81c6-668f-7dee-8eab-6f9353aaa73a     my-cluster             2     [31m●[0m 2         [31m●[0m 1         [32m●[0m 1
+├─ 019e81fb-cd48-7c87-aa7c-a4a5486859ad  ├─ nodepool2           1     [31m●[0m 1         [31m●[0m 1         -
+└─ 019e81f9-e2df-7153-b60a-383bdcb08187  └─ my-nodepool         1     [31m●[0m 1         [31m●[0m 1         -
+019e6e55-2911-73c4-ba41-df3cba06ea8d     my-cluster-curl10      1     [31m●[0m 1         [31m●[0m 1         -
+
+TYPE      ID                                       NAME                      KIND     GEN
+channels  019e9162-7945-7622-aa79-b7a87afaccc0     a1111                     Channel  1
+channels  019e913c-ab54-723a-92c1-a1da2eeafaba     hf1187-restrict-parent-2  Channel  1
+versions  └─ 019e913c-abf5-7f1f-8227-1a86c62e6743  └─ 4.19.1                 Version  1
+channels  019e913c-ab45-7aec-bf59-eee0deb274e4     hf1187-restrict-parent    Channel  1
+
+[?1049h[H↻ 2s  ⠋
+[watch] refreshing every 2s — press Ctrl-C to exit
+
+ID                                       NAME                   GEN   RECONCILED  LASTKNOWNR  MYADAPTER
+                                                                                  ECONCILED   
+019e8345-5b64-7bf2-be91-caa905bc1a2f     my-cluster14           1     [31m●[0m 1         [31m●[0m 1         -
+019e8305-d92e-7ccd-8409-569910a930bb     tn1-noauth-1780314659  3 ❌  [31m●[0m 3         [31m●[0m 1         -
+019e8305-46f0-7d81-9602-3878f59ad591     t10-empty-1780314621   2 ❌  [31m●[0m 2         [31m●[0m 1         -
+019e8305-4640-76ce-aae9-fa52a0b39ff7     t5-both-1780314621     2 ❌  [31m●[0m 2         [31m●[0m 1         -
+019e8305-460a-75d0-b9e8-bce08b15a2a1     t4-hdr-1780314621      4 ❌  [31m●[0m 4         [31m●[0m 1         -
+019e8305-45b2-7bf6-b072-3245776997cd     t3-jwt-1780314621      2 ❌  [31m●[0m 2         [31m●[0m 1         -
+019e82c4-49d6-768f-b698-38dcc9570d7b     my-cluster12           3     [31m●[0m 3         [31m●[0m 1         -

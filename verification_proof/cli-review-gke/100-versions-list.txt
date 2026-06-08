@@ -1,0 +1,4 @@
+COMMAND: hf rs versions list -o table
+EXIT: 0
+────────────────────────────────────────
+ID  NAME  KIND  GEN

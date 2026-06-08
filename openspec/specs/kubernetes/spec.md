@@ -15,8 +15,9 @@ Predefined services:
 | postgresql     | postgresql     | postgresql             | `hyperfleet.namespace`     | 5432       | 5432        |
 | maestro-http   | maestro        | maestro                | `maestro.namespace`        | 8100       | 8000        |
 | maestro-grpc   | maestro        | maestro                | `maestro.namespace`        | 8090       | 8090        |
+| rabbitmq       | rabbitmq       | rabbitmq               | `hyperfleet.namespace`     | 15672      | 15672       |
 
-The HyperFleet application namespace is read from `hyperfleet.namespace`. Maestro namespace remains `maestro.namespace`.
+The HyperFleet application namespace is read from `hyperfleet.namespace`. Maestro namespace remains `maestro.namespace`. RabbitMQ local port defaults to `15672` and MAY be overridden via `port-forward.rabbitmq-mgmt-port`.
 
 PID files stored at `~/.config/hf/pf-<name>.pid`.
 
@@ -27,7 +28,9 @@ PID files stored at `~/.config/hf/pf-<name>.pid`.
 - **GIVEN** kubeconfig is accessible
 - **WHEN** the user runs `hf kube port-forward start`
 - **THEN** the first line of output MUST be `[INFO] Kubernetes context: <contextName>`
-- **AND** the CLI MUST start background port-forward processes for all 4 predefined services
+- **AND** the CLI MUST stop all tracked port-forwards before starting new ones
+- **AND** print `[INFO] Stopped <name>` for each stopped forward
+- **AND** the CLI MUST start background port-forward processes for all 5 predefined services
 - **AND** print `[INFO] Started <name> (<namespace>/svc/<serviceName>): localhost:<localPort> → <remotePort> (pid <pid>)` for each service forwarded via a Kubernetes Service
 - **AND** print `[INFO] Started <name> (<namespace>/pod/<podName>): localhost:<localPort> → <remotePort> (pid <pid>)` for each service forwarded via pod fallback
 - **AND** wait 1 second after the last start line
@@ -36,7 +39,8 @@ PID files stored at `~/.config/hf/pf-<name>.pid`.
 #### Scenario: Start port forward — single service
 
 - **WHEN** the user runs `hf kube port-forward start <name>`
-- **THEN** the CLI MUST start the named predefined service only
+- **THEN** the CLI MUST stop the tracked port-forward for `<name>` when one exists
+- **AND** the CLI MUST start the named predefined service only
 - **AND** display the namespace-enriched start line and connectivity status table for that service
 
 #### Scenario: Start generic port forward

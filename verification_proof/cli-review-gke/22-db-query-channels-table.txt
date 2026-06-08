@@ -1,0 +1,4 @@
+COMMAND: hf -o table db query SELECT id, name, kind FROM channels LIMIT 5
+EXIT: 1
+────────────────────────────────────────
+[ERROR] ERROR: relation "channels" does not exist (SQLSTATE 42P01)

@@ -66,17 +66,37 @@ func runResourceCmd(t *testing.T, dir string, args ...string) (string, error) {
 	return runCmd(t, dir, args...)
 }
 
-func TestResourceTypes_Empty(t *testing.T) {
-	dir := t.TempDir()
-	makeEnv(t, dir, "test", "http://localhost:8000")
-	setActiveEnv(t, dir, "test")
+func TestResourceGenericPatchCounter(t *testing.T) {
+	const channelID = "chan-1"
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/hyperfleet/v1/channels/"+channelID:
+			fmt.Fprintf(w, `{"id":"%s","spec":{"counter":"2"},"labels":{"counter":"1"}}`, channelID)
+		case r.Method == http.MethodPatch && r.URL.Path == "/api/hyperfleet/v1/channels/"+channelID+"/spec":
+			var body map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode patch body: %v", err)
+			}
+			if body["counter"] != "3" {
+				t.Fatalf("expected counter 3, got %v", body["counter"])
+			}
+			fmt.Fprintf(w, `{"id":"%s","spec":{"counter":"3"}}`, channelID)
+		default:
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer ts.Close()
 
-	out, err := runResourceCmd(t, dir, "resource", "types")
-	if err != nil {
+	dir := t.TempDir()
+	makeResourceEnv(t, dir, ts.URL)
+	statePath := filepath.Join(dir, "state.yaml")
+	if err := os.WriteFile(statePath, []byte("active-environment: test\nchannels: "+channelID+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "No resource types configured") {
-		t.Fatalf("unexpected output: %q", out)
+
+	if _, err := runResourceCmd(t, dir, "resource", "channels", "patch", "spec"); err != nil {
+		t.Fatal(err)
 	}
 }
 

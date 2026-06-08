@@ -69,14 +69,14 @@ The CLI SHALL execute arbitrary SQL queries against the HyperFleet PostgreSQL da
 
 The CLI SHALL delete all records from a specified table, or from all tables, with a confirmation prompt.
 
-Either a `<target>` argument or the `--all` flag is required. The target MUST be one of: `clusters`, `nodepools`, `adapter_statuses`.
+Either a `<target>` argument or the `--all` flag is required. The target MUST be one of: `clusters`, `nodepools`, `adapter_statuses`, `resources`.
 The argument values MUST be offered as shell completions.
 
 #### Scenario: Unknown delete target
 
 - GIVEN the user provides an unrecognized target name
 - WHEN the user runs `hf db delete <unknown>`
-- THEN the CLI MUST display `[ERROR] Unknown target '<unknown>'. Valid targets are: clusters, nodepools, adapter_statuses.`
+- THEN the CLI MUST display `[ERROR] Unknown target '<unknown>'. Valid targets are: clusters, nodepools, adapter_statuses, resources.`
 - AND exit with code 1
 
 #### Scenario: Delete all records from a single table
@@ -94,13 +94,16 @@ The argument values MUST be offered as shell completions.
 - WHEN the user runs `hf db delete adapter_statuses`
 - THEN the same behavior applies for the `adapter_statuses` table
 
+- WHEN the user runs `hf db delete resources`
+- THEN the same behavior applies for the `resources` table
+
 #### Scenario: Delete all records from all tables
 
 - GIVEN database connection is configured
 - WHEN the user runs `hf db delete --all`
-- THEN the CLI MUST show the row count for each table
+- THEN the CLI MUST show the row count for each table in a table with columns TARGET, TABLE, and ROWS
 - AND prompt the user for confirmation (requiring `yes`)
-- AND delete in dependency order: `adapter_statuses` first, then `node_pools`, then `clusters`
+- AND delete in dependency order: `adapter_statuses` first, then `node_pools`, then `resources`, then `clusters`
 - AND print the count of deleted rows per table
 - AND if a DELETE fails for one table, the CLI MUST display `[ERROR] Failed to delete from <table>: <error>`, continue to the next table, and report the final row counts for each table that succeeded
 
@@ -108,19 +111,6 @@ The argument values MUST be offered as shell completions.
 
 - WHEN the user does not confirm (any input other than `yes`)
 - THEN the CLI MUST print "Aborted" and exit 0 without deleting anything
-
-### Requirement: Database Configuration Display
-
-The CLI SHALL display the resolved database connection parameters.
-
-#### Scenario: Show DB config
-
-- GIVEN the CLI is running
-- WHEN the user runs `hf db config`
-- THEN the CLI MUST print host, port, name, user as plain values
-- AND mask the password as `<set>` or `<not set>`
-- AND require no database connection to run
-- AND output format is always plain text; `--output` flag does not apply to this command
 
 #### Scenario: Delete output format
 

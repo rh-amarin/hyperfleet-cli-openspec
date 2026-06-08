@@ -1,0 +1,13 @@
+COMMAND: hf rs nodepools adapter-report test-adapter True 1
+EXIT: 0
+────────────────────────────────────────
+{
+  "type": "https://api.hyperfleet.io/errors/not-found",
+  "title": "Resource Not Found",
+  "status": 404,
+  "detail": "NodePool with id='019e91e5-563b-7237-8ea1-dad12be1eea3' not found",
+  "instance": "/api/hyperfleet/v1/clusters/019e9676-87d3-7442-bc77-68af9390abac/nodepools/019e91e5-563b-7237-8ea1-dad12be1eea3/statuses",
+  "code": "HYPERFLEET-NTF-001",
+  "timestamp": "2026-06-05T06:26:53.614706221Z",
+  "trace_id": "019e9676-922d-761b-a57f-00aa0f9b6b29"
+}

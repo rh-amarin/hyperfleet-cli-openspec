@@ -720,6 +720,12 @@ func CheckMaestroHTTPConnectivity(port int) error {
 	return checkHTTP(fmt.Sprintf("http://localhost:%d/api/maestro/v1", port))
 }
 
+// CheckRabbitMQConnectivity verifies connectivity to the RabbitMQ management API via HTTP GET.
+// Returns nil if the server responds (any HTTP status), non-nil on connection failure.
+func CheckRabbitMQConnectivity(port int) error {
+	return checkHTTP(fmt.Sprintf("http://localhost:%d/api/overview", port))
+}
+
 // CheckPostgresConnectivity opens a pgx connection to localhost:<port> and pings it.
 // Returns nil on successful ping, non-nil on any error.
 func CheckPostgresConnectivity(port int, host, dbname, user, password string) error {

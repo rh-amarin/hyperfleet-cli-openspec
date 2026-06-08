@@ -1,0 +1,4 @@
+COMMAND: hf rs nodepools patch spec.replicas=2
+EXIT: 1
+────────────────────────────────────────
+usage: hf rs nodepools patch {spec|labels} [id]

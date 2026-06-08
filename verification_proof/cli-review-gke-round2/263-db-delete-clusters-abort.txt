@@ -1,0 +1,5 @@
+COMMAND: echo no | hf db delete clusters
+EXIT: 0
+────────────────────────────────────────
+clusters: 1 rows
+Type 'yes' to confirm deletion: Aborted

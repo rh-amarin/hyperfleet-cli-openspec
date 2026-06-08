@@ -1,0 +1,13 @@
+COMMAND: hf env list
+EXIT: 0
+────────────────────────────────────────
+NAME      ACTIVE
+angel     
+gke-eu2   
+gke-gke1  
+gke-lb    
+gke       ✓
+gmail     
+kind      
+local     
+prow      

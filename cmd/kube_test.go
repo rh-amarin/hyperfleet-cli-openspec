@@ -328,3 +328,21 @@ func TestResolvedKubeconfig_Precedence(t *testing.T) {
 	}
 	resetKubeFlags()
 }
+
+func TestPortForwardNamesToStop_Targeted(t *testing.T) {
+	services := []serviceSpec{
+		{name: "hyperfleet-api"},
+		{name: "postgresql"},
+		{name: "hyperfleet-api"},
+	}
+	got := portForwardNamesToStop(services, false)
+	want := []string{"hyperfleet-api", "postgresql"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("got %v, want %v", got, want)
+		}
+	}
+}

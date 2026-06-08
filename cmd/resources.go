@@ -14,19 +14,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// resourcesCmd displays a combined overview of all clusters and their node pools.
-var resourcesCmd = &cobra.Command{
-	Use:   "resources",
-	Short: "Show a combined overview of all clusters and their node pools",
-	RunE:  runResources,
+// legacyResourcesCmd is a top-level alias for hf rs (combined operational overview).
+var legacyResourcesCmd = &cobra.Command{
+	Use:        "resources",
+	Short:      "Alias for hf rs — combined operational overview",
+	RunE:       runResourceOverview,
+	Deprecated: "use hf rs instead",
 }
 
-// tableCmd is an alias for resourcesCmd.
-var tableCmd = &cobra.Command{
-	Use:   "table",
-	Short: "Alias for hf resources — combined cluster+nodepool table",
-	RunE:  runResources,
+// legacyTableCmd is a top-level alias for hf rs (adapter-rich cluster overview).
+var legacyTableCmd = &cobra.Command{
+	Use:        "table",
+	Short:      "Alias for hf rs — combined operational overview",
+	RunE:       runResourceOverview,
+	Deprecated: "use hf rs instead",
 }
+
+// resourcesCmd displays a combined overview via the legacy resources command path.
+var resourcesCmd = legacyResourcesCmd
+
+// tableCmd is the per-type list/table subcommand name inside hf rs <type>.
 
 // watch flags for resources / table commands.
 var (
@@ -131,6 +138,7 @@ func fetchResourceEntries(cmd *cobra.Command) (entries []clusterEntry, adCols []
 func renderResourcesTable(cmd *cobra.Command, entries []clusterEntry, adapterCols []string, tick, frequencySecs, secsLeft int) error {
 	if frequencySecs > 0 {
 		fmt.Fprintf(cmd.OutOrStdout(), "↻ %ds  %s\n", secsLeft, output.SpinnerFrame(tick))
+		printWatchFooter(cmd, frequencySecs)
 	}
 	p := output.NewPrinter("table", noColor, cmd.OutOrStdout(), cmd.ErrOrStderr())
 
@@ -248,28 +256,22 @@ func condDot(conditions []resource.ResourceCondition, condType string) string {
 }
 
 // adapterDot returns the status cell for a named adapter column.
-// In watch mode (frequencySecs > 0) a 2-char spinner slot is always reserved so
-// column widths stay stable: active adapters show the animated frame, inactive
-// ones show two spaces, and the table never re-flows between renders.
+// Every cell reserves a 2-char activity prefix so watch and one-shot tables align.
+// Active adapters show the spinner frame; inactive ones show two spaces.
 func adapterDot(statuses []resource.AdapterStatus, adName, condKey string, tick, frequencySecs int) string {
+	const emptyCell = "  -"
 	for _, as := range statuses {
 		if as.Adapter == adName {
 			for _, c := range as.Conditions {
 				if c.Type == condKey {
 					cell := output.StatusDot(c.Status, noColor) + " " + strconv.Itoa(int(as.ObservedGeneration))
-					switch {
-					case output.IsActive(as.LastReportTime, frequencySecs):
-						cell = output.SpinnerFrame(tick) + " " + cell
-					case frequencySecs > 0:
-						cell = "  " + cell // reserve space so columns don't shift
-					}
-					return cell
+					return output.AdapterActivityPrefix(as.LastReportTime, tick, frequencySecs) + cell
 				}
 			}
-			return "-"
+			return emptyCell
 		}
 	}
-	return "-"
+	return emptyCell
 }
 
 func buildClusterRow(cl resource.Cluster, statuses []resource.AdapterStatus, adapterCols []string, tick, frequencySecs int) []string {
@@ -323,4 +325,4 @@ func secsUntil(t time.Time) int {
 	return int((d + time.Second - 1) / time.Second)
 }
 
-// Legacy resourcesCmd/tableCmd are unregistered; use hf rs for the combined overview.
+// runResources remains for tests that invoke the legacy resources command table path.

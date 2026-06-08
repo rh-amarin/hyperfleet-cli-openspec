@@ -22,14 +22,13 @@ The CLI SHALL be organized as a single Go module with internal packages followin
   │   ├── adapter.go          # hf cluster adapter post-status, hf nodepool adapter post-status
   │   ├── env.go              # hf env [create|list|show|activate|delete]
   │   ├── env.go              # hf env [create|list|show|activate|delete]
-  │   ├── db.go               # hf db [query|delete|config]
+  │   ├── db.go               # hf db [query|exec|delete]
   │   ├── maestro.go          # hf maestro [list|get|delete|bundles|consumers]
   │   ├── pubsub.go           # hf pubsub [list|publish cluster|publish nodepool]
   │   ├── rabbitmq.go         # hf rabbitmq [publish]
   │   ├── kube.go             # hf kube [port-forward|curl|debug]
   │   ├── logs.go             # hf logs [<pattern>|adapter|insights]
-  │   ├── repos.go            # hf repos
-  │   └── resources.go        # hf resources / hf table (combined overview of clusters and nodepools)
+  │   └── resource.go         # hf resource / hf rs (overview + config-defined types)
   ├── internal/
   │   ├── api/                # HyperFleet API client
   │   ├── config/             # Configuration management (split YAML model)
@@ -60,7 +59,6 @@ The CLI SHALL use [spf13/cobra](https://github.com/spf13/cobra) for command rout
   hf
   ├── env                          # create | list | show | activate | delete
   ├── resource | rs                # overview when invoked with no subcommand
-  │   ├── types
   │   └── <entity>                 # from resource-types (includes clusters, nodepools)
   │       ├── list
   │       ├── table
@@ -321,19 +319,9 @@ The CLI SHALL provide a top-level command group `hf resource` with alias `hf rs`
 
 - GIVEN the active environment has no `resource-types` section or an empty map
 - WHEN the user runs `hf resource --help`
-- THEN the CLI MUST show at minimum the `types` subcommand and support `hf rs` overview when types are empty
+- THEN the CLI MUST show the static `resource` command help without dynamic type subcommands
+- AND MUST support `hf rs` overview when types are empty
 - AND MUST NOT fail with a parse error
-
-### Requirement: Resource Types Subcommand
-
-`hf rs types` (alias `hf resource types`) SHALL list configured resource types from the active environment.
-
-#### Scenario: Types output shows entity state keys
-
-- GIVEN resource types are configured
-- WHEN the user runs `hf rs types`
-- THEN the CLI MUST print each type name, its API path template, its parent (if any), and whether the entity name key is set in `state.yaml`
-- AND MUST indicate which parent entity state is required before child commands can run
 
 ### Requirement: Global Persistent Flags
 

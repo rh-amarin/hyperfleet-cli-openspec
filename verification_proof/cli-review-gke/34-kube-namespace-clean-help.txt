@@ -1,0 +1,24 @@
+COMMAND: hf kube namespace-clean --help
+EXIT: 0
+────────────────────────────────────────
+List and delete all Kubernetes namespaces that have at least one label
+whose key or value contains the string "hyperfleet".
+
+The command prints the full list and count, requires explicit confirmation,
+then deletes all matching namespaces in parallel with per-namespace progress.
+
+Usage:
+  hf kube namespace-clean [flags]
+
+Flags:
+  -h, --help   help for namespace-clean
+
+Global Flags:
+      --api-token string    override API bearer token for this invocation
+      --api-url string      override HyperFleet API URL for this invocation
+      --config string       config file (default: ~/.config/hf/config.yaml)
+      --curl                print equivalent curl command and skip API requests (dry-run)
+      --kubeconfig string   path to kubeconfig (default: KUBECONFIG env or ~/.kube/config)
+      --no-color            disable colored output
+  -o, --output string       output format: json, table, yaml (default "json")
+  -v, --verbose             enable verbose/debug logging

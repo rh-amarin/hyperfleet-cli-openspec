@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -33,6 +34,7 @@ func tuiStartPortForwards(s *config.Store) (string, error) {
 	kubeconfig := resolvedKubeconfig(s)
 	kubeCtx := s.Get("kubernetes", "context")
 	services := servicesForArgs(s, nil)
+	stopPortForwardsBeforeStart(os.Stdout, services, true)
 
 	var lines []string
 	for _, svc := range services {

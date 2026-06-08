@@ -1,0 +1,10 @@
+{
+  "type": "https://api.hyperfleet.io/errors/not-found",
+  "title": "Resource Not Found",
+  "status": 404,
+  "detail": "Cluster with id='spec.counter=99' not found",
+  "instance": "/api/hyperfleet/v1/clusters/spec.counter=99",
+  "code": "HYPERFLEET-NTF-001",
+  "timestamp": "2026-06-05T06:34:43.834418291Z",
+  "trace_id": "019e967d-bef9-726b-be6f-9406f0f925e8"
+}

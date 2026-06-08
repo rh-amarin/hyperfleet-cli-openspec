@@ -1,0 +1,4 @@
+COMMAND: hf rs nodepools id
+EXIT: 0
+────────────────────────────────────────
+019e91e5-563b-7237-8ea1-dad12be1eea3

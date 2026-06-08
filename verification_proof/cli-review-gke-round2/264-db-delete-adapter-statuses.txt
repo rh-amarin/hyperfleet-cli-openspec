@@ -1,0 +1,5 @@
+COMMAND: echo yes | hf db delete adapter_statuses
+EXIT: 0
+────────────────────────────────────────
+adapter_statuses: 13 rows
+Type 'yes' to confirm deletion: Deleted 13 rows from adapter_statuses

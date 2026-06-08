@@ -1,0 +1,17 @@
+COMMAND: hf rabbitmq publish cluster hyperfleet.clusters
+EXIT: 1
+────────────────────────────────────────
+{
+  "specversion": "1.0",
+  "type": "com.redhat.hyperfleet.cluster.reconcile.v1",
+  "source": "/hyperfleet/service/sentinel",
+  "id": "019e9676-87d3-7442-bc77-68af9390abac",
+  "time": "2026-06-05T06:26:56Z",
+  "datacontenttype": "application/json",
+  "data": {
+    "id": "019e9676-87d3-7442-bc77-68af9390abac",
+    "kind": "Cluster",
+    "href": "http://localhost:8000/api/hyperfleet/v1/clusters/019e9676-87d3-7442-bc77-68af9390abac"
+  }
+}
+[ERROR] Failed to publish: http request: Post "http://localhost:15672/api/exchanges/%2F/hyperfleet.clusters/publish": dial tcp [::1]:15672: connect: connection refused

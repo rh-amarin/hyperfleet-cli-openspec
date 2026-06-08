@@ -1,0 +1,4 @@
+[INFO] Stopped hyperfleet-api
+[INFO] Stopped maestro-grpc
+[INFO] Stopped maestro-http
+[INFO] Stopped postgresql

@@ -1,0 +1,13 @@
+COMMAND: hf rs versions get
+EXIT: 0
+────────────────────────────────────────
+{
+  "type": "https://api.hyperfleet.io/errors/not-found",
+  "title": "Resource Not Found",
+  "status": 404,
+  "detail": "Version with id='019e91a2-9bec-70dc-a882-2e1ffbcf5bc9' not found",
+  "instance": "/api/hyperfleet/v1/channels/019e8dfd-6370-7d8f-b8a0-c8dc66a85a0f/versions/019e91a2-9bec-70dc-a882-2e1ffbcf5bc9",
+  "code": "HYPERFLEET-NTF-001",
+  "timestamp": "2026-06-05T06:12:53.345267571Z",
+  "trace_id": "019e9669-bfdf-717f-90ef-7ef2e3517ad7"
+}

@@ -67,6 +67,7 @@ func TestDeleteTargetTable(t *testing.T) {
 		{"clusters", "clusters", true},
 		{"nodepools", "node_pools", true},
 		{"adapter_statuses", "adapter_statuses", true},
+		{"resources", "resources", true},
 		{"ALL", "", false},
 		{"unknown", "", false},
 	}
@@ -78,5 +79,22 @@ func TestDeleteTargetTable(t *testing.T) {
 		if ok && got != tc.table {
 			t.Errorf("DeleteTargetTable(%q) = %q, want %q", tc.target, got, tc.table)
 		}
+	}
+}
+
+func TestDeleteTargets_AllIncludesResources(t *testing.T) {
+	var found bool
+	for _, d := range DeleteTargets {
+		if d.Name == "resources" && d.Table == "resources" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("DeleteTargets missing resources: %+v", DeleteTargets)
+	}
+	names := ValidDeleteTargetNames()
+	if len(names) != 4 {
+		t.Fatalf("expected 4 delete targets, got %v", names)
 	}
 }

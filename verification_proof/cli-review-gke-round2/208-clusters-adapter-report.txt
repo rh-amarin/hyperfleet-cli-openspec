@@ -1,0 +1,40 @@
+COMMAND: hf rs clusters adapter-report test-adapter True 1
+EXIT: 0
+────────────────────────────────────────
+[INFO] Reported adapter status for test-adapter on clusters 019e9676-87d3-7442-bc77-68af9390abac
+{
+  "adapter": "test-adapter",
+  "observed_generation": 1,
+  "conditions": [
+    {
+      "type": "Available",
+      "status": "True",
+      "last_transition_time": "2026-06-05T06:26:51Z",
+      "reason": "ManualStatusPost",
+      "message": "Status reported via hf rs adapter-report"
+    },
+    {
+      "type": "Applied",
+      "status": "True",
+      "last_transition_time": "2026-06-05T06:26:51Z",
+      "reason": "ManualStatusPost",
+      "message": "Status reported via hf rs adapter-report"
+    },
+    {
+      "type": "Health",
+      "status": "True",
+      "last_transition_time": "2026-06-05T06:26:51Z",
+      "reason": "ManualStatusPost",
+      "message": "Status reported via hf rs adapter-report"
+    },
+    {
+      "type": "Finalized",
+      "status": "True",
+      "last_transition_time": "2026-06-05T06:26:51Z",
+      "reason": "ManualStatusPost",
+      "message": "Status reported via hf rs adapter-report"
+    }
+  ],
+  "created_time": "2026-06-05T06:26:51Z",
+  "last_report_time": "2026-06-05T06:26:51Z"
+}

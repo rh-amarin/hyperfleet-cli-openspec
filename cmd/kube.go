@@ -92,6 +92,10 @@ var pfStartCmd = &cobra.Command{
 			fmt.Fprintf(cmd.OutOrStdout(), "[INFO] Kubernetes context: %s\n", ctxName)
 		}
 		services := servicesForArgs(s, args)
+		if services == nil {
+			return nil
+		}
+		stopPortForwardsBeforeStart(cmd.OutOrStdout(), services, len(args) == 0)
 		for _, svc := range services {
 			sr, err := kube.StartPortForward(kubeconfig, svc.namespace, svc.name, svc.serviceName, svc.podPattern, svc.localPort, svc.remotePort, kubeCtx)
 			if err != nil {
@@ -325,6 +329,44 @@ type configGetter interface {
 	Get(section, key string) string
 }
 
+// stopPortForwardsBeforeStart stops tracked port-forwards before a start attempt.
+// When stopAll is true (bare `start`), every tracked forward is stopped first.
+// Otherwise only the service names about to be started are stopped.
+func portForwardNamesToStop(services []serviceSpec, stopAll bool) []string {
+	if stopAll {
+		pfs, _ := kube.ListPortForwards()
+		names := make([]string, 0, len(pfs))
+		for _, pf := range pfs {
+			names = append(names, pf.Name)
+		}
+		return names
+	}
+	seen := make(map[string]bool, len(services))
+	names := make([]string, 0, len(services))
+	for _, svc := range services {
+		if seen[svc.name] {
+			continue
+		}
+		seen[svc.name] = true
+		names = append(names, svc.name)
+	}
+	return names
+}
+
+func stopPortForwardsBeforeStart(w io.Writer, services []serviceSpec, stopAll bool) {
+	names := portForwardNamesToStop(services, stopAll)
+	for _, name := range names {
+		if err := kube.StopPortForward(name); err != nil {
+			if strings.Contains(err.Error(), "no port-forward found") {
+				continue
+			}
+			fmt.Fprintf(w, "[WARN] stopping %s: %v\n", name, err)
+			continue
+		}
+		fmt.Fprintf(w, "[INFO] Stopped %s\n", name)
+	}
+}
+
 // printPortForwardStatus renders the live port-forward status table to w using
 // protocol-aware connectivity checks per predefined service.
 func printPortForwardStatus(w io.Writer, s configGetter) {
@@ -368,6 +410,8 @@ func checkPortForwardConnectivity(name string, localPort int, s configGetter) er
 		return kube.CheckMaestroHTTPConnectivity(localPort)
 	case "maestro-grpc":
 		return kube.CheckMaestroGRPCConnectivity(localPort)
+	case "rabbitmq":
+		return kube.CheckRabbitMQConnectivity(localPort)
 	default:
 		if kube.IsPortListening(localPort) {
 			return nil
@@ -412,6 +456,8 @@ func servicesForArgs(s interface{ Get(string, string) string }, args []string) [
 		{name: "maestro-grpc", serviceName: "maestro", podPattern: "maestro", namespace: maestroNS,
 			localPort: portVal(s, "port-forward", "maestro-grpc-port", 8090),
 			remotePort: portVal(s, "port-forward", "maestro-grpc-remote-port", 8090)},
+		{name: "rabbitmq", serviceName: "rabbitmq", podPattern: "rabbitmq", namespace: hfNS,
+			localPort: portVal(s, "port-forward", "rabbitmq-mgmt-port", 15672), remotePort: 15672},
 	}
 	if len(args) == 0 {
 		return all
@@ -441,7 +487,7 @@ func servicesForArgs(s interface{ Get(string, string) string }, args []string) [
 		ns := s.Get("hyperfleet", "namespace")
 		return []serviceSpec{{name: name, serviceName: name, podPattern: name, namespace: ns, localPort: lp, remotePort: rp}}
 	}
-	fmt.Fprintf(os.Stderr, "[ERROR] Unknown service %q. Known: hyperfleet-api, postgresql, maestro-http, maestro-grpc\n", name)
+	fmt.Fprintf(os.Stderr, "[ERROR] Unknown service %q. Known: hyperfleet-api, postgresql, maestro-http, maestro-grpc, rabbitmq\n", name)
 	return nil
 }
 

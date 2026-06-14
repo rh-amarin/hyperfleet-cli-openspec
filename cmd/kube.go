@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/rh-amarin/hyperfleet-cli/internal/kube"
@@ -17,6 +18,9 @@ import (
 )
 
 var kubeConfigFlag string
+
+// pidForPort is a var so tests can replace it without invoking lsof.
+var pidForPort = kube.PIDForPort
 
 // kubeCmd is the top-level group for Kubernetes operations.
 var kubeCmd = &cobra.Command{
@@ -364,6 +368,19 @@ func stopPortForwardsBeforeStart(w io.Writer, services []serviceSpec, stopAll bo
 			continue
 		}
 		fmt.Fprintf(w, "[INFO] Stopped %s\n", name)
+	}
+	// Second pass: kill any process still occupying a local port, even without a PID file.
+	for _, svc := range services {
+		pid, err := pidForPort(svc.localPort)
+		if err != nil {
+			continue
+		}
+		proc, err := os.FindProcess(pid)
+		if err != nil {
+			continue
+		}
+		_ = proc.Signal(syscall.SIGTERM)
+		fmt.Fprintf(w, "[INFO] Killed stray process %d on port %d\n", pid, svc.localPort)
 	}
 }
 

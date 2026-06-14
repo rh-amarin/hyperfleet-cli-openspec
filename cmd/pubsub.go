@@ -109,7 +109,7 @@ var pubsubPublishClusterCmd = &cobra.Command{
 
 		apiURL := s.Get("hyperfleet", "api-url")
 		apiVersion := s.Get("hyperfleet", "api-version")
-		data, err := pubsub.BuildClusterEvent(clusterID, apiURL, apiVersion)
+		data, err := pubsub.BuildGenericReconcileEvent("clusters", clusterID, nil, "clusters", apiURL, apiVersion)
 		if err != nil {
 			return fmt.Errorf("[ERROR] Failed to build event: %w", err)
 		}
@@ -154,7 +154,8 @@ var pubsubPublishNodePoolCmd = &cobra.Command{
 
 		apiURL := s.Get("hyperfleet", "api-url")
 		apiVersion := s.Get("hyperfleet", "api-version")
-		data, err := pubsub.BuildNodePoolEvent(clusterID, nodepoolID, apiURL, apiVersion)
+		npAncestors := []pubsub.AncestorID{{TypeName: "clusters", ID: clusterID, Path: "clusters"}}
+		data, err := pubsub.BuildGenericReconcileEvent("nodepools", nodepoolID, npAncestors, "clusters/"+clusterID+"/nodepools", apiURL, apiVersion)
 		if err != nil {
 			return fmt.Errorf("[ERROR] Failed to build event: %w", err)
 		}

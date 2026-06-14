@@ -19,7 +19,7 @@ func newTestServer(t *testing.T, upstream http.Handler) (*Server, *httptest.Serv
 	upstreamSrv := httptest.NewServer(upstream)
 	t.Cleanup(upstreamSrv.Close)
 
-	client := api.NewClient(upstreamSrv.URL+"/", "", false, false)
+	client := api.NewClient(upstreamSrv.URL+"/", "", false, false, "", "")
 	srv := New(client, 0, []byte("<html>test</html>"))
 	return srv, upstreamSrv
 }

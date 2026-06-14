@@ -329,6 +329,31 @@ func TestResolvedKubeconfig_Precedence(t *testing.T) {
 	resetKubeFlags()
 }
 
+// TestStopPortForwardsBeforeStart_StrayProcess verifies that stopPortForwardsBeforeStart
+// kills a process listening on the local port even when no PID file is tracked for that service.
+func TestStopPortForwardsBeforeStart_StrayProcess(t *testing.T) {
+	const fakePort = 19999
+	const fakePID = 99999
+
+	orig := pidForPort
+	pidForPort = func(port int) (int, error) {
+		if port == fakePort {
+			return fakePID, nil
+		}
+		return 0, fmt.Errorf("no process on port %d", port)
+	}
+	t.Cleanup(func() { pidForPort = orig })
+
+	services := []serviceSpec{{name: "test-svc", localPort: fakePort}}
+	var buf strings.Builder
+	stopPortForwardsBeforeStart(&buf, services, false)
+
+	want := fmt.Sprintf("[INFO] Killed stray process %d on port %d", fakePID, fakePort)
+	if !strings.Contains(buf.String(), want) {
+		t.Errorf("output = %q, want to contain %q", buf.String(), want)
+	}
+}
+
 func TestPortForwardNamesToStop_Targeted(t *testing.T) {
 	services := []serviceSpec{
 		{name: "hyperfleet-api"},

@@ -214,7 +214,7 @@ func TestPubSubPublishNodePool_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("pubsub publish nodepool: %v", err)
 	}
-	if !strings.Contains(string(gotData), "nodepool.reconcile") {
+	if !strings.Contains(string(gotData), "nodepools.reconcile") {
 		t.Errorf("expected nodepool event type in payload, got: %s", gotData)
 	}
 	if !strings.Contains(out, "[INFO] Published nodepool") {

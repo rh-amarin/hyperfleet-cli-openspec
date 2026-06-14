@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-func TestBuildClusterEvent(t *testing.T) {
-	data, err := BuildClusterEvent("cluster-123", "http://api.example.com", "v1")
+func TestBuildGenericReconcileEvent_RootResource(t *testing.T) {
+	data, err := BuildGenericReconcileEvent("clusters", "cluster-123", nil, "clusters", "http://api.example.com", "v1")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -18,29 +18,29 @@ func TestBuildClusterEvent(t *testing.T) {
 	}
 
 	checkString(t, ev, "specversion", "1.0")
-	checkString(t, ev, "type", "com.redhat.hyperfleet.cluster.reconcile.v1")
+	checkString(t, ev, "type", "com.redhat.hyperfleet.clusters.reconcile.v1")
 	checkString(t, ev, "source", "/hyperfleet/service/sentinel")
 	checkString(t, ev, "id", "cluster-123")
 	checkString(t, ev, "datacontenttype", "application/json")
 
-	var d map[string]string
+	var d map[string]json.RawMessage
 	if err := json.Unmarshal(ev["data"], &d); err != nil {
 		t.Fatalf("invalid data JSON: %v", err)
 	}
-	if d["id"] != "cluster-123" {
-		t.Errorf("data.id = %q, want %q", d["id"], "cluster-123")
-	}
-	if d["kind"] != "Cluster" {
-		t.Errorf("data.kind = %q, want %q", d["kind"], "Cluster")
-	}
-	wantHref := "http://api.example.com/api/hyperfleet/v1/clusters/cluster-123"
-	if d["href"] != wantHref {
-		t.Errorf("data.href = %q, want %q", d["href"], wantHref)
+	checkRawString(t, d, "id", "cluster-123")
+	checkRawString(t, d, "kind", "clusters")
+	checkRawString(t, d, "href", "http://api.example.com/api/hyperfleet/v1/clusters/cluster-123")
+
+	if _, ok := d["owner_references"]; ok {
+		t.Error("root resource must not have owner_references")
 	}
 }
 
-func TestBuildNodePoolEvent(t *testing.T) {
-	data, err := BuildNodePoolEvent("cluster-123", "np-456", "http://api.example.com", "v1")
+func TestBuildGenericReconcileEvent_ChildResource(t *testing.T) {
+	ancestors := []AncestorID{
+		{TypeName: "clusters", ID: "cluster-123", Path: "clusters"},
+	}
+	data, err := BuildGenericReconcileEvent("nodepools", "np-456", ancestors, "clusters/cluster-123/nodepools", "http://api.example.com", "v1")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -50,19 +50,16 @@ func TestBuildNodePoolEvent(t *testing.T) {
 		t.Fatalf("invalid JSON: %v", err)
 	}
 
-	checkString(t, ev, "specversion", "1.0")
-	checkString(t, ev, "type", "com.redhat.hyperfleet.nodepool.reconcile.v1")
+	checkString(t, ev, "type", "com.redhat.hyperfleet.nodepools.reconcile.v1")
 	checkString(t, ev, "id", "np-456")
 
 	var d map[string]json.RawMessage
 	if err := json.Unmarshal(ev["data"], &d); err != nil {
 		t.Fatalf("invalid data JSON: %v", err)
 	}
-
 	checkRawString(t, d, "id", "np-456")
-	checkRawString(t, d, "kind", "NodePool")
-	wantHref := "http://api.example.com/api/hyperfleet/v1/clusters/cluster-123/nodepools/np-456"
-	checkRawString(t, d, "href", wantHref)
+	checkRawString(t, d, "kind", "nodepools")
+	checkRawString(t, d, "href", "http://api.example.com/api/hyperfleet/v1/clusters/cluster-123/nodepools/np-456")
 
 	var owner map[string]string
 	if err := json.Unmarshal(d["owner_references"], &owner); err != nil {
@@ -71,30 +68,56 @@ func TestBuildNodePoolEvent(t *testing.T) {
 	if owner["id"] != "cluster-123" {
 		t.Errorf("owner.id = %q, want %q", owner["id"], "cluster-123")
 	}
-	if owner["kind"] != "Cluster" {
-		t.Errorf("owner.kind = %q, want %q", owner["kind"], "Cluster")
+	if owner["kind"] != "clusters" {
+		t.Errorf("owner.kind = %q, want %q", owner["kind"], "clusters")
 	}
-	wantClusterHref := "http://api.example.com/api/hyperfleet/v1/clusters/cluster-123"
-	if owner["href"] != wantClusterHref {
-		t.Errorf("owner.href = %q, want %q", owner["href"], wantClusterHref)
+	if owner["href"] != "http://api.example.com/api/hyperfleet/v1/clusters/cluster-123" {
+		t.Errorf("owner.href = %q", owner["href"])
 	}
 }
 
-func TestBuildClusterEvent_TrailingSlashAPIURL(t *testing.T) {
-	data, err := BuildClusterEvent("c1", "http://api.example.com/", "v2")
+func TestBuildGenericReconcileEvent_ImmediateParentOnly(t *testing.T) {
+	// Deeply nested: versions under channels — owner_references must be channels only, not any grandparent.
+	ancestors := []AncestorID{
+		{TypeName: "channels", ID: "ch-1", Path: "channels"},
+	}
+	data, err := BuildGenericReconcileEvent("versions", "v-2", ancestors, "channels/ch-1/versions", "http://api.example.com", "v1")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// The href path must not contain consecutive slashes (excluding the scheme "://").
+	var ev map[string]json.RawMessage
+	_ = json.Unmarshal(data, &ev)
+	var d map[string]json.RawMessage
+	_ = json.Unmarshal(ev["data"], &d)
+
+	var owner map[string]string
+	if err := json.Unmarshal(d["owner_references"], &owner); err != nil {
+		t.Fatalf("invalid owner_references JSON: %v", err)
+	}
+	if owner["kind"] != "channels" {
+		t.Errorf("owner.kind = %q, want %q", owner["kind"], "channels")
+	}
+}
+
+func TestBuildGenericReconcileEvent_MissingID(t *testing.T) {
+	_, err := BuildGenericReconcileEvent("clusters", "", nil, "clusters", "http://api.example.com", "v1")
+	if err == nil {
+		t.Fatal("expected error for empty resourceID")
+	}
+}
+
+func TestBuildGenericReconcileEvent_TrailingSlashAPIURL(t *testing.T) {
+	data, err := BuildGenericReconcileEvent("clusters", "c1", nil, "clusters", "http://api.example.com/", "v2")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	var ev map[string]json.RawMessage
 	_ = json.Unmarshal(data, &ev)
 	var d map[string]string
 	_ = json.Unmarshal(ev["data"], &d)
-	href := d["href"]
-	// Strip scheme (http://) before checking for double slashes in the path.
-	pathPart := strings.SplitN(href, "://", 2)
+	pathPart := strings.SplitN(d["href"], "://", 2)
 	if len(pathPart) == 2 && strings.Contains(pathPart[1], "//") {
-		t.Errorf("href path contains double slash: %s", href)
+		t.Errorf("href path contains double slash: %s", d["href"])
 	}
 }
 

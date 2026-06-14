@@ -36,7 +36,7 @@ func TestEntryFetcherFromAPI(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "", false, false)
+	client := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "", false, false, "", "")
 	fetcher := NewAPIFetcher(client)
 	entries, err := fetcher()
 	if err != nil {

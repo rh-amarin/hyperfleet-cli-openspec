@@ -1,0 +1,9 @@
+=== --curl dry-run (header inspection) ===
+[CURL] curl -s -X GET "http://localhost:8000/api/hyperfleet/v1/clusters" \
+  -H 'Accept: application/json' \
+  -H 'X-HyperFleet-Identity: openspec@test.com'
+
+=== Live call (hf resource list) ===
+ID                                    NAME        KIND     GEN  RECONCILED  LASTKNOWNR  ADAPTER1  ADAPTER2
+                                                                            ECONCILED             
+019ebfbb-f45a-75de-8f0b-aac844dc05fb  my-cluster  Cluster  1    [32m●[0m 1         [32m●[0m 1           [32m●[0m 1       [32m●[0m 1

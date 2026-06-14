@@ -5,6 +5,8 @@ hyperfleet:
   gcp-project: "hcm-hyperfleet"
   namespace: "hyperfleet"
   auto-port-forward: "false"
+  # identity-header: ""
+  # identity-value: ""
 
 kubernetes:
   context: ""

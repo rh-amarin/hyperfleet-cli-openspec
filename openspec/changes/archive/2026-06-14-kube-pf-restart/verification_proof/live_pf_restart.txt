@@ -1,0 +1,8 @@
+[INFO] Kubernetes context: gke_hcm-hyperfleet_europe-southwest1-a_hyperfleet-dev-amarin-eu1
+[INFO] Killed stray process 54761 on port 15672
+[INFO] Started rabbitmq (hyperfleet-healthy/svc/rabbitmq): localhost:15672 → 15672 (pid 55811)
+  [32m✓[0m hyperfleet-api - localhost:8000 (PID: 48874)
+  [32m✓[0m maestro-grpc - localhost:8090 (PID: 48921)
+  [32m✓[0m maestro-http - localhost:8100 (PID: 48918)
+  [32m✓[0m postgresql - localhost:5432 (PID: 48897)
+  [32m✓[0m rabbitmq - localhost:15672 (PID: 55811)

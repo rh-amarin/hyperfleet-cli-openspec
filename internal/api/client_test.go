@@ -22,7 +22,7 @@ type testResource struct {
 
 func newClient(t *testing.T, baseURL string) *api.Client {
 	t.Helper()
-	return api.NewClient(baseURL, "test-token", false, false)
+	return api.NewClient(baseURL, "test-token", false, false, "", "")
 }
 
 func TestGetHappyPath(t *testing.T) {
@@ -236,7 +236,7 @@ func TestBearerTokenHeader(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "secret-token", false, false)
+	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "secret-token", false, false, "", "")
 	api.Get[testResource](context.Background(), c, "resources/1")
 
 	if capturedAuth != "Bearer secret-token" {
@@ -253,7 +253,7 @@ func TestNoTokenNoAuthHeader(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "", false, false)
+	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "", false, false, "", "")
 	api.Get[testResource](context.Background(), c, "resources/1")
 
 	if capturedAuth != "" {
@@ -269,7 +269,7 @@ func TestVerboseLogging(t *testing.T) {
 	defer srv.Close()
 
 	// verbose=true should not panic or error
-	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "", true, false)
+	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "", true, false, "", "")
 	_, err := api.Get[testResource](context.Background(), c, "resources/1")
 	if err != nil {
 		t.Fatalf("Get with verbose: %v", err)
@@ -277,7 +277,7 @@ func TestVerboseLogging(t *testing.T) {
 }
 
 func TestResourceHref(t *testing.T) {
-	c := api.NewClient("http://localhost:8000/api/hyperfleet/v1/", "", false, false)
+	c := api.NewClient("http://localhost:8000/api/hyperfleet/v1/", "", false, false, "", "")
 
 	href := c.ResourceHref("clusters/abc-123")
 	want := "http://localhost:8000/api/hyperfleet/v1/clusters/abc-123"
@@ -293,7 +293,7 @@ func TestTimeoutErrorFormat(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "", false, false)
+	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "", false, false, "", "")
 
 	// A context with a very short deadline causes the HTTP client to return a
 	// timeout error (url.Error wrapping context.DeadlineExceeded, Timeout()==true).
@@ -336,7 +336,7 @@ func TestCurlModeDryRun(t *testing.T) {
 		close(done)
 	}()
 
-	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "tok", false, true)
+	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "tok", false, true, "", "")
 	_, err = api.Get[testResource](context.Background(), c, "resources/1")
 
 	w.Close()
@@ -361,12 +361,99 @@ func TestCurlModeDryRunPost(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "", false, true)
+	c := api.NewClient(srv.URL+"/api/hyperfleet/v1/", "", false, true, "", "")
 	_, err := api.Post[testResource](context.Background(), c, "clusters", map[string]string{"name": "x"})
 	if !errors.Is(err, api.ErrDryRun) {
 		t.Fatalf("expected ErrDryRun, got %v", err)
 	}
 	if reqCount != 0 {
 		t.Errorf("expected no HTTP requests, got %d", reqCount)
+	}
+}
+
+func TestIdentityHeaderInjected(t *testing.T) {
+	methods := []struct {
+		name string
+		fn   func(c *api.Client) error
+	}{
+		{"GET", func(c *api.Client) error {
+			_, err := api.Get[testResource](context.Background(), c, "resources/1")
+			return err
+		}},
+		{"POST", func(c *api.Client) error {
+			_, err := api.Post[testResource](context.Background(), c, "resources", map[string]string{"name": "x"})
+			return err
+		}},
+		{"PATCH", func(c *api.Client) error {
+			_, err := api.Patch[testResource](context.Background(), c, "resources/1", map[string]string{"name": "y"})
+			return err
+		}},
+		{"DELETE", func(c *api.Client) error {
+			_, err := api.Delete[testResource](context.Background(), c, "resources/1")
+			return err
+		}},
+	}
+
+	for _, m := range methods {
+		m := m
+		t.Run(m.name, func(t *testing.T) {
+			var gotHeader string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				gotHeader = r.Header.Get("X-HyperFleet-Identity")
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(testResource{ID: "1", Name: "test"})
+			}))
+			defer srv.Close()
+
+			c := api.NewClient(srv.URL+"/", "", false, false, "X-HyperFleet-Identity", "openspec@test.com")
+			_ = m.fn(c)
+
+			if gotHeader != "openspec@test.com" {
+				t.Errorf("expected identity header 'openspec@test.com', got %q", gotHeader)
+			}
+		})
+	}
+}
+
+func TestIdentityHeaderAbsentWhenNotConfigured(t *testing.T) {
+	var gotHeader string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotHeader = r.Header.Get("X-HyperFleet-Identity")
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(testResource{ID: "1", Name: "test"})
+	}))
+	defer srv.Close()
+
+	c := api.NewClient(srv.URL+"/", "", false, false, "", "")
+	_, _ = api.Get[testResource](context.Background(), c, "resources/1")
+
+	if gotHeader != "" {
+		t.Errorf("expected no identity header, got %q", gotHeader)
+	}
+}
+
+func TestIdentityHeaderInCurlOutput(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer srv.Close()
+
+	old := os.Stderr
+	r, w, _ := os.Pipe()
+	var stderr strings.Builder
+	os.Stderr = w
+	done := make(chan struct{})
+	go func() {
+		_, _ = io.Copy(&stderr, r)
+		close(done)
+	}()
+
+	c := api.NewClient(srv.URL+"/", "", false, true, "X-HyperFleet-Identity", "openspec@test.com")
+	_, _ = api.Get[testResource](context.Background(), c, "resources/1")
+
+	w.Close()
+	os.Stderr = old
+	<-done
+
+	if !strings.Contains(stderr.String(), "X-HyperFleet-Identity: openspec@test.com") {
+		t.Errorf("expected identity header in curl output, got: %q", stderr.String())
 	}
 }

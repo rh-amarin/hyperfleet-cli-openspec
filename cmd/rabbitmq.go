@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/rh-amarin/hyperfleet-cli/internal/config"
 	"github.com/rh-amarin/hyperfleet-cli/internal/pubsub"
 	"github.com/spf13/cobra"
 )
@@ -25,22 +26,17 @@ var rabbitmqCmd = &cobra.Command{
 Subcommands: publish.`,
 }
 
-// rabbitmqPublishCmd is the parent for rabbitmq publish subcommands.
+// rabbitmqPublishCmd publishes a reconcile CloudEvent for any configured resource type.
 var rabbitmqPublishCmd = &cobra.Command{
-	Use:   "publish",
-	Short: "Publish a CloudEvent to a RabbitMQ exchange",
-}
-
-// rabbitmqPublishClusterCmd publishes a cluster reconcile event to RabbitMQ.
-var rabbitmqPublishClusterCmd = &cobra.Command{
-	Use:   "cluster <exchange> [routing-key]",
-	Short: "Publish a cluster reconcile event to a RabbitMQ exchange",
-	Args:  cobra.RangeArgs(1, 2),
+	Use:   "publish <resource-type> <exchange> [routing-key]",
+	Short: "Publish a reconcile CloudEvent to a RabbitMQ exchange",
+	Args:  cobra.RangeArgs(2, 3),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		exchange := args[0]
+		typeName := args[0]
+		exchange := args[1]
 		routingKey := ""
-		if len(args) > 1 {
-			routingKey = args[1]
+		if len(args) > 2 {
+			routingKey = args[2]
 		}
 
 		s, err := loadConfig()
@@ -48,14 +44,30 @@ var rabbitmqPublishClusterCmd = &cobra.Command{
 			return err
 		}
 
-		clusterID := s.GetState("clusters")
-		if clusterID == "" {
-			return fmt.Errorf("[ERROR] No clusters set in state. Run 'hf cluster create' or 'hf cluster search <name>' first.")
+		def, err := s.ResourceType(typeName)
+		if err != nil {
+			return err
+		}
+
+		// Check ancestor state before own state so missing-parent errors surface first.
+		ancestors, err := buildRabbitAncestors(s, typeName)
+		if err != nil {
+			return err
+		}
+
+		resourceID := s.GetState(def.StateKey)
+		if resourceID == "" {
+			return fmt.Errorf("[ERROR] No %s set in state. Run 'hf resource %s search <name>' first.", def.StateKey, typeName)
+		}
+
+		resourcePath, err := s.ResolveResourcePath(typeName)
+		if err != nil {
+			return err
 		}
 
 		apiURL := s.Get("hyperfleet", "api-url")
 		apiVersion := s.Get("hyperfleet", "api-version")
-		data, err := pubsub.BuildClusterEvent(clusterID, apiURL, apiVersion)
+		data, err := pubsub.BuildGenericReconcileEvent(typeName, resourceID, ancestors, resourcePath, apiURL, apiVersion)
 		if err != nil {
 			return fmt.Errorf("[ERROR] Failed to build event: %w", err)
 		}
@@ -75,62 +87,41 @@ var rabbitmqPublishClusterCmd = &cobra.Command{
 		); err != nil {
 			return fmt.Errorf("[ERROR] Failed to publish: %w", err)
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "[INFO] Published cluster %s to exchange %s\n", clusterID, exchange)
+		fmt.Fprintf(cmd.OutOrStdout(), "[INFO] Published %s %s to exchange %s\n", typeName, resourceID, exchange)
 		return nil
 	},
 }
 
-// rabbitmqPublishNodePoolCmd publishes a nodepool reconcile event to RabbitMQ.
-var rabbitmqPublishNodePoolCmd = &cobra.Command{
-	Use:   "nodepool <exchange> [routing-key]",
-	Short: "Publish a nodepool reconcile event to a RabbitMQ exchange",
-	Args:  cobra.RangeArgs(1, 2),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		exchange := args[0]
-		routingKey := ""
-		if len(args) > 1 {
-			routingKey = args[1]
-		}
+// buildRabbitAncestors walks the parent chain for typeName and returns AncestorID entries
+// ordered root→immediate-parent, each with their state-resolved IDs and paths.
+func buildRabbitAncestors(s *config.Store, typeName string) ([]pubsub.AncestorID, error) {
+	def, err := s.ResourceType(typeName)
+	if err != nil {
+		return nil, err
+	}
+	if def.Parent == "" {
+		return nil, nil
+	}
 
-		s, err := loadConfig()
+	var ancestors []pubsub.AncestorID
+	current := def.Parent
+	for current != "" {
+		parentDef, err := s.ResourceType(current)
 		if err != nil {
-			return err
+			return nil, err
 		}
-
-		clusterID := s.GetState("clusters")
-		if clusterID == "" {
-			return fmt.Errorf("[ERROR] No clusters set in state. Run 'hf cluster create' or 'hf cluster search <name>' first.")
+		id := s.GetState(parentDef.StateKey)
+		if id == "" {
+			return nil, fmt.Errorf("[ERROR] No %s set in state. Run 'hf resource %s search <name>' first.", parentDef.StateKey, current)
 		}
-		nodepoolID := s.GetState("nodepools")
-		if nodepoolID == "" {
-			return fmt.Errorf("[ERROR] No nodepools set in state. Run 'hf nodepool create' or 'hf nodepool use <id>' first.")
-		}
-
-		apiURL := s.Get("hyperfleet", "api-url")
-		apiVersion := s.Get("hyperfleet", "api-version")
-		data, err := pubsub.BuildNodePoolEvent(clusterID, nodepoolID, apiURL, apiVersion)
+		path, err := s.ResolveResourcePath(current)
 		if err != nil {
-			return fmt.Errorf("[ERROR] Failed to build event: %w", err)
+			return nil, err
 		}
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
-
-		baseURL := rabbitBaseURL(s)
-		rabbit := rabbitFactory()
-		if err := rabbit.Publish(
-			context.Background(),
-			baseURL,
-			s.Get("rabbitmq", "user"),
-			s.Get("rabbitmq", "password"),
-			s.Get("rabbitmq", "vhost"),
-			exchange,
-			routingKey,
-			data,
-		); err != nil {
-			return fmt.Errorf("[ERROR] Failed to publish: %w", err)
-		}
-		fmt.Fprintf(cmd.OutOrStdout(), "[INFO] Published nodepool %s to exchange %s\n", nodepoolID, exchange)
-		return nil
-	},
+		ancestors = append([]pubsub.AncestorID{{TypeName: current, ID: id, Path: path}}, ancestors...)
+		current = parentDef.Parent
+	}
+	return ancestors, nil
 }
 
 // rabbitBaseURL constructs the HTTP management API base URL.
@@ -143,6 +134,4 @@ func rabbitBaseURL(s interface{ Get(string, string) string }) string {
 func init() {
 	rootCmd.AddCommand(rabbitmqCmd)
 	rabbitmqCmd.AddCommand(rabbitmqPublishCmd)
-	rabbitmqPublishCmd.AddCommand(rabbitmqPublishClusterCmd)
-	rabbitmqPublishCmd.AddCommand(rabbitmqPublishNodePoolCmd)
 }

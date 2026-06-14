@@ -29,7 +29,9 @@ PID files stored at `~/.config/hf/pf-<name>.pid`.
 - **WHEN** the user runs `hf kube port-forward start`
 - **THEN** the first line of output MUST be `[INFO] Kubernetes context: <contextName>`
 - **AND** the CLI MUST stop all tracked port-forwards before starting new ones
-- **AND** print `[INFO] Stopped <name>` for each stopped forward
+- **AND** print `[INFO] Stopped <name>` for each tracked forward that is stopped
+- **AND** the CLI MUST additionally kill any process still listening on each service's local port, even if no PID file exists for that service
+- **AND** print `[INFO] Killed stray process <pid> on port <port>` when such a process is found and terminated
 - **AND** the CLI MUST start background port-forward processes for all 5 predefined services
 - **AND** print `[INFO] Started <name> (<namespace>/svc/<serviceName>): localhost:<localPort> → <remotePort> (pid <pid>)` for each service forwarded via a Kubernetes Service
 - **AND** print `[INFO] Started <name> (<namespace>/pod/<podName>): localhost:<localPort> → <remotePort> (pid <pid>)` for each service forwarded via pod fallback
@@ -40,6 +42,8 @@ PID files stored at `~/.config/hf/pf-<name>.pid`.
 
 - **WHEN** the user runs `hf kube port-forward start <name>`
 - **THEN** the CLI MUST stop the tracked port-forward for `<name>` when one exists
+- **AND** the CLI MUST additionally kill any process still listening on the service's local port, even if no PID file exists for that service
+- **AND** print `[INFO] Killed stray process <pid> on port <port>` when such a process is found and terminated
 - **AND** the CLI MUST start the named predefined service only
 - **AND** display the namespace-enriched start line and connectivity status table for that service
 

@@ -135,41 +135,68 @@ The CLI SHALL publish a nodepool reconcile event to a GCP Pub/Sub topic.
 - AND both cluster-id and nodepool-id MUST be read from state (no HyperFleet API fetch)
 - AND all hrefs MUST be constructed using the configured `api-url` and `api-version`
 
-### Requirement: Publish Cluster Change Event to RabbitMQ
+### Requirement: Publish Any Resource Reconcile Event to RabbitMQ
 
-The CLI SHALL publish a cluster reconcile event to a RabbitMQ exchange via the HTTP Management API.
+The CLI SHALL publish a reconcile CloudEvent for any resource type defined in the active environment's `resource-types` configuration.
 
-#### Scenario: Publish cluster event to RabbitMQ
+#### Scenario: Unknown resource type
 
-- GIVEN rabbitmq-host, rabbitmq-mgmt-port, rabbitmq-user, rabbitmq-password, rabbitmq-vhost, and cluster-id are configured
-- WHEN the user runs `hf rabbitmq publish cluster <exchange> [routing-key]`
+- GIVEN an active environment with `resource-types` configured
+- WHEN the user runs `hf rabbitmq publish <resource-type> <exchange>` where `<resource-type>` is not defined in `resource-types`
+- THEN the CLI MUST display `[ERROR] unknown resource type "<resource-type>"`
+- AND exit with code 1
+
+#### Scenario: Missing state for resource
+
+- GIVEN an active environment with `resource-types` configured
+- WHEN the user runs `hf rabbitmq publish <resource-type> <exchange>`
+- AND the resource's ID or any required ancestor ID is not set in state
+- THEN the CLI MUST display the appropriate missing-state error
+- AND exit with code 1
+
+#### Scenario: Publish root resource event
+
+- GIVEN a root resource type (no parent) with its ID set in state
+- WHEN the user runs `hf rabbitmq publish <resource-type> <exchange> [routing-key]`
 - THEN the CLI MUST print the CloudEvent JSON to stdout
-- AND send a POST to `http://{host}:{mgmt-port}/api/exchanges/{vhost-encoded}/{exchange}/publish`
-- AND the vhost MUST be URL-encoded (`/` becomes `%2F`)
-- AND the request body MUST be:
+- AND publish the following CloudEvent 1.0 message via the RabbitMQ HTTP Management API:
   ```json
   {
-    "properties": {},
-    "routing_key": "<routing-key>",
-    "payload": "<CloudEvent JSON string>",
-    "payload_encoding": "string"
+    "specversion": "1.0",
+    "type": "com.redhat.hyperfleet.<typeName>.reconcile.v1",
+    "source": "/hyperfleet/service/sentinel",
+    "id": "<resource-id>",
+    "time": "<UTC ISO8601>",
+    "datacontenttype": "application/json",
+    "data": {
+      "id": "<resource-id>",
+      "kind": "<typeName>",
+      "href": "{api-url}/api/hyperfleet/{api-version}/{path}/{resource-id}"
+    }
   }
   ```
-- AND the CloudEvent payload MUST use the same cluster envelope as `hf pubsub publish cluster`
-- AND cluster-id MUST be read from state (no HyperFleet API fetch)
+- AND `<typeName>` MUST be the `resource-types` key verbatim (plural, e.g. `clusters`)
+- AND the `href` MUST be constructed from the configured `api-url` and `api-version`
+- AND the vhost MUST be URL-encoded (`/` becomes `%2F`)
 - AND routing-key defaults to empty string when not provided
+- AND print `[INFO] Published <typeName> <id> to exchange <exchange>` on success
 
-### Requirement: Publish NodePool Change Event to RabbitMQ
+#### Scenario: Publish child resource event
 
-The CLI SHALL publish a nodepool reconcile event to a RabbitMQ exchange via the HTTP Management API.
-
-#### Scenario: Publish nodepool event to RabbitMQ
-
-- GIVEN rabbitmq-host, rabbitmq-mgmt-port, rabbitmq-user, rabbitmq-password, rabbitmq-vhost, cluster-id, and nodepool-id are configured
-- WHEN the user runs `hf rabbitmq publish nodepool <exchange> [routing-key]`
-- THEN the CLI MUST print the CloudEvent JSON to stdout
-- AND send a POST to `http://{host}:{mgmt-port}/api/exchanges/{vhost-encoded}/{exchange}/publish`
-- AND the CloudEvent payload MUST use the same nodepool envelope as `hf pubsub publish nodepool`
-- AND both cluster-id and nodepool-id MUST be read from state (no HyperFleet API fetch)
-- AND routing-key defaults to empty string when not provided
+- GIVEN a child resource type with its ID and all ancestor IDs set in state
+- WHEN the user runs `hf rabbitmq publish <resource-type> <exchange> [routing-key]`
+- THEN the CloudEvent data MUST include `owner_references` for the immediate parent:
+  ```json
+  {
+    "id": "<resource-id>",
+    "kind": "<typeName>",
+    "href": "...",
+    "owner_references": {
+      "id": "<parent-id>",
+      "kind": "<parentTypeName>",
+      "href": "{api-url}/api/hyperfleet/{api-version}/{parent-path}/{parent-id}"
+    }
+  }
+  ```
+- AND `owner_references` MUST reference only the immediate parent (not the full ancestor chain)
 

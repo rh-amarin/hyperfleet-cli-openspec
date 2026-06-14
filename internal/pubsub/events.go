@@ -17,17 +17,11 @@ type cloudEvent struct {
 	Data            json.RawMessage `json:"data"`
 }
 
-type clusterData struct {
-	ID   string `json:"id"`
-	Kind string `json:"kind"`
-	Href string `json:"href"`
-}
-
-type nodepoolData struct {
-	ID              string          `json:"id"`
-	Kind            string          `json:"kind"`
-	Href            string          `json:"href"`
-	OwnerReferences ownerRef        `json:"owner_references"`
+type resourceData struct {
+	ID              string    `json:"id"`
+	Kind            string    `json:"kind"`
+	Href            string    `json:"href"`
+	OwnerReferences *ownerRef `json:"owner_references,omitempty"`
 }
 
 type ownerRef struct {
@@ -36,57 +30,53 @@ type ownerRef struct {
 	Href string `json:"href"`
 }
 
-func baseURL(apiURL, apiVersion string) string {
+// AncestorID holds the resolved identity of one ancestor resource, ordered root→immediate-parent.
+type AncestorID struct {
+	TypeName string // resource-types key (e.g. "clusters")
+	ID       string // active ID from state
+	Path     string // resolved API path for this ancestor (e.g. "clusters")
+}
+
+func apiBase(apiURL, apiVersion string) string {
 	return strings.TrimRight(apiURL, "/") + "/api/hyperfleet/" + apiVersion
 }
 
-// BuildClusterEvent returns a marshalled CloudEvent 1.0 for cluster reconciliation.
-func BuildClusterEvent(clusterID, apiURL, apiVersion string) ([]byte, error) {
-	base := baseURL(apiURL, apiVersion)
-	href := fmt.Sprintf("%s/clusters/%s", base, clusterID)
+// BuildGenericReconcileEvent returns a marshalled CloudEvent 1.0 for any resource type.
+// ancestors must be ordered root→immediate-parent; may be empty for root resources.
+// resourcePath is the resolved API path for the resource (e.g. "clusters/id/nodepools").
+func BuildGenericReconcileEvent(typeName, resourceID string, ancestors []AncestorID, resourcePath, apiURL, apiVersion string) ([]byte, error) {
+	if resourceID == "" {
+		return nil, fmt.Errorf("resourceID is required")
+	}
+	base := apiBase(apiURL, apiVersion)
+	href := fmt.Sprintf("%s/%s/%s", base, resourcePath, resourceID)
 
-	data, err := json.Marshal(clusterData{ID: clusterID, Kind: "Cluster", Href: href})
+	rd := resourceData{
+		ID:   resourceID,
+		Kind: typeName,
+		Href: href,
+	}
+
+	if len(ancestors) > 0 {
+		parent := ancestors[len(ancestors)-1]
+		parentHref := fmt.Sprintf("%s/%s/%s", base, parent.Path, parent.ID)
+		rd.OwnerReferences = &ownerRef{
+			ID:   parent.ID,
+			Kind: parent.TypeName,
+			Href: parentHref,
+		}
+	}
+
+	data, err := json.Marshal(rd)
 	if err != nil {
 		return nil, err
 	}
 
 	ev := cloudEvent{
 		SpecVersion:     "1.0",
-		Type:            "com.redhat.hyperfleet.cluster.reconcile.v1",
+		Type:            fmt.Sprintf("com.redhat.hyperfleet.%s.reconcile.v1", typeName),
 		Source:          "/hyperfleet/service/sentinel",
-		ID:              clusterID,
-		Time:            time.Now().UTC().Format(time.RFC3339),
-		DataContentType: "application/json",
-		Data:            data,
-	}
-	return json.MarshalIndent(ev, "", "  ")
-}
-
-// BuildNodePoolEvent returns a marshalled CloudEvent 1.0 for nodepool reconciliation.
-func BuildNodePoolEvent(clusterID, nodepoolID, apiURL, apiVersion string) ([]byte, error) {
-	base := baseURL(apiURL, apiVersion)
-	clusterHref := fmt.Sprintf("%s/clusters/%s", base, clusterID)
-	npHref := fmt.Sprintf("%s/clusters/%s/nodepools/%s", base, clusterID, nodepoolID)
-
-	data, err := json.Marshal(nodepoolData{
-		ID:   nodepoolID,
-		Kind: "NodePool",
-		Href: npHref,
-		OwnerReferences: ownerRef{
-			ID:   clusterID,
-			Kind: "Cluster",
-			Href: clusterHref,
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	ev := cloudEvent{
-		SpecVersion:     "1.0",
-		Type:            "com.redhat.hyperfleet.nodepool.reconcile.v1",
-		Source:          "/hyperfleet/service/sentinel",
-		ID:              nodepoolID,
+		ID:              resourceID,
 		Time:            time.Now().UTC().Format(time.RFC3339),
 		DataContentType: "application/json",
 		Data:            data,
